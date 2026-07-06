@@ -73,3 +73,10 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+
+# 언리얼 제외 폴더
+Saved/
+Binaries/
+Intermediate/
+DerivedDataCache/
