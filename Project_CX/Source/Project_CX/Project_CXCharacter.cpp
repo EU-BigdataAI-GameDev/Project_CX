@@ -38,8 +38,9 @@ AProject_CXCharacter::AProject_CXCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 500.0f;
+	CameraBoom->TargetArmLength = 600.0f;
 	CameraBoom->bUsePawnControlRotation = false;
+
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
