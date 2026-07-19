@@ -38,8 +38,9 @@ AProject_CXCharacter::AProject_CXCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
-	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->TargetArmLength = 600.0f;
+	CameraBoom->bUsePawnControlRotation = false;
+
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -95,14 +96,21 @@ void AProject_CXCharacter::DoMove(float Right, float Forward)
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward
-		const FRotator Rotation = GetController()->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
+		//컨트롤러 방향 기준으로 마우스 돌리면 기준축이 바뀜
+		//const FRotator Rotation = GetController()->GetControlRotation();
+		//const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		//// get forward vector
+		//const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
-		// get right vector 
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		//// get right vector 
+		//const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		//수정 사항
+		// 마우스가 어디를 보든 무시하고 월드 절대축을 기준으로 이동 방향 결정
+		// X축(1,0,0)을 전진 방향, Y축(0,1,0)을 우측 방향으로 고정
+		const FVector ForwardDirection = FVector(1.0f, 0.0f, 0.0f);
+		const FVector RightDirection = FVector(0.0f, 1.0f, 0.0f);
 
 		// add movement 
 		AddMovementInput(ForwardDirection, Forward);
@@ -112,12 +120,12 @@ void AProject_CXCharacter::DoMove(float Right, float Forward)
 
 void AProject_CXCharacter::DoLook(float Yaw, float Pitch)
 {
-	if (GetController() != nullptr)
-	{
-		// add yaw and pitch input to controller
-		AddControllerYawInput(Yaw);
-		AddControllerPitchInput(Pitch);
-	}
+	//if (GetController() != nullptr)
+	//{
+	//	// add yaw and pitch input to controller
+	//	AddControllerYawInput(Yaw);
+	//	AddControllerPitchInput(Pitch);
+	//}
 }
 
 void AProject_CXCharacter::DoJumpStart()
