@@ -37,7 +37,9 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_SideScrolling/AI",
 			"Project_CX/Variant_SideScrolling/Gameplay",
 			"Project_CX/Variant_SideScrolling/Interfaces",
-			"Project_CX/Variant_SideScrolling/UI"
+			"Project_CX/Variant_SideScrolling/UI",
+			"Project_CX/Variant_BrotherCombat",
+			"Project_CX/Variant_BrotherCombat/Gameplay"
 		});
 
 		// Uncomment if you are using Slate UI
