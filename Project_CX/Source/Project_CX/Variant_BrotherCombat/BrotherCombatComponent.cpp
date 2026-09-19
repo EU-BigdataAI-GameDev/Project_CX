@@ -4,6 +4,7 @@
 #include "BrotherBullet.h"
 #include "CombatDamageable.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -34,24 +35,53 @@ void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		TryBindInput();
 	}
 
-	if (!bIsAiming)
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	if (!OwnerCharacter)
 	{
 		return;
 	}
 
-	// 엣지 케이스(공격 시스템.md 2.3): 타겟이 죽거나 사거리를 벗어나면 다음으로 가까운 적으로 재탐색.
-	if (!IsValid(CurrentTarget))
+	if (bIsAiming)
 	{
-		CurrentTarget = FindNearestTarget();
-		if (!CurrentTarget)
+		// 엣지 케이스(공격 시스템.md 2.3): 타겟이 죽거나 사거리를 벗어나면 다음으로 가까운 적으로 재탐색.
+		if (!IsValid(CurrentTarget))
 		{
-			bIsAiming = false;
-			return;
+			CurrentTarget = FindNearestTarget(AimRange, true);
+			if (!CurrentTarget)
+			{
+				bIsAiming = false;
+			}
 		}
 	}
+	else
+	{
+		// 조준 중이 아니어도, 근접 범위(기본 5m) 안에 적이 있으면 항상 그쪽을 자동으로 바라본다.
+		// 방향 제한(원뿔) 없이 순수 거리 기준 — 등 뒤에 붙어도 반응해야 자연스럽다.
+		CurrentTarget = FindNearestTarget(ProximityAutoFaceRange, false);
+	}
 
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!OwnerCharacter)
+	UpdateFacing(OwnerCharacter, DeltaTime);
+}
+
+void UBrotherCombatComponent::UpdateFacing(ACharacter* OwnerCharacter, float DeltaTime)
+{
+	UCharacterMovementComponent* MovementComp = OwnerCharacter->GetCharacterMovement();
+	if (MovementComp && !bCachedDefaultOrientRotation)
+	{
+		bDefaultOrientRotationToMovement = MovementComp->bOrientRotationToMovement;
+		bCachedDefaultOrientRotation = true;
+	}
+
+	const bool bHasFacingTarget = IsValid(CurrentTarget);
+
+	if (MovementComp)
+	{
+		// 타겟을 바라보는 동안은 "이동 방향으로 자동 회전"을 꺼서 캐릭터 회전과 WASD 이동(스트레이프)을 분리한다.
+		// 타겟이 없어지면 원래 값으로 복원 — 그 순간부터 다시 이동 방향을 자연스럽게 바라보게 된다.
+		MovementComp->bOrientRotationToMovement = bHasFacingTarget ? false : bDefaultOrientRotationToMovement;
+	}
+
+	if (!bHasFacingTarget)
 	{
 		return;
 	}
@@ -100,7 +130,7 @@ void UBrotherCombatComponent::TryBindInput()
 	bInputBound = true;
 }
 
-AActor* UBrotherCombatComponent::FindNearestTarget() const
+AActor* UBrotherCombatComponent::FindNearestTarget(float Range, bool bApplyForwardCone) const
 {
 	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (!OwnerCharacter)
@@ -116,7 +146,7 @@ AActor* UBrotherCombatComponent::FindNearestTarget() const
 	const float ConeCos = FMath::Cos(FMath::DegreesToRadians(AimConeHalfAngleDeg));
 
 	AActor* BestTarget = nullptr;
-	float BestDistSq = FMath::Square(AimRange);
+	float BestDistSq = FMath::Square(Range);
 
 	for (AActor* Candidate : Candidates)
 	{
@@ -132,10 +162,13 @@ AActor* UBrotherCombatComponent::FindNearestTarget() const
 			continue;
 		}
 
-		const FVector ToCandidateDir = ToCandidate.GetSafeNormal();
-		if (FVector::DotProduct(OwnerForward, ToCandidateDir) < ConeCos)
+		if (bApplyForwardCone)
 		{
-			continue;
+			const FVector ToCandidateDir = ToCandidate.GetSafeNormal();
+			if (FVector::DotProduct(OwnerForward, ToCandidateDir) < ConeCos)
+			{
+				continue;
+			}
 		}
 
 		FHitResult HitResult;
@@ -157,7 +190,7 @@ AActor* UBrotherCombatComponent::FindNearestTarget() const
 
 void UBrotherCombatComponent::StartAim()
 {
-	CurrentTarget = FindNearestTarget();
+	CurrentTarget = FindNearestTarget(AimRange, true);
 	bIsAiming = (CurrentTarget != nullptr);
 }
 
@@ -183,15 +216,17 @@ void UBrotherCombatComponent::Fire()
 	const FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRotation().RotateVector(MuzzleOffset);
 
 	FVector AimDirection;
-	if (bIsAiming && IsValid(CurrentTarget))
+	if (IsValid(CurrentTarget))
 	{
+		// CurrentTarget은 우클릭 조준 중이거나, 근접 자동 조준 범위(기본 5m) 안에 적이 있을 때 채워져 있다.
+		// 두 경우 모두 "무조건 그 방향으로 발사"되어야 하므로 여기서 통합 처리한다.
 		AimDirection = (CurrentTarget->GetActorLocation() - SpawnLocation).GetSafeNormal();
 	}
 	else
 	{
-		// 공격 시스템.md 3.2: 조준 중이 아니면 이번 한 발만 즉시 재탐색한 방향으로 나간다
-		// (bIsAiming을 true로 바꾸지는 않는다 — 캐릭터가 계속 그 타겟을 보게 만들지 않기 위함).
-		AActor* OneShotTarget = FindNearestTarget();
+		// 공격 시스템.md 3.2: 조준 중이 아니고 근접 타겟도 없으면 이번 한 발만 즉시 재탐색한 방향으로 나간다
+		// (CurrentTarget/bIsAiming을 바꾸지는 않는다 — 캐릭터가 계속 그 타겟을 보게 만들지 않기 위함).
+		AActor* OneShotTarget = FindNearestTarget(AimRange, true);
 		AimDirection = OneShotTarget
 			? (OneShotTarget->GetActorLocation() - SpawnLocation).GetSafeNormal()
 			: OwnerCharacter->GetActorForwardVector();

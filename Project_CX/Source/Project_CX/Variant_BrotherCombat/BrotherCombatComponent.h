@@ -63,8 +63,15 @@ protected:
 	 */
 	void TryBindInput();
 
-	/** 사거리/전방 원뿔/시야(LOS)를 만족하는 ICombatDamageable 중 가장 가까운 것을 반환한다. 없으면 nullptr. */
-	AActor* FindNearestTarget() const;
+	/**
+	 *  Range 이내 + 시야(LOS)를 만족하는 ICombatDamageable 중 가장 가까운 것을 반환한다. 없으면 nullptr.
+	 *  bApplyForwardCone이 true면 캐릭터 전방 AimConeHalfAngleDeg 원뿔 밖의 후보는 제외한다
+	 *  (근접 자동 조준(5m)은 방향 상관없이 걸려야 하므로 false로 호출).
+	 */
+	AActor* FindNearestTarget(float Range, bool bApplyForwardCone) const;
+
+	/** CurrentTarget이 있으면 그쪽으로 캐릭터 회전을 보간하고, 이동 방향 자동 정렬(OrientRotationToMovement)을 잠시 끈다. 없으면 원래 값으로 복원한다. */
+	void UpdateFacing(class ACharacter* OwnerCharacter, float DeltaTime);
 
 	void StartReload();
 
@@ -97,6 +104,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	float AimRotationInterpSpeed = 10.0f;
 
+	/** 이 범위(기본 5m) 안에 적이 있으면 조준 여부와 무관하게 항상 그 방향으로 캐릭터가 회전하고, 발사도 그 방향으로 나간다. WASD 이동 자체는 그대로 자유롭다. */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
+	float ProximityAutoFaceRange = 500.0f;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	int32 MaxAmmo = 30;
 
@@ -113,4 +124,8 @@ protected:
 private:
 	FTimerHandle ReloadTimerHandle;
 	bool bInputBound = false;
+
+	/** UpdateFacing이 OrientRotationToMovement를 껐다가 되돌릴 때 쓸, 최초 1회 캐싱한 원래 값. */
+	bool bDefaultOrientRotationToMovement = true;
+	bool bCachedDefaultOrientRotation = false;
 };
