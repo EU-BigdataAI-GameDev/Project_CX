@@ -18,6 +18,18 @@
   - **해결 방향:** `BP_Brother`에 재점프 쿨다운(`bCanJump` bool + 타이머, 착지 전환 시간보다 살짝 길게)을 추가해 이전 전환이 끝난 뒤에만 재점프를 허용하도록 게이트. 또는 각 전환의 Blend Duration을 줄여서 겹칠 여지를 줄이는 방법도 고려.
   - **상태:** 미착수
 
+- [ ] 3. `BP_Brother`의 `BrotherCombat` 컴포넌트 설정(FireAction / AimAction / BulletClass)이 반복적으로 None으로 초기화됨
+  - **증상:** 오빠 좌클릭 발사/우클릭 조준이 갑자기 안 됨. Output Log에 `BrotherCombatComponent: FireAction이 지정되지 않아...` 경고. 지금까지 3회 발생.
+  - **원인(추정):** `BrotherCombatComponent.h`(UPROPERTY 추가 등)를 바꾼 뒤 **Live Coding**으로 컴파일하면 클래스가 재생성(reinstancing)되면서, 블루프린트에 저장된 컴포넌트 오버라이드 값이 초기화되는 것으로 보임. 두 번 모두 헤더 변경 + Live Coding 직후에 발생. 스크립트로 설정 후 컴파일·저장까지는 값이 유지되는 것을 확인함(2026-09-28).
+  - **해결 방향:** (1) 헤더 변경은 Live Coding 대신 에디터 종료 후 정식 빌드로 한다. (2) 재발하면 컴포넌트 생성자에 기본 에셋(IA_Fire/IA_Aim/BP_BrotherBullet) 폴백을 넣어, 오버라이드가 날아가도 기능이 죽지 않게 하는 방안 검토.
+  - **상태:** 값 재설정 완료, 원인 확정은 재발 여부로 판단
+
+- [ ] 4. 여동생 점프/착지 시 메시가 캡슐보다 떠 보임
+  - **증상:** `Sister_Anim_JumpStart` 마지막 프레임의 Hips가 서 있을 때보다 약 27cm(원본 기준) 높고, `JumpEnd`는 그 높이에서 시작해 내려옴. 그래서 공중에서는 몸이 캡슐 위로 튀어나오고, 착지 순간 캡슐은 땅에 닿았는데 메시는 아직 떠 있다가 내려앉음.
+  - **원인:** Mixamo 점프 애니메이션에 수직 이동이 포함되어 있음(In Place 아님).
+  - **해결 방향:** 거슬리면 Mixamo에서 In Place 버전을 받거나, 애니메이션의 Hips Z 이동을 Blender에서 제거.
+  - **상태:** 관찰 필요
+
 ---
 
 ## 항목 추가 규칙
