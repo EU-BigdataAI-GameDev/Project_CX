@@ -1,0 +1,70 @@
+title: "[RETRO] "
+labels: ["retrospective"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 스프린트 회고 (Retrospective)
+        팀이 함께 성장하는 시간입니다. 솔직하게, 건설적으로 작성해주세요.
+
+  - type: input
+    id: sprint-period
+    attributes:
+      label: "스프린트 기간"
+      placeholder: "예: 2024-12-01 ~ 2024-12-14"
+    validations:
+      required: true
+
+  - type: textarea
+    id: went-well
+    attributes:
+      label: "잘 됐던 점 (What Went Well)"
+      description: "이번 스프린트에서 좋았던 것들을 팀원별로 공유해주세요."
+      placeholder: |
+        - 코드 리뷰를 빠르게 처리한 점이 좋았음
+        - 아트 에셋 전달이 예상보다 빨랐음
+    validations:
+      required: true
+
+  - type: textarea
+    id: went-wrong
+    attributes:
+      label: "아쉬웠던 점 (What Could Be Improved)"
+      description: "개선이 필요한 부분을 솔직하게 적어주세요. 비난 아닌 개선 목적입니다."
+      placeholder: |
+        - PR 올리기 전 로컬 테스트를 충분히 안 한 경우가 있었음
+        - 이슈 설명이 부족해서 담당자가 추가 질문해야 했음
+    validations:
+      required: true
+
+  - type: textarea
+    id: action-items
+    attributes:
+      label: "액션 아이템 (Action Items)"
+      description: "다음 스프린트에서 실제로 바꿀 것들을 명확하게 적어주세요."
+      placeholder: |
+        - [ ] PR 전 체크리스트 도입 (담당: 개발팀)
+        - [ ] 이슈 템플릿에 '재현 영상' 필드 추가 (담당: PM)
+    validations:
+      required: false
+
+  - type: textarea
+    id: milestone-progress
+    attributes:
+      label: "마일스톤 진행 상황 (Milestone Progress)"
+      description: "이번 스프린트의 목표 대비 달성률을 간략히 정리해주세요."
+      placeholder: |
+        - 플레이어 이동 구현: 완료
+        - 기본 UI 레이아웃: 70% 완료
+        - 배경 타일셋 1세트: 완료
+    validations:
+      required: false
+
+  - type: textarea
+    id: shoutouts
+    attributes:
+      label: "팀원 칭찬 (Shoutouts)"
+      description: "이번 스프린트에서 특별히 고마웠던 팀원이나 기여를 공유해주세요."
+      placeholder: "예: @팀원 이번에 야근하면서 충돌 버그 잡아줘서 고마웠어!"
+    validations:
+      required: false

@@ -1,0 +1,110 @@
+name: "🐛 버그 리포트"
+description: "게임 플레이 중 발생한 버그를 제보합니다."
+title: "[BUG] "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 버그를 발견하셨나요?
+        재현 가능한 버그만 이슈로 올려주세요. 단순 질문은 Discussions를 이용해주세요.
+
+  - type: dropdown
+    id: bug-category
+    attributes:
+      label: "버그 분류"
+      description: "어떤 영역에서 발생한 버그인가요?"
+      options:
+        - "게임플레이 (Gameplay)"
+        - "물리 / 충돌 (Physics / Collision)"
+        - "UI / HUD"
+        - "오디오 (Audio)"
+        - "그래픽 / 비주얼 (Graphics / Visual)"
+        - "씬 전환 / 로딩 (Scene / Loading)"
+        - "크래시 / 강제 종료 (Crash)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "심각도 (Severity)"
+      description: "게임 진행에 얼마나 영향을 주나요?"
+      options:
+        - "Critical — 게임 진행 불가"
+        - "High — 주요 기능 오작동"
+        - "Medium — 불편하지만 플레이 가능"
+        - "Low — 사소한 문제"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "버그 설명"
+      description: "무엇이 문제인지 명확하게 설명해주세요."
+      placeholder: "예: 점프 후 착지할 때 캐릭터가 바닥을 뚫고 떨어집니다."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "재현 절차 (Steps to Reproduce)"
+      description: "버그를 재현하기 위한 단계를 적어주세요."
+      placeholder: |
+        1. 게임 시작
+        2. 특정 구간 이동
+        3. 점프 버튼 입력
+        4. 버그 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "기대한 동작 (Expected Behavior)"
+      placeholder: "정상적으로라면 어떻게 동작해야 하나요?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "실제 동작 (Actual Behavior)"
+      placeholder: "실제로는 어떻게 동작했나요?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "환경 정보 (Environment)"
+      description: "테스트 환경을 적어주세요."
+      placeholder: |
+        - OS: Windows 11
+        - 엔진 버전: Unity 2022.3.x
+        - 브랜치: dev
+        - 커밋 해시: abc1234
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "스크린샷 / 영상"
+      description: "버그를 보여주는 스크린샷이나 영상 링크를 첨부해주세요."
+      placeholder: "이미지를 이곳에 드래그하거나 링크를 붙여넣으세요."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "추가 정보 (Additional Context)"
+      placeholder: "관련 로그, 에러 메시지, 의심 코드 등 참고가 될 내용을 자유롭게 적어주세요."
+    validations:
+      required: false

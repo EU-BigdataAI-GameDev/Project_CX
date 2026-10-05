@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💬 게임 디자인 토론"
+    url: https://github.com/EscapeFromKorea/EFK_PRO/discussions/categories/game-design
+    about: "게임 메카닉, 시스템 설계에 대한 자유로운 토론"
+  - name: "📣 공지 / 회의록"
+    url: https://github.com/EscapeFromKorea/EFK_PRO/discussions/categories/announcements
+    about: "팀 공지 및 회의록 확인"

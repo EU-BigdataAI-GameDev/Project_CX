@@ -1,0 +1,72 @@
+title: "[DESIGN] "
+labels: ["game-design"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 게임 디자인 제안
+        새로운 메카닉, 시스템, 게임플레이 아이디어를 제안할 때 사용하세요.
+        이슈로 올리기 전 여기서 먼저 팀원들과 논의해보세요.
+
+  - type: dropdown
+    id: design-area
+    attributes:
+      label: "디자인 영역"
+      options:
+        - "코어 루프 (Core Loop)"
+        - "전투 시스템 (Combat System)"
+        - "레벨 디자인 (Level Design)"
+        - "캐릭터 / 빌드 (Character / Build)"
+        - "UI / UX 흐름 (UI / UX Flow)"
+        - "세계관 / 내러티브 (World / Narrative)"
+        - "밸런스 (Balance)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: concept
+    attributes:
+      label: "제안 개요 (Concept Overview)"
+      description: "아이디어를 한 단락으로 요약해주세요."
+      placeholder: "예: 플레이어가 적을 처치할 때 '콤보 게이지'가 쌓이고, 게이지를 소비해 강력한 스킬을 쓰는 시스템"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "도입 이유 (Motivation)"
+      description: "왜 이 시스템이 우리 게임에 필요한가요?"
+      placeholder: "현재 전투가 단조롭고 반복적인 느낌. 플레이어에게 리듬감과 보상 루프를 제공하기 위해."
+    validations:
+      required: true
+
+  - type: textarea
+    id: detailed-design
+    attributes:
+      label: "세부 설계 (Detailed Design)"
+      description: "가능한 한 구체적으로 작성해주세요. 수치, 조건, 흐름도 등 포함."
+      placeholder: |
+        - 콤보 게이지: 0~100
+        - 적 처치 시 +20, 피격 시 -10
+        - 게이지 100% → 스킬 발동 가능
+        - 스킬 사용 후 게이지 0으로 리셋
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "레퍼런스 게임 (Reference Games)"
+      placeholder: "유사한 시스템이 있는 게임이나 참고 영상을 링크해주세요."
+    validations:
+      required: false
+
+  - type: textarea
+    id: concerns
+    attributes:
+      label: "우려 사항 / 트레이드오프 (Concerns / Trade-offs)"
+      placeholder: "이 시스템의 단점이나 구현 난이도 등 솔직하게 적어주세요."
+    validations:
+      required: false

@@ -1,0 +1,94 @@
+name: "🎨 아트 / 에셋 요청"
+description: "개발에 필요한 아트 리소스나 에셋을 요청합니다."
+title: "[ART] "
+labels: ["art", "asset-request"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 아트 에셋을 요청합니다
+        요청 전, 기획서와 레퍼런스를 최대한 구체적으로 준비해주세요.
+        아트 담당자의 작업 효율이 달라집니다.
+
+  - type: dropdown
+    id: asset-type
+    attributes:
+      label: "에셋 유형"
+      options:
+        - "캐릭터 스프라이트 (Character Sprite)"
+        - "배경 / 타일셋 (Background / Tileset)"
+        - "UI 요소 (UI Elements)"
+        - "이펙트 (VFX / Effect)"
+        - "아이콘 (Icon)"
+        - "애니메이션 (Animation)"
+        - "컨셉 아트 (Concept Art)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "우선순위 (Priority)"
+      options:
+        - "Blocker — 이거 없으면 개발 막힘"
+        - "High — 빠를수록 좋음"
+        - "Normal — 일정 내 완료"
+        - "Low — 여유 있을 때"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "에셋 설명"
+      description: "무엇을 만들어야 하는지 명확하게 설명해주세요."
+      placeholder: |
+        예:
+        - 주인공 캐릭터 기본 이동 스프라이트 (좌/우 4프레임)
+        - 크기: 32x32px
+        - 팔레트: 팀 공유 팔레트 기준
+        - 스타일: 픽셀 아트, 레트로 RPG 감성
+    validations:
+      required: true
+
+  - type: textarea
+    id: usage-context
+    attributes:
+      label: "사용 맥락 (Usage Context)"
+      description: "이 에셋이 게임에서 어디에, 어떻게 사용되나요?"
+      placeholder: "예: 메인 게임플레이 씬 플레이어 캐릭터에 적용, 이동 시 재생"
+    validations:
+      required: true
+
+  - type: textarea
+    id: specs
+    attributes:
+      label: "기술 스펙 (Technical Specs)"
+      placeholder: |
+        - 해상도: 
+        - 포맷: PNG / SVG / etc.
+        - 프레임 수 (애니메이션인 경우):
+        - 색상 제한:
+        - 기타:
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "레퍼런스 (Visual References)"
+      description: "참고할 이미지, 게임 스크린샷, 무드보드 등을 첨부해주세요."
+      placeholder: "이미지 드래그 또는 링크 첨부"
+    validations:
+      required: false
+
+  - type: input
+    id: deadline
+    attributes:
+      label: "희망 완료일 (Desired Deadline)"
+      placeholder: "예: 2024-12-15 (없으면 비워도 됩니다)"
+    validations:
+      required: false

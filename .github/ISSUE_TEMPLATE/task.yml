@@ -1,0 +1,65 @@
+name: "📋 작업 태스크"
+description: "버그나 기능이 아닌 일반 개발 작업을 등록합니다."
+title: "[TASK] "
+labels: ["task"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 작업 태스크 등록
+        리팩토링, 세팅, 문서화, 테스트 등 일반 작업을 등록할 때 사용하세요.
+
+  - type: dropdown
+    id: task-type
+    attributes:
+      label: "작업 유형"
+      options:
+        - "리팩토링 (Refactoring)"
+        - "세팅 / 환경 구성 (Setup / Configuration)"
+        - "문서화 (Documentation)"
+        - "테스트 (Testing)"
+        - "성능 최적화 (Optimization)"
+        - "빌드 / 배포 (Build / Deploy)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: "작업 목표 (Objective)"
+      description: "이 작업으로 무엇을 달성하려 하나요?"
+      placeholder: "예: 플레이어 이동 코드를 컴포넌트 기반으로 분리하여 유지보수성 향상"
+    validations:
+      required: true
+
+  - type: textarea
+    id: checklist
+    attributes:
+      label: "세부 체크리스트 (Checklist)"
+      description: "작업을 세분화해서 체크리스트로 작성해주세요."
+      placeholder: |
+        - [ ] 기존 PlayerController 분석
+        - [ ] MovementComponent 스크립트 생성
+        - [ ] 입력 처리 분리
+        - [ ] 테스트 및 검증
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "배경 / 맥락 (Context)"
+      placeholder: "이 작업이 필요한 이유나 배경을 설명해주세요."
+    validations:
+      required: false
+
+  - type: textarea
+    id: related-issues
+    attributes:
+      label: "관련 이슈 (Related Issues)"
+      placeholder: "관련된 이슈 번호를 입력해주세요. (예: #12, #34)"
+    validations:
+      required: false

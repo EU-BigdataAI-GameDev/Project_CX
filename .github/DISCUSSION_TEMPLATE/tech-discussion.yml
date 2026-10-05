@@ -1,0 +1,67 @@
+title: "[TECH] "
+labels: ["tech-discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 기술 토론
+        아키텍처 결정, 기술 스택 선택, 구현 방식 등 개발 기술적인 논의를 위한 공간입니다.
+
+  - type: dropdown
+    id: tech-area
+    attributes:
+      label: "기술 영역"
+      options:
+        - "아키텍처 설계 (Architecture)"
+        - "엔진 / 프레임워크 (Engine / Framework)"
+        - "코드 컨벤션 (Code Convention)"
+        - "성능 최적화 (Performance)"
+        - "빌드 / 배포 파이프라인 (Build / CI/CD)"
+        - "버전 관리 전략 (Git Strategy)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "배경 (Context)"
+      description: "왜 이 논의가 필요한지 상황을 설명해주세요."
+      placeholder: "예: 씬이 많아질수록 현재 씬 관리 방식이 복잡해질 것 같아서 구조 개선 방법을 논의하고 싶음"
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: "검토 중인 선택지 (Options Under Consideration)"
+      description: "현재 고민 중인 방법들을 나열해주세요."
+      placeholder: |
+        **Option A: Singleton SceneManager**
+        - 장점: 구현 간단, 어디서든 접근 용이
+        - 단점: 테스트 어려움, 결합도 높음
+
+        **Option B: Event-driven SceneManager**
+        - 장점: 느슨한 결합, 확장성 좋음
+        - 단점: 초기 세팅 복잡
+    validations:
+      required: false
+
+  - type: textarea
+    id: question
+    attributes:
+      label: "논의 포인트 (Discussion Points)"
+      description: "팀원들에게 묻고 싶은 핵심 질문이나 의견을 구하는 포인트를 적어주세요."
+      placeholder: |
+        1. 우리 팀 규모에서 어떤 방식이 더 적합할까?
+        2. 유지보수 관점에서 어떻게 생각해?
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "참고 자료 (References)"
+      placeholder: "관련 문서, 블로그 포스트, 영상 링크 등"
+    validations:
+      required: false
