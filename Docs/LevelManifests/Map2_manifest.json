@@ -2019,35 +2019,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Wall_03a",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Structure",
-   "loc": [
-    290.0,
-    -830.0,
-    450.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    0.683,
-    0.938,
-    1.431
-   ],
-   "mesh": "SM_Slums_Wall_03a",
-   "bbox": [
-    -120.0,
-    700.0,
-    -860.0,
-    -800.0,
-    0,
-    900.0
-   ]
-  },
-  {
    "label": "SM_LV_Soul_Slum_signpost",
    "kind": "art",
    "folder": "Art/S1_FloodedCanal/Props",
@@ -2483,180 +2454,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Distance_01b",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    390.0,
-    838.5,
-    723.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01b",
-   "bbox": [
-    320.5,
-    459.5,
-    650.0,
-    1027.0,
-    500.0,
-    946.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_01d",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    390.0,
-    1224.0,
-    689.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01d",
-   "bbox": [
-    339.5,
-    440.5,
-    1039.0197718605602,
-    1409.0197718605602,
-    500.0,
-    878.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    370.0,
-    838.5,
-    1005.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    300.5,
-    439.5,
-    650.0,
-    1027.0,
-    936.0,
-    1074.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign03b",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    300.0,
-    859.2,
-    832.7
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign03b",
-   "bbox": [
-    275.5,
-    324.5,
-    725.7268597975497,
-    992.7268597975497,
-    733.23018494574,
-    932.23018494574
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a3",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    370.0,
-    1224.0,
-    937.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    300.5,
-    439.5,
-    1035.5197718605602,
-    1412.5197718605602,
-    868.0,
-    1006.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_01a",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    270.0,
-    850.0,
-    706.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_01a",
-   "bbox": [
-    246.0,
-    294.0,
-    726.0,
-    974.0,
-    613.0276298245143,
-    800.0276298245143
-   ]
-  },
-  {
    "label": "SM_Slums_Pipe_02a6",
    "kind": "art",
    "folder": "Art/S1_FloodedCanal/StiltHouses",
@@ -2860,151 +2657,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Distance_01b2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    390.0,
-    1738.5,
-    723.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01b",
-   "bbox": [
-    320.5,
-    459.5,
-    1550.0,
-    1927.0,
-    500.0,
-    946.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02e",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    390.0,
-    2125.8,
-    791.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02e",
-   "bbox": [
-    339.5,
-    440.5,
-    1940.817278156404,
-    2310.817278156404,
-    500.0,
-    1083.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    370.0,
-    2125.8,
-    1175.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    272.0,
-    468.0,
-    1935.317278156404,
-    2316.317278156404,
-    1073.0,
-    1278.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign03b2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    300.0,
-    2198.6,
-    792.8
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign03b",
-   "bbox": [
-    275.5,
-    324.5,
-    2065.077181568477,
-    2332.077181568477,
-    693.2929865894871,
-    892.2929865894871
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_01a2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/StiltHouses",
-   "loc": [
-    270.0,
-    1750.0,
-    620.1
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_01a",
-   "bbox": [
-    246.0,
-    294.0,
-    1626.0,
-    1874.0,
-    526.5983765549288,
-    713.5983765549288
-   ]
-  },
-  {
    "label": "SM_Slums_Distance_01c",
    "kind": "art",
    "folder": "Art/S1_FloodedCanal/Backdrop",
@@ -3121,64 +2773,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Roof_01a4",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    260.0,
-    -179.9,
-    505.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    190.5,
-    329.5,
-    -368.4155423600548,
-    8.584457639945185,
-    436.0,
-    574.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a5",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    260.0,
-    196.2,
-    439.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    190.5,
-    329.5,
-    7.668915279890371,
-    384.66891527989037,
-    370.0,
-    508.0
-   ]
-  },
-  {
    "label": "SM_Slums_Sign03a",
    "kind": "art",
    "folder": "Art/S1_FloodedCanal/Backdrop",
@@ -3205,354 +2799,6 @@
     348.07400882741837,
     249.71060377653893,
     468.71060377653896
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02d3",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    340.0,
-    -555.0,
-    591.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02d",
-   "bbox": [
-    289.5,
-    390.5,
-    -740.0,
-    -370.0,
-    440.0,
-    743.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_01c3",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    340.0,
-    -167.4,
-    630.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01c",
-   "bbox": [
-    289.0,
-    391.0,
-    -351.44668902284354,
-    16.553310977156457,
-    440.0,
-    820.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02d4",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    340.0,
-    220.1,
-    591.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02d",
-   "bbox": [
-    289.5,
-    390.5,
-    35.106621954312914,
-    405.1066219543129,
-    440.0,
-    743.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01b2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    320.0,
-    -555.0,
-    799.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01b",
-   "bbox": [
-    250.5,
-    389.5,
-    -743.5,
-    -366.5,
-    733.0,
-    866.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c2",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    320.0,
-    -167.4,
-    912.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    222.0,
-    418.0,
-    -357.94668902284354,
-    23.053310977156457,
-    810.0,
-    1015.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a6",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    320.0,
-    220.1,
-    802.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    250.5,
-    389.5,
-    31.606621954312914,
-    408.6066219543129,
-    733.0,
-    871.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_01b4",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    400.0,
-    -551.5,
-    1103.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01b",
-   "bbox": [
-    330.5,
-    469.5,
-    -740.0,
-    -363.0,
-    880.0,
-    1326.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_05a_Opt",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    400.0,
-    -106.6,
-    1296.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_05a_Opt",
-   "bbox": [
-    298.0,
-    502.0,
-    -359.6233524830026,
-    146.37664751699742,
-    880.0,
-    1713.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a7",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    380.0,
-    -551.5,
-    1385.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    310.5,
-    449.5,
-    -740.0,
-    -363.0,
-    1316.0,
-    1454.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign05a",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    310.0,
-    -74.6,
-    1115.7
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign05a",
-   "bbox": [
-    297.5,
-    322.5,
-    -144.0549461039634,
-    -5.0549461039634025,
-    1093.2489971217,
-    1138.2489971217
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_02a",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    220.0,
-    -540.0,
-    511.8
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_02a",
-   "bbox": [
-    215.0,
-    225.0,
-    -969.5,
-    -110.5,
-    458.7599394750481,
-    564.7599394750481
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_02c",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Backdrop",
-   "loc": [
-    220.0,
-    160.0,
-    655.8
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_02c",
-   "bbox": [
-    200.0,
-    240.0,
-    -270.5,
-    590.5,
-    572.3481331692705,
-    739.3481331692705
    ]
   },
   {
@@ -3611,64 +2857,6 @@
     1901.0,
     330,
     472.0
-   ]
-  },
-  {
-   "label": "SM_Unified_32_Opt",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Midground",
-   "loc": [
-    1853.4,
-    -359.0,
-    359.4
-   ],
-   "rot": [
-    0.0,
-    -90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Unified_32_Opt",
-   "bbox": [
-    1383.9074255012476,
-    2322.9074255012474,
-    -800.0,
-    82.0,
-    -112.61679753122999,
-    831.38320246877
-   ]
-  },
-  {
-   "label": "SM_Unified_06_Opt",
-   "kind": "art",
-   "folder": "Art/S1_FloodedCanal/Midground",
-   "loc": [
-    2442.0,
-    542.2,
-    719.1
-   ],
-   "rot": [
-    0.0,
-    -90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Unified_06_Opt",
-   "bbox": [
-    1665.007066608523,
-    3219.007066608523,
-    -50.30000000000007,
-    1134.6999999999998,
-    -131.4228712466462,
-    1569.577128753354
    ]
   },
   {
@@ -5622,7 +4810,7 @@
    ],
    "rot": [
     0.0,
-    0.0,
+    180.0,
     0.0
    ],
    "scale": [
@@ -5651,7 +4839,7 @@
    ],
    "rot": [
     0.0,
-    180.0,
+    0.0,
     0.0
    ],
    "scale": [
@@ -7903,209 +7091,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Roof_01a10",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    340.0,
-    2635.0,
-    877.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    270.5,
-    409.5,
-    2446.5,
-    2823.5,
-    808.0,
-    946.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a11",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    340.0,
-    3007.7,
-    803.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    270.5,
-    409.5,
-    2819.200948561841,
-    3196.200948561841,
-    734.0,
-    872.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign01b_Bent2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    270.0,
-    3003.9,
-    701.1
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign01b_Bent",
-   "bbox": [
-    245.5,
-    294.5,
-    2801.9243734375455,
-    3205.9243734375455,
-    641.081153197221,
-    761.081153197221
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c5",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    340.0,
-    3379.4,
-    912.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    242.0,
-    438.0,
-    3188.901897123682,
-    3569.901897123682,
-    810.0,
-    1015.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c6",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    340.0,
-    4136.3,
-    978.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    242.0,
-    438.0,
-    3945.803794247364,
-    4326.803794247364,
-    876.0,
-    1081.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign02a",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    270.0,
-    4175.4,
-    806.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign02a",
-   "bbox": [
-    245.5,
-    294.5,
-    4063.865073375763,
-    4286.865073375763,
-    696.5082893227025,
-    915.5082893227025
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c7",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    340.0,
-    4890.7,
-    978.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    242.0,
-    438.0,
-    4700.205691371046,
-    5081.205691371046,
-    876.0,
-    1081.0
-   ]
-  },
-  {
    "label": "SM_Slums_Roof_01b6",
    "kind": "art",
    "folder": "Art/S2_Split/Backdrop",
@@ -8135,209 +7120,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Distance_02d5",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    2635.0,
-    1031.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02d",
-   "bbox": [
-    369.5,
-    470.5,
-    2450.0,
-    2820.0,
-    880.0,
-    1183.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_05a_Opt2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    3075.8,
-    1296.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_05a_Opt",
-   "bbox": [
-    318.0,
-    522.0,
-    2822.830128646915,
-    3328.830128646915,
-    880.0,
-    1713.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02e2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    3516.7,
-    1171.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02e",
-   "bbox": [
-    369.5,
-    470.5,
-    3331.66025729383,
-    3701.66025729383,
-    880.0,
-    1463.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02c2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    3888.5,
-    1032.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02c",
-   "bbox": [
-    369.0,
-    471.0,
-    3704.490385940745,
-    4072.490385940745,
-    880.0,
-    1184.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02e3",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    4260.3,
-    1171.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02e",
-   "bbox": [
-    369.5,
-    470.5,
-    4075.32051458766,
-    4445.32051458766,
-    880.0,
-    1463.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_01a3",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    4668.7,
-    1103.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01a",
-   "bbox": [
-    350.5,
-    489.5,
-    4448.150643234575,
-    4889.150643234575,
-    880.0,
-    1326.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02e4",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    420.0,
-    5077.0,
-    1171.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02e",
-   "bbox": [
-    369.5,
-    470.5,
-    4891.98077188149,
-    5261.98077188149,
-    880.0,
-    1463.0
-   ]
-  },
-  {
    "label": "SM_Slums_Distance_03a_OP3",
    "kind": "art",
    "folder": "Art/S2_Split/Backdrop",
@@ -8364,238 +7146,6 @@
     5705.810900528405,
     880.0,
     1347.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01b7",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    2635.0,
-    1239.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01b",
-   "bbox": [
-    330.5,
-    469.5,
-    2446.5,
-    2823.5,
-    1173.0,
-    1306.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a12",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    3075.8,
-    1772.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    330.5,
-    469.5,
-    2887.330128646915,
-    3264.330128646915,
-    1703.0,
-    1841.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01b8",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    3516.7,
-    1519.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01b",
-   "bbox": [
-    330.5,
-    469.5,
-    3328.16025729383,
-    3705.16025729383,
-    1453.0,
-    1586.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign06a2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    330.0,
-    3563.6,
-    1129.9
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign06a",
-   "bbox": [
-    316.5,
-    343.5,
-    3520.5968335454368,
-    3606.5968335454368,
-    1080.3647139078237,
-    1179.3647139078237
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c8",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    3888.5,
-    1276.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    302.0,
-    498.0,
-    3697.990385940745,
-    4078.990385940745,
-    1174.0,
-    1379.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign05a2",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    330.0,
-    3939.2,
-    1120.4
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign05a",
-   "bbox": [
-    317.5,
-    342.5,
-    3869.6794075306966,
-    4008.6794075306966,
-    1097.8652394447586,
-    1142.8652394447586
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a13",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    4668.7,
-    1385.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    330.5,
-    469.5,
-    4480.150643234575,
-    4857.150643234575,
-    1316.0,
-    1454.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01b9",
-   "kind": "art",
-   "folder": "Art/S2_Split/Backdrop",
-   "loc": [
-    400.0,
-    5077.0,
-    1519.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01b",
-   "bbox": [
-    330.5,
-    469.5,
-    4888.48077188149,
-    5265.48077188149,
-    1453.0,
-    1586.0
    ]
   },
   {
@@ -11418,7 +9968,7 @@
    ],
    "rot": [
     0.0,
-    0.0,
+    180.0,
     0.0
    ],
    "scale": [
@@ -11447,7 +9997,7 @@
    ],
    "rot": [
     0.0,
-    0.0,
+    180.0,
     0.0
    ],
    "scale": [
@@ -16882,35 +15432,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Sign01d_opt3",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Stalls",
-   "loc": [
-    190.0,
-    10320.0,
-    1149.3
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign01d_opt",
-   "bbox": [
-    178.5,
-    201.5,
-    10175.5,
-    10464.5,
-    1061.8108979623453,
-    1236.8108979623453
-   ]
-  },
-  {
    "label": "SM_Slums_Scaffolding_03b3",
    "kind": "art",
    "folder": "Art/S4_RooftopMarket/Stalls",
@@ -17056,35 +15577,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Sign03a3",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Stalls",
-   "loc": [
-    190.0,
-    11360.0,
-    1151.9
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign03a",
-   "bbox": [
-    165.5,
-    214.5,
-    11248.5,
-    11471.5,
-    1042.42986170181,
-    1261.42986170181
-   ]
-  },
-  {
    "label": "SM_Slums_Wires_02a6",
    "kind": "art",
    "folder": "Art/S4_RooftopMarket/Laundry",
@@ -17140,35 +15632,6 @@
     9920.8,
     1013.0,
     1126.6
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_01a9",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Laundry",
-   "loc": [
-    20.0,
-    10250.0,
-    1151.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_01a",
-   "bbox": [
-    -4.0,
-    44.0,
-    10126.0,
-    10374.0,
-    1058.0,
-    1245.0
    ]
   },
   {
@@ -17314,35 +15777,6 @@
     11384.8,
     1013.0,
     1076.2
-   ]
-  },
-  {
-   "label": "SM_Slums_Vent_01b",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/WaterTower",
-   "loc": [
-    520.0,
-    11150.0,
-    1126.8
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    0.55,
-    0.55,
-    0.55
-   ],
-   "mesh": "SM_Slums_Vent_01b",
-   "bbox": [
-    258.47499999999997,
-    781.5250000000001,
-    10896.725,
-    11403.275,
-    728.0,
-    1525.5
    ]
   },
   {
@@ -17636,122 +16070,6 @@
    ]
   },
   {
-   "label": "SM_Slums_Distance_01c12",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    440.0,
-    10409.3,
-    1358.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01c",
-   "bbox": [
-    389.0,
-    491.0,
-    10225.266090054745,
-    10593.266090054745,
-    1168.0,
-    1548.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_01c13",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    440.0,
-    10784.4,
-    1358.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_01c",
-   "bbox": [
-    389.0,
-    491.0,
-    10600.399135082118,
-    10968.399135082118,
-    1168.0,
-    1548.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Distance_02c6",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    440.0,
-    11159.5,
-    1320.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Distance_02c",
-   "bbox": [
-    389.0,
-    491.0,
-    10975.53218010949,
-    11343.53218010949,
-    1168.0,
-    1472.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01a21",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    420.0,
-    9997.6,
-    1694.0
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01a",
-   "bbox": [
-    350.5,
-    489.5,
-    9809.133045027373,
-    10186.133045027373,
-    1625.0,
-    1763.0
-   ]
-  },
-  {
    "label": "SM_Slums_Sign01a2",
    "kind": "art",
    "folder": "Art/S4_RooftopMarket/Backdrop",
@@ -17778,122 +16096,6 @@
     10133.061978781257,
     1365.7987760343112,
     1455.7987760343112
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c14",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    420.0,
-    10409.3,
-    1640.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    322.0,
-    518.0,
-    10218.766090054745,
-    10599.766090054745,
-    1538.0,
-    1743.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign01a3",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    350.0,
-    10428.8,
-    1424.9
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign01a",
-   "bbox": [
-    325.5,
-    374.5,
-    10293.327784554907,
-    10564.327784554907,
-    1379.8588971718527,
-    1469.8588971718527
-   ]
-  },
-  {
-   "label": "SM_Slums_Roof_01c15",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    420.0,
-    10784.4,
-    1640.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Roof_01c",
-   "bbox": [
-    322.0,
-    518.0,
-    10593.899135082118,
-    10974.899135082118,
-    1538.0,
-    1743.0
-   ]
-  },
-  {
-   "label": "SM_Slums_Sign01a4",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    350.0,
-    11111.4,
-    1444.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Sign01a",
-   "bbox": [
-    325.5,
-    374.5,
-    10975.948402707378,
-    11246.948402707378,
-    1399.531361079837,
-    1489.531361079837
    ]
   },
   {
@@ -17952,35 +16154,6 @@
     10730.5,
     1191.7849699166616,
     1358.7849699166616
-   ]
-  },
-  {
-   "label": "SM_Slums_Wires_02c7",
-   "kind": "art",
-   "folder": "Art/S4_RooftopMarket/Backdrop",
-   "loc": [
-    320.0,
-    11000.0,
-    1345.5
-   ],
-   "rot": [
-    0.0,
-    90.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Slums_Wires_02c",
-   "bbox": [
-    300.0,
-    340.0,
-    10569.5,
-    11430.5,
-    1261.9589085376692,
-    1428.9589085376692
    ]
   },
   {
@@ -18398,7 +16571,7 @@
    ],
    "rot": [
     0.0,
-    180.0,
+    0.0,
     0.0
    ],
    "scale": [
@@ -18852,64 +17025,6 @@
    ]
   },
   {
-   "label": "SM_Cave_Rock_CurvedWall",
-   "kind": "art",
-   "folder": "Art/S5_CaveDescent/CaveWalls",
-   "loc": [
-    768.0,
-    12700.0,
-    970.5
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "mesh": "SM_Cave_Rock_CurvedWall",
-   "bbox": [
-    250.0,
-    1286.0,
-    12215.0,
-    13185.0,
-    -50,
-    1991.0
-   ]
-  },
-  {
-   "label": "SM_Cave_Rock_Large01_REDO2",
-   "kind": "art",
-   "folder": "Art/S5_CaveDescent/CaveWalls",
-   "loc": [
-    660.9,
-    13400.0,
-    718.9
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.1,
-    1.1,
-    1.1
-   ],
-   "mesh": "SM_Cave_Rock_Large01_REDO",
-   "bbox": [
-    250.0,
-    1071.7,
-    12993.0,
-    13807.0,
-    -50,
-    1487.8000000000002
-   ]
-  },
-  {
    "label": "SM_EntranceRockCliff5",
    "kind": "art",
    "folder": "Art/S5_CaveDescent/CaveWalls",
@@ -19023,35 +17138,6 @@
     14264.0,
     0,
     699.9999999999999
-   ]
-  },
-  {
-   "label": "SM_Slums_Wall_03b",
-   "kind": "art",
-   "folder": "Art/S5_CaveDescent/ExitGate",
-   "loc": [
-    15.0,
-    14180.0,
-    480.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    0.34,
-    0.426,
-    0.7
-   ],
-   "mesh": "SM_Slums_Wall_03b",
-   "bbox": [
-    -120.0,
-    150.0,
-    14160.0,
-    14200.0,
-    260,
-    700.0
    ]
   },
   {
@@ -20766,6 +18852,3013 @@
    ]
   },
   {
+   "label": "MARKER_Checkpoint_Map2_01",
+   "kind": "marker",
+   "folder": "Checkpoints",
+   "loc": [
+    0.0,
+    -400.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Checkpoint_Map2_02",
+   "kind": "marker",
+   "folder": "Checkpoints",
+   "loc": [
+    0.0,
+    2500.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Checkpoint_Map2_03",
+   "kind": "marker",
+   "folder": "Checkpoints",
+   "loc": [
+    0.0,
+    5900.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Checkpoint_Map2_04",
+   "kind": "marker",
+   "folder": "Checkpoints",
+   "loc": [
+    0.0,
+    9200.0,
+    748.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Checkpoint_Map2_05",
+   "kind": "marker",
+   "folder": "Checkpoints",
+   "loc": [
+    0.0,
+    11600.0,
+    560.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Enemy_SpiderBot_S2_Roof",
+   "kind": "marker",
+   "folder": "Enemies",
+   "loc": [
+    60.0,
+    4100.0,
+    330.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Enemy_SpiderBot_S3_F1",
+   "kind": "marker",
+   "folder": "Enemies",
+   "loc": [
+    0.0,
+    6900.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_Enemy_RangedBot_S4_01",
+   "kind": "marker",
+   "folder": "Enemies",
+   "loc": [
+    520.0,
+    11150.0,
+    1288.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_HackTerminal_01",
+   "kind": "marker",
+   "folder": "Puzzles",
+   "loc": [
+    -70.0,
+    5500.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_HackDoor_01",
+   "kind": "marker",
+   "folder": "Puzzles",
+   "loc": [
+    60.0,
+    5320.0,
+    320.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_RespawnVolume_S1_Canal",
+   "kind": "marker",
+   "folder": "Interactables",
+   "loc": [
+    0.0,
+    1500.0,
+    -150.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "MARKER_ExitGate_ToMap3",
+   "kind": "marker",
+   "folder": "Interactables",
+   "loc": [
+    0.0,
+    14100.0,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "PlayerStart_Brother",
+   "kind": "playerstart",
+   "folder": "PlayerStarts",
+   "loc": [
+    0.0,
+    -350.0,
+    92.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "label": "PlayerStart_Sister",
+   "kind": "playerstart",
+   "folder": "PlayerStarts",
+   "loc": [
+    0.0,
+    -550.0,
+    82.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "tag": "Sister"
+  },
+  {
+   "label": "COL_Prop_SM_Cave_Rock_Small02",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/CanalBed",
+   "for": "SM_Cave_Rock_Small02",
+   "loc": [
+    60.0,
+    900.0,
+    -174.8
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.698,
+    0.805,
+    0.707
+   ],
+   "box": [
+    25.1,
+    94.9,
+    859.8,
+    940.2,
+    -210.1,
+    -139.5
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Cave_Rock_Small01",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/CanalBed",
+   "for": "SM_Cave_Rock_Small01",
+   "loc": [
+    60.0,
+    1500.0,
+    -177.6
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1.125,
+    0.801,
+    0.649
+   ],
+   "box": [
+    3.7,
+    116.3,
+    1460.0,
+    1540.0,
+    -210.0,
+    -145.2
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Cave_Rock_Small3",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/CanalBed",
+   "for": "SM_Cave_Rock_Small3",
+   "loc": [
+    60.0,
+    2100.0,
+    -174.8
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.698,
+    0.805,
+    0.707
+   ],
+   "box": [
+    25.1,
+    94.9,
+    2059.8,
+    2140.2,
+    -210.1,
+    -139.5
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_LV_Soul_Slum_signpost",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/Props",
+   "for": "SM_LV_Soul_Slum_signpost",
+   "loc": [
+    126.7,
+    -300.0,
+    76.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.466,
+    0.693,
+    1.532
+   ],
+   "box": [
+    103.4,
+    150,
+    -334.7,
+    -265.3,
+    -0.1,
+    153.1
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Trash_02c",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/Props",
+   "for": "SM_Slums_Trash_02c",
+   "loc": [
+    117.2,
+    -620.0,
+    18.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.656,
+    0.502,
+    0.374
+   ],
+   "box": [
+    84.4,
+    150,
+    -645.1,
+    -594.9,
+    -0.2,
+    37.2
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_WoodWall_02d",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/Props",
+   "for": "SM_Slums_WoodWall_02d",
+   "loc": [
+    114.2,
+    -420.0,
+    56.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.716,
+    1.032,
+    1.134
+   ],
+   "box": [
+    78.4,
+    150,
+    -471.6,
+    -368.4,
+    -0.2,
+    113.2
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Trash_02c2",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/Props",
+   "for": "SM_Slums_Trash_02c2",
+   "loc": [
+    117.9,
+    250.0,
+    18.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.642,
+    0.502,
+    0.374
+   ],
+   "box": [
+    85.8,
+    150,
+    224.9,
+    275.1,
+    -0.2,
+    37.2
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Trashcan_Closed02",
+   "kind": "blocker",
+   "folder": "Collision/S1_FloodedCanal/Props",
+   "for": "SM_Slums_Trashcan_Closed02",
+   "loc": [
+    117.1,
+    420.0,
+    46.9
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.659,
+    0.664,
+    0.938
+   ],
+   "box": [
+    84.1,
+    150,
+    386.8,
+    453.2,
+    -0.0,
+    93.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Vent_02c",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Vent_02c",
+   "loc": [
+    134.0,
+    3422.1,
+    310.4
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.321,
+    1.001,
+    1.008
+   ],
+   "box": [
+    117.9,
+    150,
+    3372.0,
+    3472.1,
+    260.0,
+    360.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_04a",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Pipe_04a",
+   "loc": [
+    131.7,
+    3060.0,
+    431.6
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.365,
+    0.288,
+    3.434
+   ],
+   "box": [
+    113.5,
+    150,
+    3045.6,
+    3074.4,
+    259.9,
+    603.3
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Vent_02d",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Vent_02d",
+   "loc": [
+    135.0,
+    4077.2,
+    360.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.176,
+    1.0,
+    1.0
+   ],
+   "box": [
+    126.2,
+    143.8,
+    4027.2,
+    4127.2,
+    310.0,
+    410.0
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_04a2",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Pipe_04a2",
+   "loc": [
+    131.7,
+    3930.0,
+    481.6
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.365,
+    0.288,
+    3.434
+   ],
+   "box": [
+    113.5,
+    150,
+    3915.6,
+    3944.4,
+    309.9,
+    653.3
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Vent_02b",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Vent_02b",
+   "loc": [
+    134.0,
+    4551.2,
+    415.4
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.321,
+    1.001,
+    1.008
+   ],
+   "box": [
+    117.9,
+    150,
+    4501.2,
+    4601.3,
+    365.0,
+    465.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_04a3",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Pipe_04a3",
+   "loc": [
+    131.7,
+    4460.0,
+    536.6
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.365,
+    0.288,
+    3.434
+   ],
+   "box": [
+    113.5,
+    150,
+    4445.6,
+    4474.4,
+    364.9,
+    708.3
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Vent_02b2",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Vent_02b2",
+   "loc": [
+    134.0,
+    5068.0,
+    350.4
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.321,
+    1.001,
+    1.008
+   ],
+   "box": [
+    117.9,
+    150,
+    5017.9,
+    5118.0,
+    300.0,
+    400.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_04a4",
+   "kind": "blocker",
+   "folder": "Collision/S2_Split/RoofClutter",
+   "for": "SM_Slums_Pipe_04a4",
+   "loc": [
+    131.7,
+    4840.0,
+    471.6
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.365,
+    0.288,
+    3.434
+   ],
+   "box": [
+    113.5,
+    150,
+    4825.6,
+    4854.4,
+    299.9,
+    643.3
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_01a",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F1",
+   "for": "SM_Slums_Pipe_01a",
+   "loc": [
+    112.9,
+    6250.0,
+    57.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.742,
+    0.985,
+    1.151
+   ],
+   "box": [
+    75.8,
+    150,
+    6200.8,
+    6299.2,
+    -0.0,
+    115.0
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Trashcan_Open01",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F1",
+   "for": "SM_Slums_Trashcan_Open01",
+   "loc": [
+    121.8,
+    6900.0,
+    42.9
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.563,
+    0.604,
+    0.858
+   ],
+   "box": [
+    93.7,
+    150,
+    6869.8,
+    6930.2,
+    -0.0,
+    85.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_05c",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F1",
+   "for": "SM_Slums_Pipe_05c",
+   "loc": [
+    119.7,
+    7700.0,
+    27.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.606,
+    0.542,
+    0.541
+   ],
+   "box": [
+    89.4,
+    150,
+    7672.9,
+    7727.1,
+    -0.1,
+    54.1
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Pipe_05c2",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F1",
+   "for": "SM_Slums_Pipe_05c2",
+   "loc": [
+    124.0,
+    8300.0,
+    27.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.521,
+    0.713,
+    0.541
+   ],
+   "box": [
+    97.9,
+    150,
+    8264.4,
+    8335.6,
+    -0.1,
+    54.1
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Trash_02c3",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F1",
+   "for": "SM_Slums_Trash_02c3",
+   "loc": [
+    125.0,
+    8900.0,
+    18.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.501,
+    0.822,
+    0.374
+   ],
+   "box": [
+    99.9,
+    150,
+    8858.9,
+    8941.1,
+    -0.2,
+    37.2
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Vent_02b3",
+   "kind": "blocker",
+   "folder": "Collision/S3_Tenement/F2",
+   "for": "SM_Slums_Vent_02b3",
+   "loc": [
+    136.5,
+    7750.0,
+    554.5
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.271,
+    1.001,
+    1.006
+   ],
+   "box": [
+    122.9,
+    150,
+    7699.9,
+    7800.1,
+    504.2,
+    604.8
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Cave_Rock_Large01_REDO",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/Rocks",
+   "for": "SM_Cave_Rock_Large01_REDO",
+   "loc": [
+    94.2,
+    13100.0,
+    569.3
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1.115,
+    5.179,
+    9.785
+   ],
+   "box": [
+    38.5,
+    150,
+    12841.0,
+    13359.0,
+    80.1,
+    1058.5
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_S_Soul_Flatrock",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/Props",
+   "for": "SM_S_Soul_Flatrock",
+   "loc": [
+    100.6,
+    13450.0,
+    61.4
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.987,
+    1.331,
+    1.229
+   ],
+   "box": [
+    51.3,
+    150,
+    13383.4,
+    13516.6,
+    0.0,
+    122.9
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_S_Soul_Flatrock2",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/Props",
+   "for": "SM_S_Soul_Flatrock2",
+   "loc": [
+    100.6,
+    13700.0,
+    61.4
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.987,
+    1.331,
+    1.229
+   ],
+   "box": [
+    51.3,
+    150,
+    13633.4,
+    13766.6,
+    0.0,
+    122.9
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Wall_03a2",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/ExitGate",
+   "for": "SM_Slums_Wall_03a2",
+   "loc": [
+    15.0,
+    14232.0,
+    350.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    2.7,
+    0.642,
+    7.002
+   ],
+   "box": [
+    -120.0,
+    150,
+    14199.9,
+    14264.1,
+    -0.1,
+    700.1
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Wall_02n",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/ExitGate",
+   "for": "SM_Slums_Wall_02n",
+   "loc": [
+    -75.0,
+    14160.0,
+    132.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.536,
+    0.536,
+    2.641
+   ],
+   "box": [
+    -101.8,
+    -48.2,
+    14133.2,
+    14186.8,
+    -0.0,
+    264.0
+   ]
+  },
+  {
+   "label": "COL_Prop_SM_Slums_Wall_02n2",
+   "kind": "blocker",
+   "folder": "Collision/S5_CaveDescent/ExitGate",
+   "for": "SM_Slums_Wall_02n2",
+   "loc": [
+    120.0,
+    14160.0,
+    132.0
+   ],
+   "rot": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.536,
+    0.536,
+    2.641
+   ],
+   "box": [
+    93.2,
+    146.8,
+    14133.2,
+    14186.8,
+    -0.0,
+    264.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Wall_03a",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Structure",
+   "loc": [
+    290.0,
+    -830.0,
+    450.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    0.683,
+    0.938,
+    1.431
+   ],
+   "mesh": "SM_Slums_Wall_03a",
+   "bbox": [
+    -120.0,
+    700.0,
+    -860.0,
+    -800.0,
+    0,
+    900.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01b",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    390.0,
+    838.5,
+    723.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01b",
+   "bbox": [
+    320.5,
+    459.5,
+    650.0,
+    1027.0,
+    500.0,
+    946.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01d",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    390.0,
+    1224.0,
+    689.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01d",
+   "bbox": [
+    339.5,
+    440.5,
+    1039.0197718605602,
+    1409.0197718605602,
+    500.0,
+    878.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    370.0,
+    838.5,
+    1005.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    300.5,
+    439.5,
+    650.0,
+    1027.0,
+    936.0,
+    1074.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign03b",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    300.0,
+    859.2,
+    832.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign03b",
+   "bbox": [
+    275.5,
+    324.5,
+    725.7268597975497,
+    992.7268597975497,
+    733.23018494574,
+    932.23018494574
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a3",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    370.0,
+    1224.0,
+    937.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    300.5,
+    439.5,
+    1035.5197718605602,
+    1412.5197718605602,
+    868.0,
+    1006.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_01a",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    270.0,
+    850.0,
+    706.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_01a",
+   "bbox": [
+    246.0,
+    294.0,
+    726.0,
+    974.0,
+    613.0276298245143,
+    800.0276298245143
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01b2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    390.0,
+    1738.5,
+    723.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01b",
+   "bbox": [
+    320.5,
+    459.5,
+    1550.0,
+    1927.0,
+    500.0,
+    946.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02e",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    390.0,
+    2125.8,
+    791.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02e",
+   "bbox": [
+    339.5,
+    440.5,
+    1940.817278156404,
+    2310.817278156404,
+    500.0,
+    1083.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    370.0,
+    2125.8,
+    1175.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    272.0,
+    468.0,
+    1935.317278156404,
+    2316.317278156404,
+    1073.0,
+    1278.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign03b2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    300.0,
+    2198.6,
+    792.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign03b",
+   "bbox": [
+    275.5,
+    324.5,
+    2065.077181568477,
+    2332.077181568477,
+    693.2929865894871,
+    892.2929865894871
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_01a2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/StiltHouses",
+   "loc": [
+    270.0,
+    1750.0,
+    620.1
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_01a",
+   "bbox": [
+    246.0,
+    294.0,
+    1626.0,
+    1874.0,
+    526.5983765549288,
+    713.5983765549288
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a4",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    260.0,
+    -179.9,
+    505.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    190.5,
+    329.5,
+    -368.4155423600548,
+    8.584457639945185,
+    436.0,
+    574.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a5",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    260.0,
+    196.2,
+    439.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    190.5,
+    329.5,
+    7.668915279890371,
+    384.66891527989037,
+    370.0,
+    508.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02d3",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    340.0,
+    -555.0,
+    591.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02d",
+   "bbox": [
+    289.5,
+    390.5,
+    -740.0,
+    -370.0,
+    440.0,
+    743.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01c3",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    340.0,
+    -167.4,
+    630.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01c",
+   "bbox": [
+    289.0,
+    391.0,
+    -351.44668902284354,
+    16.553310977156457,
+    440.0,
+    820.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02d4",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    340.0,
+    220.1,
+    591.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02d",
+   "bbox": [
+    289.5,
+    390.5,
+    35.106621954312914,
+    405.1066219543129,
+    440.0,
+    743.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01b2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    320.0,
+    -555.0,
+    799.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01b",
+   "bbox": [
+    250.5,
+    389.5,
+    -743.5,
+    -366.5,
+    733.0,
+    866.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c2",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    320.0,
+    -167.4,
+    912.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    222.0,
+    418.0,
+    -357.94668902284354,
+    23.053310977156457,
+    810.0,
+    1015.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a6",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    320.0,
+    220.1,
+    802.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    250.5,
+    389.5,
+    31.606621954312914,
+    408.6066219543129,
+    733.0,
+    871.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01b4",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    400.0,
+    -551.5,
+    1103.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01b",
+   "bbox": [
+    330.5,
+    469.5,
+    -740.0,
+    -363.0,
+    880.0,
+    1326.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_05a_Opt",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    400.0,
+    -106.6,
+    1296.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_05a_Opt",
+   "bbox": [
+    298.0,
+    502.0,
+    -359.6233524830026,
+    146.37664751699742,
+    880.0,
+    1713.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a7",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    380.0,
+    -551.5,
+    1385.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    310.5,
+    449.5,
+    -740.0,
+    -363.0,
+    1316.0,
+    1454.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign05a",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    310.0,
+    -74.6,
+    1115.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign05a",
+   "bbox": [
+    297.5,
+    322.5,
+    -144.0549461039634,
+    -5.0549461039634025,
+    1093.2489971217,
+    1138.2489971217
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_02a",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    220.0,
+    -540.0,
+    511.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_02a",
+   "bbox": [
+    215.0,
+    225.0,
+    -969.5,
+    -110.5,
+    458.7599394750481,
+    564.7599394750481
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_02c",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Backdrop",
+   "loc": [
+    220.0,
+    160.0,
+    655.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_02c",
+   "bbox": [
+    200.0,
+    240.0,
+    -270.5,
+    590.5,
+    572.3481331692705,
+    739.3481331692705
+   ]
+  },
+  {
+   "label": "SM_Unified_32_Opt",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Midground",
+   "loc": [
+    1853.4,
+    -359.0,
+    359.4
+   ],
+   "rot": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Unified_32_Opt",
+   "bbox": [
+    1383.9074255012476,
+    2322.9074255012474,
+    -800.0,
+    82.0,
+    -112.61679753122999,
+    831.38320246877
+   ]
+  },
+  {
+   "label": "SM_Unified_06_Opt",
+   "kind": "art",
+   "folder": "Art/S1_FloodedCanal/Midground",
+   "loc": [
+    2442.0,
+    542.2,
+    719.1
+   ],
+   "rot": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Unified_06_Opt",
+   "bbox": [
+    1665.007066608523,
+    3219.007066608523,
+    -50.30000000000007,
+    1134.6999999999998,
+    -131.4228712466462,
+    1569.577128753354
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a10",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    340.0,
+    2635.0,
+    877.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    270.5,
+    409.5,
+    2446.5,
+    2823.5,
+    808.0,
+    946.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a11",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    340.0,
+    3007.7,
+    803.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    270.5,
+    409.5,
+    2819.200948561841,
+    3196.200948561841,
+    734.0,
+    872.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign01b_Bent2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    270.0,
+    3003.9,
+    701.1
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign01b_Bent",
+   "bbox": [
+    245.5,
+    294.5,
+    2801.9243734375455,
+    3205.9243734375455,
+    641.081153197221,
+    761.081153197221
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c5",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    340.0,
+    3379.4,
+    912.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    242.0,
+    438.0,
+    3188.901897123682,
+    3569.901897123682,
+    810.0,
+    1015.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c6",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    340.0,
+    4136.3,
+    978.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    242.0,
+    438.0,
+    3945.803794247364,
+    4326.803794247364,
+    876.0,
+    1081.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign02a",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    270.0,
+    4175.4,
+    806.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign02a",
+   "bbox": [
+    245.5,
+    294.5,
+    4063.865073375763,
+    4286.865073375763,
+    696.5082893227025,
+    915.5082893227025
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c7",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    340.0,
+    4890.7,
+    978.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    242.0,
+    438.0,
+    4700.205691371046,
+    5081.205691371046,
+    876.0,
+    1081.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02d5",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    2635.0,
+    1031.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02d",
+   "bbox": [
+    369.5,
+    470.5,
+    2450.0,
+    2820.0,
+    880.0,
+    1183.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_05a_Opt2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    3075.8,
+    1296.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_05a_Opt",
+   "bbox": [
+    318.0,
+    522.0,
+    2822.830128646915,
+    3328.830128646915,
+    880.0,
+    1713.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02e2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    3516.7,
+    1171.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02e",
+   "bbox": [
+    369.5,
+    470.5,
+    3331.66025729383,
+    3701.66025729383,
+    880.0,
+    1463.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02c2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    3888.5,
+    1032.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02c",
+   "bbox": [
+    369.0,
+    471.0,
+    3704.490385940745,
+    4072.490385940745,
+    880.0,
+    1184.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02e3",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    4260.3,
+    1171.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02e",
+   "bbox": [
+    369.5,
+    470.5,
+    4075.32051458766,
+    4445.32051458766,
+    880.0,
+    1463.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01a3",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    4668.7,
+    1103.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01a",
+   "bbox": [
+    350.5,
+    489.5,
+    4448.150643234575,
+    4889.150643234575,
+    880.0,
+    1326.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02e4",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    420.0,
+    5077.0,
+    1171.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02e",
+   "bbox": [
+    369.5,
+    470.5,
+    4891.98077188149,
+    5261.98077188149,
+    880.0,
+    1463.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01b7",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    2635.0,
+    1239.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01b",
+   "bbox": [
+    330.5,
+    469.5,
+    2446.5,
+    2823.5,
+    1173.0,
+    1306.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a12",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    3075.8,
+    1772.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    330.5,
+    469.5,
+    2887.330128646915,
+    3264.330128646915,
+    1703.0,
+    1841.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01b8",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    3516.7,
+    1519.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01b",
+   "bbox": [
+    330.5,
+    469.5,
+    3328.16025729383,
+    3705.16025729383,
+    1453.0,
+    1586.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign06a2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    330.0,
+    3563.6,
+    1129.9
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign06a",
+   "bbox": [
+    316.5,
+    343.5,
+    3520.5968335454368,
+    3606.5968335454368,
+    1080.3647139078237,
+    1179.3647139078237
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c8",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    3888.5,
+    1276.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    302.0,
+    498.0,
+    3697.990385940745,
+    4078.990385940745,
+    1174.0,
+    1379.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign05a2",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    330.0,
+    3939.2,
+    1120.4
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign05a",
+   "bbox": [
+    317.5,
+    342.5,
+    3869.6794075306966,
+    4008.6794075306966,
+    1097.8652394447586,
+    1142.8652394447586
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a13",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    4668.7,
+    1385.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    330.5,
+    469.5,
+    4480.150643234575,
+    4857.150643234575,
+    1316.0,
+    1454.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01b9",
+   "kind": "art",
+   "folder": "Art/S2_Split/Backdrop",
+   "loc": [
+    400.0,
+    5077.0,
+    1519.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01b",
+   "bbox": [
+    330.5,
+    469.5,
+    4888.48077188149,
+    5265.48077188149,
+    1453.0,
+    1586.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign01d_opt3",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Stalls",
+   "loc": [
+    190.0,
+    10320.0,
+    1149.3
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign01d_opt",
+   "bbox": [
+    178.5,
+    201.5,
+    10175.5,
+    10464.5,
+    1061.8108979623453,
+    1236.8108979623453
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign03a3",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Stalls",
+   "loc": [
+    190.0,
+    11360.0,
+    1151.9
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign03a",
+   "bbox": [
+    165.5,
+    214.5,
+    11248.5,
+    11471.5,
+    1042.42986170181,
+    1261.42986170181
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_01a9",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Laundry",
+   "loc": [
+    20.0,
+    10250.0,
+    1151.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_01a",
+   "bbox": [
+    -4.0,
+    44.0,
+    10126.0,
+    10374.0,
+    1058.0,
+    1245.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Vent_01b",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/WaterTower",
+   "loc": [
+    520.0,
+    11150.0,
+    1126.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    0.55,
+    0.55,
+    0.55
+   ],
+   "mesh": "SM_Slums_Vent_01b",
+   "bbox": [
+    258.47499999999997,
+    781.5250000000001,
+    10896.725,
+    11403.275,
+    728.0,
+    1525.5
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01c12",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    440.0,
+    10409.3,
+    1358.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01c",
+   "bbox": [
+    389.0,
+    491.0,
+    10225.266090054745,
+    10593.266090054745,
+    1168.0,
+    1548.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_01c13",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    440.0,
+    10784.4,
+    1358.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_01c",
+   "bbox": [
+    389.0,
+    491.0,
+    10600.399135082118,
+    10968.399135082118,
+    1168.0,
+    1548.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Distance_02c6",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    440.0,
+    11159.5,
+    1320.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Distance_02c",
+   "bbox": [
+    389.0,
+    491.0,
+    10975.53218010949,
+    11343.53218010949,
+    1168.0,
+    1472.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01a21",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    420.0,
+    9997.6,
+    1694.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01a",
+   "bbox": [
+    350.5,
+    489.5,
+    9809.133045027373,
+    10186.133045027373,
+    1625.0,
+    1763.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c14",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    420.0,
+    10409.3,
+    1640.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    322.0,
+    518.0,
+    10218.766090054745,
+    10599.766090054745,
+    1538.0,
+    1743.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign01a3",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    350.0,
+    10428.8,
+    1424.9
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign01a",
+   "bbox": [
+    325.5,
+    374.5,
+    10293.327784554907,
+    10564.327784554907,
+    1379.8588971718527,
+    1469.8588971718527
+   ]
+  },
+  {
+   "label": "SM_Slums_Roof_01c15",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    420.0,
+    10784.4,
+    1640.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Roof_01c",
+   "bbox": [
+    322.0,
+    518.0,
+    10593.899135082118,
+    10974.899135082118,
+    1538.0,
+    1743.0
+   ]
+  },
+  {
+   "label": "SM_Slums_Sign01a4",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    350.0,
+    11111.4,
+    1444.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Sign01a",
+   "bbox": [
+    325.5,
+    374.5,
+    10975.948402707378,
+    11246.948402707378,
+    1399.531361079837,
+    1489.531361079837
+   ]
+  },
+  {
+   "label": "SM_Slums_Wires_02c7",
+   "kind": "art",
+   "folder": "Art/S4_RooftopMarket/Backdrop",
+   "loc": [
+    320.0,
+    11000.0,
+    1345.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Slums_Wires_02c",
+   "bbox": [
+    300.0,
+    340.0,
+    10569.5,
+    11430.5,
+    1261.9589085376692,
+    1428.9589085376692
+   ]
+  },
+  {
+   "label": "SM_Cave_Rock_CurvedWall",
+   "kind": "art",
+   "folder": "Art/S5_CaveDescent/CaveWalls",
+   "loc": [
+    768.0,
+    12700.0,
+    970.5
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mesh": "SM_Cave_Rock_CurvedWall",
+   "bbox": [
+    250.0,
+    1286.0,
+    12215.0,
+    13185.0,
+    -50,
+    1991.0
+   ]
+  },
+  {
+   "label": "SM_Cave_Rock_Large01_REDO2",
+   "kind": "art",
+   "folder": "Art/S5_CaveDescent/CaveWalls",
+   "loc": [
+    660.9,
+    13400.0,
+    718.9
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.1,
+    1.1,
+    1.1
+   ],
+   "mesh": "SM_Cave_Rock_Large01_REDO",
+   "bbox": [
+    250.0,
+    1071.7,
+    12993.0,
+    13807.0,
+    -50,
+    1487.8000000000002
+   ]
+  },
+  {
+   "label": "SM_Slums_Wall_03b",
+   "kind": "art",
+   "folder": "Art/S5_CaveDescent/ExitGate",
+   "loc": [
+    15.0,
+    14180.0,
+    480.0
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    0.34,
+    0.426,
+    0.7
+   ],
+   "mesh": "SM_Slums_Wall_03b",
+   "bbox": [
+    -120.0,
+    150.0,
+    14160.0,
+    14200.0,
+    260,
+    700.0
+   ]
+  },
+  {
    "label": "SM_ShantyLODFar4",
    "kind": "art",
    "folder": "Art/Far",
@@ -21112,287 +22205,6 @@
     -300,
     4740.0
    ]
-  },
-  {
-   "label": "MARKER_Checkpoint_Map2_01",
-   "kind": "marker",
-   "folder": "Checkpoints",
-   "loc": [
-    0.0,
-    -400.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Checkpoint_Map2_02",
-   "kind": "marker",
-   "folder": "Checkpoints",
-   "loc": [
-    0.0,
-    2500.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Checkpoint_Map2_03",
-   "kind": "marker",
-   "folder": "Checkpoints",
-   "loc": [
-    0.0,
-    5900.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Checkpoint_Map2_04",
-   "kind": "marker",
-   "folder": "Checkpoints",
-   "loc": [
-    0.0,
-    9200.0,
-    748.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Checkpoint_Map2_05",
-   "kind": "marker",
-   "folder": "Checkpoints",
-   "loc": [
-    0.0,
-    11600.0,
-    560.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Enemy_SpiderBot_S2_Roof",
-   "kind": "marker",
-   "folder": "Enemies",
-   "loc": [
-    60.0,
-    4100.0,
-    330.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Enemy_SpiderBot_S3_F1",
-   "kind": "marker",
-   "folder": "Enemies",
-   "loc": [
-    0.0,
-    6900.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_Enemy_RangedBot_S4_01",
-   "kind": "marker",
-   "folder": "Enemies",
-   "loc": [
-    520.0,
-    11150.0,
-    1288.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_HackTerminal_01",
-   "kind": "marker",
-   "folder": "Puzzles",
-   "loc": [
-    -70.0,
-    5500.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_HackDoor_01",
-   "kind": "marker",
-   "folder": "Puzzles",
-   "loc": [
-    60.0,
-    5320.0,
-    320.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_RespawnVolume_S1_Canal",
-   "kind": "marker",
-   "folder": "Interactables",
-   "loc": [
-    0.0,
-    1500.0,
-    -150.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "MARKER_ExitGate_ToMap3",
-   "kind": "marker",
-   "folder": "Interactables",
-   "loc": [
-    0.0,
-    14100.0,
-    20.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "PlayerStart_Brother",
-   "kind": "playerstart",
-   "folder": "PlayerStarts",
-   "loc": [
-    0.0,
-    -350.0,
-    92.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "label": "PlayerStart_Sister",
-   "kind": "playerstart",
-   "folder": "PlayerStarts",
-   "loc": [
-    0.0,
-    -550.0,
-    82.0
-   ],
-   "rot": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "tag": "Sister"
   }
  ]
 }

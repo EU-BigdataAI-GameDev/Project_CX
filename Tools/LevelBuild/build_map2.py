@@ -149,10 +149,10 @@ def ramp(label, x0, x1, y0, z0, y1, z1, thick=20, folder="Collision/Stairs"):
     return a
 
 def stairs_art(x0, x1, y0, z0, y1, z1, folder):
-    """SM_stairs_W1_H3_00(런 312 / 라이즈 182, +Y로 상승)을 스케일해 계단 모양을 만든다. 내려가는 계단은 yaw 180."""
+    """SM_stairs_W1_H3_00(런 312 / 라이즈 182)을 스케일해 계단 모양을 만든다. 이 메시는 yaw 0이면 -Y 쪽으로 올라가므로 +Y로 오르는 계단은 yaw 180."""
     run, rise = abs(y1 - y0), abs(z1 - z0)
     n = max(1, int(round((x1 - x0) / 183)))
-    yaw = 0.0 if (z1 - z0) * (y1 - y0) > 0 else 180.0
+    yaw = 180.0 if (z1 - z0) * (y1 - y0) > 0 else 0.0
     for i in range(n):
         fit("SM_stairs_W1_H3_00", x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n, min(y0, y1), max(y0, y1),
             min(z0, z1), min(z0, z1) + rise, yaw=yaw, folder=folder)

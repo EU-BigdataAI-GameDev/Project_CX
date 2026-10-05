@@ -308,25 +308,25 @@ def props_row(sec, y0, y1, x, z, count, folder="Art"):
 LOW_PROPS = ["SM_Slums_Trash_01a", "SM_Slums_Trashbag", "SM_Slums_Trash_02c", "SM_Slums_Pipe_05f", "SM_Slums_Trashcan_Lid",
              "SM_Cave_Rock_Small01", "SM_Slums_Pipe_05c"]
 
+WALL_PROPS = []   # 낮은 소품은 카메라 쪽 전경이 아니라 레인 뒤 벽 옆 바닥에 둔다(충돌 생성 후 place_wall_props에서 배치)
+
+def floor_span(folder, x0, x1, y0, y1, top, thick=64.0):
+    """SM_Slums_Floor_01a(260x200x64)를 충돌 박스 범위에 겹침 없이 정확히 채운다(타일 크기를 범위에 맞게 살짝 늘리거나 줄임)."""
+    nx = max(1, round((x1 - x0) / 260.0)); ny = max(1, math.ceil((y1 - y0) / 200.0 - 0.01))
+    w, d = (x1 - x0) / nx, (y1 - y0) / ny
+    for ix in range(nx):
+        for iy in range(ny):
+            art("SM_Slums_Floor_01a", x0 + w * (ix + 0.5), y0 + d * (iy + 0.5), top - thick, yaw=0,
+                scale=(w / 260.0, d / 200.0, thick / 64.0), folder=folder)
+
 def foreground(sec, y0, y1, skip=None, folder="Art"):
-    """카메라와 레인 사이 전경 바닥(걷지 못하는 영역). 플레이어 발밑을 가리지 않게 90cm 이하 소품만 둔다."""
-    y = y0
-    while y < y1 - 1:
-        if not (skip and skip[0] <= y < skip[1]):
-            for xx in (-400, -600, -800, -1000):
-                art("SM_Slums_Floor_02a", xx, y + 100, -20 - 18, yaw=0, folder=f"{folder}/{sec}/Foreground")
-        y += 200
-    # 레인 앞 가장자리(낮은 연석 느낌의 슬래브)
-    y = y0
-    while y < y1 - 1:
-        if not (skip and skip[0] <= y < skip[1]):
-            art("SM_Slums_Floor_01a", -300, y + 100, -20 - 64 + 20, yaw=90, scale=(1.0, 0.3, 1.0), folder=f"{folder}/{sec}/Foreground")
-        y += 260
+    """(2026-10-05) 카메라 쪽 전경 바닥/연석은 제거 — 플레이어가 그 앞까지 나오지 않는다.
+    낮은 소품만 WALL_PROPS 에 쌓아 두고, 충돌 생성 후 place_wall_props()가 레인 뒤 벽 옆 발판에 놓는다."""
     for k in range(int((y1 - y0) / 220)):
         yy = rng.uniform(y0, y1)
         if skip and skip[0] - 100 <= yy < skip[1] + 100:
             continue
-        art(rng.choice(LOW_PROPS), rng.uniform(-950, -430), yy, -20, yaw=rng.uniform(0, 360), folder=f"{folder}/{sec}/Foreground")
+        WALL_PROPS.append((rng.choice(LOW_PROPS), yy, rng.uniform(0, 360), f"{folder}/{sec}/WallProps"))
 
 def industrial_wall(sec, y0, y1, front_x, z_bottom, z_top, name="SM_Slums_Wall_03b", folder="Art"):
     """녹슨 산업 패널로 구조물 정면을 [y0,y1]x[z_bottom,z_top]에 정확히 맞춰 덮는다(윗면 위로 솟지 않게)."""
@@ -359,9 +359,7 @@ col("S1_Ground_B", LANE_X0, LANE_X1, 2300, 3000, -60, 0, f"Collision/{S1}")     
 
 ground_tiles(S1, Y_START, 2100, 0)
 ground_tiles(S1, 2300, 3000, 0)
-for yy in range(1000, 1700, 200):     # 나무 데크(윗면 z=50)
-    for xx in (-130, 130):
-        art("SM_Slums_Floor_01a", xx, yy, 50 - 64, yaw=0, folder=f"Art/{S1}/Deck")
+floor_span(f"Art/{S1}/Deck", -250, 250, 900, 1700, 50)     # 나무 데크(윗면 z=50)
 # 하수 수로
 art("SM_Water_A", 0, 2200, -25, yaw=0, scale=(0.15, 0.19, 1.0), folder=f"Art/{S1}/Channel")
 for yy in (2110, 2290):
@@ -399,16 +397,12 @@ col("S2_Terrace_C", 0, 250, 5900, 6212, 0, 182, f"Collision/{S2}")
 ground_tiles(S2, 3000, 5900, 0)
 foreground(S2, 3000, 6212)
 for xx in (65, 185):
-    art("SM_stairs_W1_H3_00", xx, 3256, 0, yaw=0, folder=f"Art/{S2}/Stairs")
+    art("SM_stairs_W1_H3_00", xx, 3256, 0, yaw=180, folder=f"Art/{S2}/Stairs")
 for xx in (-160, -30):
-    art("SM_stairs_W1_H3_00", xx, 6056, 0, yaw=0, folder=f"Art/{S2}/Stairs")
+    art("SM_stairs_W1_H3_00", xx, 6056, 0, yaw=180, folder=f"Art/{S2}/Stairs")
 # 테라스(위층 통로) 윗면 + 정면
-for (ya, yb) in [(3412, 4400), (4550, 5900), (5900, 6212)]:
-    yy = ya
-    while yy < yb - 1:
-        for xx in (60, 190):
-            art("SM_Slums_Floor_01a", xx, yy + 100, 182 - 64, yaw=0, folder=f"Art/{S2}/Terrace")
-        yy += 200
+for (ya, yb) in [(3412, 4400), (4550, 6212)]:
+    floor_span(f"Art/{S2}/Terrace", 0, 250, ya, yb, 182)
     yy = ya
     while yy < yb - 50:
         n = rng.choice(["SM_Slums_Wall_01a", "SM_Slums_Wall_01d", "SM_Slums_Wall_02a", "SM_Slums_Wall_02c", "SM_Slums_Wall_01f"])
@@ -449,15 +443,11 @@ ramp("S3_StairC", LANE_X0, LANE_X1, 7900, 529, 8212, 711, folder=f"Collision/{S3
 col("S3_StairC_Under", LANE_X0, LANE_X1, 7900, 8212, 0, 529, f"Collision/{S3}")
 
 for xx in (-183, 0, 183):
-    art("SM_stairs_W1_H3_00", xx, 6856, 182, yaw=0, folder=f"Art/{S3}/Stairs")
-    art("SM_stairs_W1_H3_00", xx, 8056, 529, yaw=0, folder=f"Art/{S3}/Stairs")
+    art("SM_stairs_W1_H3_00", xx, 6856, 182, yaw=180, folder=f"Art/{S3}/Stairs")
+    art("SM_stairs_W1_H3_00", xx, 8056, 529, yaw=180, folder=f"Art/{S3}/Stairs")
 # 계단참/발판 윗면(비계 느낌의 철판)
-for (ya, yb, top) in [(6212, 6700, 182), (7012, 7300, 364), (7300, 7500, 419), (7500, 7700, 474), (7700, 7900, 529)]:
-    yy = ya
-    while yy < yb - 1:
-        for xx in (-130, 130):
-            art("SM_Slums_Floor_01a", xx, yy + 100, top - 64, yaw=0, folder=f"Art/{S3}/Platforms")
-        yy += 200
+for (ya, yb, top, th) in [(6212, 6700, 182, 64), (7012, 7300, 364, 64), (7300, 7500, 419, 55), (7500, 7700, 474, 55), (7700, 7900, 529, 55)]:
+    floor_span(f"Art/{S3}/Platforms", -250, 250, ya, yb, top, th)
 # 단차 발판 정면 네온(점프 목표를 시각적으로 강조)
 for k, (yy, top) in enumerate([(7400, 419), (7600, 474), (7800, 529)]):
     neon(f"S3_Step_{k}", -262, yy, top - 8, 190, "Cyan", "Y", thick=5)
@@ -534,15 +524,11 @@ col("S5_E4", LANE_X0, LANE_X1, 11500, 11800, 210, 250, f"Collision/{S5}")       
 ground_tiles(S5, 10000, Y_END, 0)
 foreground(S5, 10000, Y_END)
 for (ya, yb, top) in [(10000, 10400, CORE_Z), (10550, 10900, 650), (11050, 11350, 480), (11500, 11800, 250)]:
-    yy = ya
-    while yy < yb - 1:
-        for xx in (-130, 130):
-            art("SM_Slums_Floor_01a", xx, yy + 100, top - 64, yaw=0, folder=f"Art/{S5}/Platforms")
-        yy += 200
+    floor_span(f"Art/{S5}/Platforms", -250, 250, ya, yb, top, 40)
     # 발판을 받치는 비계 기둥
     for yy in (ya + 40, yb - 40):
         for xx in (-200, 200):
-            h = top - 64
+            h = top - 40
             art("SM_Slums_Pipe_02a", xx, yy, 0, yaw=0, scale=(1, 1, max(0.2, h / 102.0)), folder=f"Art/{S5}/Supports")
     neon(f"S5_Edge_{ya}", -262, (ya + yb) / 2, top - 8, (yb - ya) - 20, "Orange", "Y", thick=5)
 # 추격 연출용 붉은 조명 + 마커
@@ -623,6 +609,43 @@ ppv.set_editor_property("settings", s)
 _finish(ppv, ATM, "PPV_Global"); _record(ppv, "ppv")
 
 # ================================================================ GAMEPLAY
+def place_wall_props():
+    """레인 뒤 벽(X≈245) 옆, 실제 발판 높이(충돌 박스 위)에 소품을 놓는다. 계단/턱 가장자리는 피한다."""
+    world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    def floor_at(x, y):
+        h = unreal.SystemLibrary.line_trace_single(world, unreal.Vector(x, y, 3000), unreal.Vector(x, y, -500),
+                unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, False, [], unreal.DrawDebugTrace.NONE, True)
+        if not h:
+            return None
+        t = h.to_tuple()
+        return None if "Stair" in t[9].get_actor_label() else t[4].z
+    def flat(x, y):
+        zs = [floor_at(x, y + dy) for dy in (-40, 0, 40)]
+        return zs[1] if None not in zs and max(zs) - min(zs) <= 2 else None
+    for name, y, yaw, folder in WALL_PROPS:
+        x = 245 - INV[name]["size"][0] / 2 - rng.uniform(0, 35)
+        for step in range(30):
+            cands = [y] if step == 0 else [y + step * 60, y - step * 60]
+            hit = next(((yy, z) for yy in cands for z in [flat(x, yy)] if z is not None), None)
+            if hit:
+                art(name, x, hit[0], hit[1], yaw=yaw, folder=folder)
+                break
+
+place_wall_props()
+
+# 플레이어 카메라(화면 분할 기준) 위쪽으로 과하게 솟은 배경/네온 제거 — Tools/LevelBuild/camera_cull.py
+exec(open(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir() + "../Tools/LevelBuild/camera_cull.py"), encoding="utf-8").read())
+_world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+_cands = [a for a in eas.get_all_level_actors() if isinstance(a, unreal.StaticMeshActor) and TAG in [str(t) for t in a.tags]
+          and not a.get_actor_label().startswith("COL_")
+          and (str(a.get_folder_path()).startswith("Art") or str(a.get_folder_path()).startswith("Lighting/Neon"))]
+_hidden = find_hidden(_world, _cands, -250.0, Y_START, Y_END)
+_hidden_labels = set(a.get_actor_label() for a in _hidden)
+for a in _hidden:
+    eas.destroy_actor(a)
+manifest[:] = [e for e in manifest if e["label"] not in _hidden_labels]
+print("camera cull removed", len(_hidden))
+
 ps1 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-40, 150, 92))
 _finish(ps1, "Gameplay/PlayerStarts", "PlayerStart_Brother"); _record(ps1, "playerstart")
 ps2 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-40, -60, 82))
