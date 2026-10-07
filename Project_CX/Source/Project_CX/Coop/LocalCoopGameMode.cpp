@@ -6,6 +6,13 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "CoopHUD.h"
+
+ALocalCoopGameMode::ALocalCoopGameMode()
+{
+	// 분할 화면 각 칸에 자기 정보를 그리는 협동 HUD
+	HUDClass = ACoopHUD::StaticClass();
+}
 
 void ALocalCoopGameMode::BeginPlay()
 {

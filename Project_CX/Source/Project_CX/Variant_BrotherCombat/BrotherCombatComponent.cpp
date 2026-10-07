@@ -281,6 +281,16 @@ void UBrotherCombatComponent::SpawnBullet(const FVector& AimDirection)
 	}
 }
 
+float UBrotherCombatComponent::GetReloadProgress() const
+{
+	if (!bIsReloading || ReloadTime <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const float Remaining = GetWorld()->GetTimerManager().GetTimerRemaining(ReloadTimerHandle);
+	return FMath::Clamp(1.0f - Remaining / ReloadTime, 0.0f, 1.0f);
+}
+
 void UBrotherCombatComponent::StartReload()
 {
 	bIsReloading = true;

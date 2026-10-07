@@ -22,6 +22,8 @@ class ALocalCoopGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	ALocalCoopGameMode();
+
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 

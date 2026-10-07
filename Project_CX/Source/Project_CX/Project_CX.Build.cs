@@ -42,7 +42,8 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_BrotherCombat/Gameplay",
 			"Project_CX/Variant_Sister",
 			"Project_CX/Variant_Sister/Animation",
-			"Project_CX/Coop"
+			"Project_CX/Coop",
+			"Project_CX/Coop/UI"
 		});
 
 		// Uncomment if you are using Slate UI

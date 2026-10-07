@@ -52,6 +52,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Brother|Combat")
 	bool bIsReloading = false;
 
+	/** HUD용: 장전 진행도(0~1). 장전 중이 아니면 0. */
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	float GetReloadProgress() const;
+
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	int32 GetMaxAmmo() const { return MaxAmmo; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
