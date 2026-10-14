@@ -3,6 +3,8 @@
 #include "CoopHUD.h"
 #include "BrotherCombatComponent.h"
 #include "SisterCharacter.h"
+#include "SisterHackComponent.h"
+#include "HackTerminal.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
@@ -52,7 +54,7 @@ void ACoopHUD::RefreshHackTerminals()
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
 		AActor* Actor = *It;
-		bool bHackable = Actor->Tags.Contains(HackableTag);
+		bool bHackable = Actor->IsA<AHackTerminal>() || Actor->Tags.Contains(HackableTag);
 		if (!bHackable)
 		{
 			const FString ClassName = Actor->GetClass()->GetName();
@@ -192,7 +194,8 @@ void ACoopHUD::DrawSisterHackLink()
 	{
 		for (const TWeakObjectPtr<AActor>& Weak : HackTerminals)
 		{
-			if (const AActor* Terminal = Weak.Get())
+			const AActor* Terminal = Weak.Get();
+			if (Terminal && IsTerminalAvailable(Terminal))
 			{
 				const float D = FVector::Dist(MyPawn->GetActorLocation(), Terminal->GetActorLocation());
 				if (D < NearestDist)
@@ -204,14 +207,16 @@ void ACoopHUD::DrawSisterHackLink()
 		}
 	}
 	const bool bInSignal = Nearest && NearestDist <= HackSignalRange;
-	const bool bActive = Nearest && NearestDist <= HackActivateRange;
+	const USisterHackComponent* Hack = MyPawn ? MyPawn->FindComponentByClass<USisterHackComponent>() : nullptr;
+	const bool bActive = Hack ? (Hack->GetFocusTerminal() != nullptr) : (Nearest && NearestDist <= HackActivateRange);
 
 	// 신호 범위 안 단말기에는 월드 마커(가장 가까운 것만 활성)
 	if (MyPawn)
 	{
 		for (const TWeakObjectPtr<AActor>& Weak : HackTerminals)
 		{
-			if (const AActor* Terminal = Weak.Get())
+			const AActor* Terminal = Weak.Get();
+			if (Terminal && IsTerminalAvailable(Terminal))
 			{
 				const float D = FVector::Dist(MyPawn->GetActorLocation(), Terminal->GetActorLocation());
 				if (D <= HackSignalRange)
@@ -261,6 +266,11 @@ void ACoopHUD::DrawSisterHackLink()
 		const float BarH = (10.0f + i * 9.0f) * S();
 		const float Alpha = (i < Lit) ? 0.9f : 0.18f;
 		DrawRect(SisterColor.CopyWithNewOpacity(Alpha), X + W - Pad - (Bars - i) * 14.0f * S(), BarBase - BarH, 9.0f * S(), BarH);
+	}
+
+	if (Hack && Hack->IsHacking())
+	{
+		DrawHackSession(*Hack);
 	}
 }
 
@@ -460,7 +470,167 @@ void ACoopHUD::DrawSplitEdge(const FLinearColor& Color)
 	}
 }
 
+void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
+{
+	const AHackTerminal* Terminal = Hack.GetActiveTerminal();
+	if (!Terminal)
+	{
+		return;
+	}
+
+	const bool bArrow = Terminal->PuzzleType == EHackPuzzleType::ArrowSequence;
+	const EHackFeedback Feedback = Hack.GetFeedback();
+	const float FeedbackAge = Hack.GetFeedbackAge();
+	const bool bDenied = Feedback == EHackFeedback::Denied && FeedbackAge < 0.6f;
+	const bool bRoundClear = Feedback == EHackFeedback::RoundClear && FeedbackAge < 0.6f;
+	const bool bGranted = Feedback == EHackFeedback::Granted;
+
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bDenied ? DeniedColor : SisterColor);
+
+	// 실패 시 좌우 흔들림
+	const float Shake = bDenied ? FMath::Sin(FeedbackAge * 70.0f) * (1.0f - FeedbackAge / 0.6f) * 10.0f * S() : 0.0f;
+
+	const float W = 780.0f * S();
+	const float H = 230.0f * S();
+	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+
+	// 글리치 스캔 라인: 0.08초마다 위치가 바뀌는 가로 띠 3개
+	const int32 Seed = static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f);
+	FRandomStream Glitch(Seed);
+	for (int32 i = 0; i < 3; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.09f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 4.0f) * S());
+	}
+
+	// 헤더: BREACHING // 이름 + 깜빡이는 커서, 오른쪽 라운드
+	const float Pad = 20.0f * S();
+	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal->TerminalName);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	float HW = 0.0f, HH = 0.0f;
+	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	if (Pulse(9.0f) > 0.5f)
+	{
+		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
+	}
+	const FString Right = bArrow ? FString::Printf(TEXT("ROUND %d / %d"), Hack.GetRoundIndex() + 1, Hack.GetRoundCount()) : FString(TEXT("PASSCODE  4-DIGIT"));
+	float RW = 0.0f, RH = 0.0f;
+	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+
+	const float BodyY = Y + 58.0f * S();
+	if (bArrow)
+	{
+		// 화살표 칸: 완료(채움) / 현재(펄스 테두리) / 대기(흐림)
+		const TArray<EHackArrow>& Sequence = Hack.GetArrowSequence();
+		const int32 Count = Sequence.Num();
+		const float Cell = 78.0f * S();
+		const float Gap = 14.0f * S();
+		const float RowW = Count * Cell + FMath::Max(0, Count - 1) * Gap;
+		float CX = X + (W - RowW) * 0.5f;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const bool bDone = bGranted || i < Hack.GetArrowIndex();
+			const bool bCurrent = !bGranted && i == Hack.GetArrowIndex();
+			FLinearColor CellColor = bDone ? Accent : (bCurrent ? Accent.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.25f));
+			if (bDone)
+			{
+				DrawRect(Accent.CopyWithNewOpacity(0.28f), CX, BodyY, Cell, Cell);
+			}
+			const float T = bCurrent ? 3.0f : 1.5f;
+			DrawLine(CX, BodyY, CX + Cell, BodyY, CellColor, T);
+			DrawLine(CX + Cell, BodyY, CX + Cell, BodyY + Cell, CellColor, T);
+			DrawLine(CX + Cell, BodyY + Cell, CX, BodyY + Cell, CellColor, T);
+			DrawLine(CX, BodyY + Cell, CX, BodyY, CellColor, T);
+			DrawArrowGlyph(FVector2D(CX + Cell * 0.5f, BodyY + Cell * 0.5f), Cell * 0.3f, Sequence[i],
+			               bDone || bCurrent ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.3f));
+			CX += Cell + Gap;
+		}
+	}
+	else
+	{
+		// 비밀번호 4칸: 현재 칸은 위아래 셰브론으로 변경 가능함을 표시
+		const TArray<int32>& Digits = Hack.GetPasscodeInput();
+		const float BoxW = 86.0f * S();
+		const float BoxH = 100.0f * S();
+		const float Gap = 22.0f * S();
+		const float RowW = 4 * BoxW + 3 * Gap;
+		float BX = X + (W - RowW) * 0.5f;
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const bool bCursor = !bGranted && i == Hack.GetPasscodeCursor();
+			const FLinearColor BoxColor = bCursor ? Accent.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.45f);
+			DrawRect(Accent.CopyWithNewOpacity(bCursor ? 0.22f : 0.08f), BX, BodyY + 8.0f * S(), BoxW, BoxH);
+			DrawLine(BX, BodyY + 8.0f * S() + BoxH, BX + BoxW, BodyY + 8.0f * S() + BoxH, BoxColor, bCursor ? 3.0f : 1.5f);
+			const FString D = Digits.IsValidIndex(i) ? FString::FromInt(Digits[i]) : FString(TEXT("-"));
+			Label(D, BX + BoxW * 0.5f, BodyY + 22.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.9f, true);
+			if (bCursor)
+			{
+				DrawArrowGlyph(FVector2D(BX + BoxW * 0.5f, BodyY - 4.0f * S()), 8.0f * S(), EHackArrow::Up, Accent);
+				DrawArrowGlyph(FVector2D(BX + BoxW * 0.5f, BodyY + BoxH + 22.0f * S()), 8.0f * S(), EHackArrow::Down, Accent);
+			}
+			BX += BoxW + Gap;
+		}
+	}
+
+	// 하단: 진행 바(화살표) + 조작 안내
+	const float FootY = Y + H - 34.0f * S();
+	if (bArrow)
+	{
+		const float BarW = W - Pad * 2.0f;
+		DrawRect(Accent.CopyWithNewOpacity(0.15f), X + Pad, FootY - 10.0f * S(), BarW, 4.0f * S());
+		DrawRect(Accent, X + Pad, FootY - 10.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
+	}
+	const FString Hint = bArrow
+		? FString::Printf(TEXT("D-PAD  ENTER SEQUENCE        [B]  ABORT"))
+		: FString::Printf(TEXT("D-PAD UP/DOWN  DIGIT      LEFT/RIGHT  MOVE      %s  SUBMIT      [B]  ABORT"), *HackKeyHint);
+	Label(Hint, X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f, true);
+
+	// 판정 연출
+	if (bDenied || bRoundClear || bGranted)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bDenied ? TEXT("ACCESS DENIED") : TEXT("ROUND CLEAR"));
+		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
+		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / 0.6f;
+		DrawRect(MsgColor.CopyWithNewOpacity(0.18f * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), 1.4f, true);
+	}
+}
+
+void ACoopHUD::DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Direction, const FLinearColor& Color)
+{
+	FVector2D Dir;
+	switch (Direction)
+	{
+	case EHackArrow::Up:    Dir = FVector2D(0.0f, -1.0f); break;
+	case EHackArrow::Down:  Dir = FVector2D(0.0f, 1.0f); break;
+	case EHackArrow::Left:  Dir = FVector2D(-1.0f, 0.0f); break;
+	default:                Dir = FVector2D(1.0f, 0.0f); break;
+	}
+	const FVector2D Side(-Dir.Y, Dir.X);
+	const FVector2D Tip = Center + Dir * Size;
+	const FVector2D Tail = Center - Dir * Size;
+	const FVector2D HeadBase = Center + Dir * (Size * 0.1f);
+	const float Th = FMath::Max(2.0f, Size * 0.18f);
+	DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, Color, Th);
+	const FVector2D A = HeadBase + Side * (Size * 0.75f);
+	const FVector2D B = HeadBase - Side * (Size * 0.75f);
+	DrawLine(Tip.X, Tip.Y, A.X, A.Y, Color, Th);
+	DrawLine(Tip.X, Tip.Y, B.X, B.Y, Color, Th);
+}
+
 // ---------------------------------------------------------------- 그리기 도우미
+
+bool ACoopHUD::IsTerminalAvailable(const AActor* Terminal)
+{
+	const AHackTerminal* HackTerminal = Cast<AHackTerminal>(Terminal);
+	return !HackTerminal || HackTerminal->GetState() != EHackTerminalState::Hacked;
+}
 
 void ACoopHUD::DrawPistolIcon(float X, float Y, const FLinearColor& Color)
 {

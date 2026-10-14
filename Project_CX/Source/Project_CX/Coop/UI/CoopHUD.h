@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "HackTerminal.h"
 #include "CoopHUD.generated.h"
 
 class UBrotherCombatComponent;
+class USisterHackComponent;
 class UFont;
 
 /**
@@ -18,7 +20,8 @@ class UFont;
  *
  *  - 공통: 플레이어 태그(좌상단), 파트너 위치 표시, 구역 배너, 분할 경계선
  *  - 오빠: 레일건 탄약/장전 패널(좌하단), 조준 타겟 마커
- *  - 여동생: 해킹 링크 패널(좌하단) + 근처 해킹 단말기 활성화 표시(월드 마커/프롬프트)
+ *  - 여동생: 해킹 링크 패널(좌하단) + 근처 해킹 단말기 활성화 표시(월드 마커/프롬프트) + 해킹 중 퍼즐 오버레이
+ *    (해킹 UI는 여동생 폰을 가진 HUD에서만 그린다 → 오빠 화면에는 절대 나타나지 않는다)
  */
 UCLASS()
 class ACoopHUD : public AHUD
@@ -78,7 +81,7 @@ protected:
 
 	/** 화면에 띄우는 해킹 입력 안내. */
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Hack")
-	FString HackKeyHint = TEXT("[F]");
+	FString HackKeyHint = TEXT("[X]");
 
 private:
 	void DrawPlayerTag(const FLinearColor& Color, const FString& SlotText, const FString& DisplayName, const FString& RoleText);
@@ -86,6 +89,11 @@ private:
 	void DrawSisterHackLink();
 	void DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM);
 	void DrawPistolIcon(float X, float Y, const FLinearColor& Color);
+	void DrawHackSession(const USisterHackComponent& Hack);
+	void DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Direction, const FLinearColor& Color);
+
+	/** 이미 해킹된 단말기는 표시/활성 대상에서 뺀다. */
+	static bool IsTerminalAvailable(const AActor* Terminal);
 
 	/** 레벨의 해킹 단말기 목록을 1초마다 갱신한다(매 프레임 전체 액터 순회를 피함). */
 	void RefreshHackTerminals();

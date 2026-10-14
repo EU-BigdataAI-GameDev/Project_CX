@@ -11,6 +11,7 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class UAnimSequence;
+class USisterHackComponent;
 struct FInputActionValue;
 
 /**
@@ -32,6 +33,8 @@ public:
 	const UAnimSequence* GetJumpStartAnim() const { return JumpStartAnim; }
 	const UAnimSequence* GetJumpEndAnim() const { return JumpEndAnim; }
 
+	USisterHackComponent* GetHackComponent() const { return HackComponent; }
+
 protected:
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -43,6 +46,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	/** 해킹(여동생 전용). 단말기 탐지·입력·퍼즐 판정을 담당한다(.claude/Plans/해킹 시스템 기획.md). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hack")
+	TObjectPtr<USisterHackComponent> HackComponent;
 
 	/** 이 캐릭터를 조작하는 로컬 플레이어에게 추가할 입력 매핑 컨텍스트. */
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
