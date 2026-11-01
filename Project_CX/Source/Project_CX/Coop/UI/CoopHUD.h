@@ -33,6 +33,9 @@ public:
 
 	virtual void DrawHUD() override;
 
+	/** 현재 맵의 구역명(ZoneTitles 기준). ESC 메뉴 정보줄이 재사용한다. BeginPlay 전엔 빈 문자열. */
+	const FString& GetZoneTitle() const { return ZoneTitle; }
+
 protected:
 	virtual void BeginPlay() override;
 

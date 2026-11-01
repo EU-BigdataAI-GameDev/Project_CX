@@ -40,13 +40,28 @@ FCXMenuInputProcessor::FCXMenuInputProcessor(UCXMenuSubsystem* InOwner)
 bool FCXMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
 	UCXMenuSubsystem* Subsystem = Owner.Get();
-	if (!Subsystem || !Subsystem->HasActiveMenu() || !Subsystem->IsGameViewportFocused())
+	if (!Subsystem || !Subsystem->IsGameViewportFocused())
 	{
 		return false;
 	}
 
 	const FKey Key = InKeyEvent.GetKey();
 	const bool bGamepad = Key.IsGamepadKey();
+
+	if (!Subsystem->HasActiveMenu())
+	{
+		// ESC 메뉴 재개 직후 0.15초: 게임플레이 입력 무시(A/Enter가 점프·사격으로 새지 않게)
+		if (Subsystem->IsGameplayInputBlocked())
+		{
+			return true;
+		}
+		// 메뉴가 없을 때는 ESC / 게임패드 Start만 본다 → 인게임이면 일시정지 메뉴 열기
+		if (!InKeyEvent.IsRepeat() && (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right))
+		{
+			return Subsystem->HandlePauseKey(bGamepad, InKeyEvent.GetInputDeviceId());
+		}
+		return false;
+	}
 	// 키/패드 입력이 오면 마우스 커서를 숨긴다(0.2)
 	Subsystem->NotifyInputDeviceUsed(false);
 
@@ -161,6 +176,11 @@ bool FCXMenuInputProcessor::HandleMouseMoveEvent(FSlateApplication& SlateApp, co
 bool FCXMenuInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
 	UCXMenuSubsystem* Subsystem = Owner.Get();
+	if (Subsystem && !Subsystem->HasActiveMenu() && Subsystem->IsGameplayInputBlocked() && Subsystem->IsGameViewportFocused())
+	{
+		// RESUME 클릭이 사격으로 새지 않게
+		return true;
+	}
 	if (Subsystem && Subsystem->HasActiveMenu() && Subsystem->IsGameViewportFocused())
 	{
 		Subsystem->NotifyInputDeviceUsed(true);

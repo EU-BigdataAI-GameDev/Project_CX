@@ -7,6 +7,7 @@
 #include "CXGameInstance.h"
 #include "CoopHUD.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -185,14 +186,19 @@ void UCXPauseMenuWidget::BuildMenu()
 	InfoText = MakeText(TEXT(""), 15, TEXT("Regular"), 160, CXMenuStyle::TextDim);
 	Column->AddChildToVerticalBox(InfoText);
 
-	// 3) 화면 하단: 플레이어 장치 태그(좌) + 조작 힌트(우)
-	UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Footer"));
-	if (UOverlaySlot* S = RootOverlay->AddChildToOverlay(Footer))
+	// 3) 화면 하단: 플레이어 장치 태그(좌) + 조작 힌트(우). 아래 HUD 패널과 겹쳐도 읽히게 어두운 띠 위에 둔다.
+	UBorder* FooterStrip = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("FooterStrip"));
+	FooterStrip->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.72f));
+	FooterStrip->SetPadding(FMargin(60.0f, 16.0f, 60.0f, 18.0f));
+	FooterStrip->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UOverlaySlot* S = RootOverlay->AddChildToOverlay(FooterStrip))
 	{
 		S->SetHorizontalAlignment(HAlign_Fill);
 		S->SetVerticalAlignment(VAlign_Bottom);
-		S->SetPadding(FMargin(60.0f, 0.0f, 60.0f, 40.0f));
+		S->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
 	}
+	UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Footer"));
+	FooterStrip->SetContent(Footer);
 	const TCHAR* TagNames[UCXGameInstance::NumPlayerSlots] = { TEXT("P1  BROTHER"), TEXT("P2  SISTER") };
 	for (int32 i = 0; i < UCXGameInstance::NumPlayerSlots; ++i)
 	{
@@ -324,6 +330,9 @@ void UCXPauseMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 		}
 	}
 
+	// 확인창/알림창이 열리면 뒤 패널을 흐리게(반투명 확인창 너머로 항목 글자가 겹쳐 보이지 않게)
+	PanelBox->SetRenderOpacity(IsModalOpen() ? 0.12f : 1.0f);
+
 	// 1초 주기 깜박임
 	BlinkSquare->SetRenderOpacity(FMath::Fmod(Clock, 1.0f) < 0.5f ? 1.0f : 0.0f);
 
@@ -405,6 +414,15 @@ void UCXPauseMenuWidget::OnItemActivated(FName ItemId)
 		ShowConfirm(FText::FromString(TEXT("RETURN TO TITLE?")),
 			FText::FromString(TEXT("PROGRESS ON THIS MAP WILL NOT BE SAVED.")),
 			[this]() { BeginQuitToTitle(); });
+	}
+}
+
+void UCXPauseMenuWidget::SetOpenedBy(int32 PlayerIndex)
+{
+	if (PlayerIndex >= 0 && PlayerIndex < UCXGameInstance::NumPlayerSlots)
+	{
+		FocusPlayer = PlayerIndex;
+		RefreshFocusVisuals();
 	}
 }
 

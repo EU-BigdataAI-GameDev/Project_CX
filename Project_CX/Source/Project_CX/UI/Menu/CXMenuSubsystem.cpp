@@ -3,7 +3,12 @@
 #include "CXMenuSubsystem.h"
 #include "CXMenuInputProcessor.h"
 #include "CXMenuWidgetBase.h"
+#include "CXPauseMenuWidget.h"
 #include "CXGameInstance.h"
+#include "CXTitleGameMode.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/LocalPlayer.h"
+#include "Sound/SoundMix.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
@@ -25,20 +30,42 @@ UCXMenuSubsystem* UCXMenuSubsystem::Get(const UObject* WorldContextObject)
 void UCXMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	PauseMenuClass = UCXPauseMenuWidget::StaticClass();
 	PreLoadMapHandle = FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UCXMenuSubsystem::HandlePreLoadMap);
+	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UCXMenuSubsystem::HandlePostLoadMap);
+	DeviceConnectionHandle = IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().AddUObject(this, &UCXMenuSubsystem::HandleDeviceConnectionChange);
+	// ESC 메뉴 열기 키를 보려면 메뉴가 없어도 프리프로세서가 필요하다
+	UpdateInputProcessor();
 }
 
 void UCXMenuSubsystem::Deinitialize()
 {
 	FCoreUObjectDelegates::PreLoadMap.Remove(PreLoadMapHandle);
+	FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
+	IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().Remove(DeviceConnectionHandle);
+	SetPauseSoundMix(false);
 	MenuStack.Reset();
+	PauseMenu = nullptr;
+	bDeinitializing = true;
 	UpdateInputProcessor();
 	InputProcessor.Reset();
 	Super::Deinitialize();
 }
 
+void UCXMenuSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
+{
+	bMapLoading = false;
+	bLeavingMap = false;
+	// Initialize 시점에 Slate가 아직 없었다면 여기서 등록
+	UpdateInputProcessor();
+}
+
 void UCXMenuSubsystem::HandlePreLoadMap(const FString& MapName)
 {
+	// 맵 로딩/전환 중에는 ESC 메뉴를 열 수 없다
+	bMapLoading = true;
+	ResetPauseState();
+
 	// 맵 이동 시 뷰포트 위젯은 엔진이 모두 내린다 → 스택만 정리.
 	// UI 전용 입력 모드(IgnoreInput, 마우스 캡처 없음)는 GameViewportClient에 남아 다음 맵까지 이어지므로 게임 입력으로 되돌린다.
 	if (UCXMenuWidgetBase* Top = GetTopMenu())
@@ -120,7 +147,8 @@ void UCXMenuSubsystem::UpdateInputProcessor()
 		bProcessorRegistered = false;
 		return;
 	}
-	const bool bWant = MenuStack.Num() > 0;
+	// ESC 메뉴 열기 키 감시를 위해 서브시스템이 살아 있는 동안 항상 등록(메뉴가 없으면 ESC/Start 외에는 흘려보냄)
+	const bool bWant = !bDeinitializing;
 	if (bWant && !bProcessorRegistered)
 	{
 		if (!InputProcessor.IsValid())
@@ -219,6 +247,11 @@ bool UCXMenuSubsystem::SimulateMenuInput(int32 Action, bool bGamepad, int32 Devi
 	Input.Action = static_cast<ECXMenuAction>(Action);
 	Input.bFromGamepad = bGamepad;
 	Input.DeviceId = FInputDeviceId::CreateFromInternalId(DeviceId);
+	// 메뉴가 없을 때 ESC(Back)/Start = 프리프로세서와 같은 일시정지 메뉴 열기 경로
+	if (!HasActiveMenu() && (Input.Action == ECXMenuAction::Back || Input.Action == ECXMenuAction::Start))
+	{
+		return HandlePauseKey(bGamepad, Input.DeviceId);
+	}
 	// 같은 프레임 중복 필터에 걸리지 않게
 	LastInputFrame = 0;
 	return DispatchInput(Input);
@@ -228,4 +261,219 @@ FString UCXMenuSubsystem::GetTopMenuDebugState() const
 {
 	const UCXMenuWidgetBase* Menu = GetTopMenu();
 	return Menu ? FString::Printf(TEXT("%s %s"), *Menu->GetClass()->GetName(), *Menu->GetDebugState()) : TEXT("none");
+}
+
+// ---------------------------------------------------------------------------------------------
+// ESC(일시정지) 메뉴
+
+bool UCXMenuSubsystem::IsPauseableWorld() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	if (!World || !World->IsGameWorld() || !World->HasBegunPlay() || World->bIsTearingDown)
+	{
+		return false;
+	}
+	// 시작화면은 자체 메뉴가 있다(리슨 서버 클라이언트는 AuthGameMode가 없으므로 null이면 인게임으로 본다)
+	return !Cast<ACXTitleGameMode>(World->GetAuthGameMode()) && GameInstance->GetFirstLocalPlayerController(World) != nullptr;
+}
+
+bool UCXMenuSubsystem::CanOpenPauseMenu() const
+{
+	return !bMenuBlocked && !bMapLoading && !bLeavingMap && !HasActiveMenu() && !PauseMenu && IsPauseableWorld();
+}
+
+bool UCXMenuSubsystem::IsGameplayInputBlocked() const
+{
+	return FPlatformTime::Seconds() < GameplayInputBlockEnd;
+}
+
+bool UCXMenuSubsystem::HandlePauseKey(bool bFromGamepad, FInputDeviceId DeviceId)
+{
+	if (!IsPauseableWorld())
+	{
+		// 시작화면 등: ESC를 소비하지 않는다(에디터 PIE의 ESC 종료 유지)
+		return false;
+	}
+	if (CanOpenPauseMenu())
+	{
+		const UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance());
+		const int32 Player = GI ? GI->ResolvePlayerForInput(bFromGamepad, DeviceId) : (bFromGamepad ? 1 : 0);
+		OpenPauseMenu(UGameplayStatics::GetPlayerController(GetGameInstance()->GetWorld(), Player));
+	}
+	// 인게임에서는 열 수 없는 상태(로딩/차단)라도 ESC를 게임/에디터로 흘리지 않는다
+	return true;
+}
+
+bool UCXMenuSubsystem::OpenPauseMenu(APlayerController* Requester)
+{
+	if (!CanOpenPauseMenu())
+	{
+		return false;
+	}
+	UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance->GetWorld();
+	// 메뉴는 분할 화면 전체에 하나 → 1P 컨트롤러가 소유(누가 열었든 누구나 조작)
+	APlayerController* Owner = GameInstance->GetFirstLocalPlayerController(World);
+	if (!Owner)
+	{
+		return false;
+	}
+
+	// 월드 전체 일시정지(로컬 협동이라 두 플레이어 모두, 해킹 세션/타이머 포함)
+	UGameplayStatics::SetGamePaused(World, true);
+	bReconnected = false;
+
+	PauseMenu = Cast<UCXPauseMenuWidget>(PushMenu(PauseMenuClass, Owner, 200));
+	if (!PauseMenu)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+		return false;
+	}
+	// 포커스 색 = 연 사람 색(연결 끊김 자동 열기는 기본값 유지)
+	if (Requester && Requester->GetLocalPlayer())
+	{
+		PauseMenu->SetOpenedBy(Requester->GetLocalPlayer()->GetLocalPlayerIndex());
+	}
+	SetPauseSoundMix(true);
+	return true;
+}
+
+void UCXMenuSubsystem::FinishClosePauseMenu(UCXPauseMenuWidget* Menu)
+{
+	if (!Menu || Menu != PauseMenu)
+	{
+		return;
+	}
+	PauseMenu = nullptr;
+	bReconnected = false;
+	PopMenu(Menu);
+	SetPauseSoundMix(false);
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	if (World)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+		// 메뉴에서 누른 키가 눌린 채로 게임 입력에 남지 않게
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* PC = It->Get();
+			if (PC && PC->IsLocalController())
+			{
+				PC->FlushPressedKeys();
+			}
+		}
+	}
+	// 재개 직후 0.15초 게임플레이 입력 무시(A/Enter가 점프·사격으로 새지 않게)
+	GameplayInputBlockEnd = FPlatformTime::Seconds() + CXMenuStyle::InputLockTime;
+}
+
+void UCXMenuSubsystem::ResetPauseState()
+{
+	SetPauseSoundMix(false);
+	PauseMenu = nullptr;
+	bReconnected = false;
+	DisconnectedPlayer = INDEX_NONE;
+	GameplayInputBlockEnd = 0.0;
+}
+
+void UCXMenuSubsystem::SetPauseSoundMix(bool bPush)
+{
+	// BGM 덕킹 훅: 에셋(SM_PauseDuck)이 아직 없어 PauseSoundMix가 비어 있으면 아무것도 안 한다
+	if (bPush == bSoundMixPushed)
+	{
+		return;
+	}
+	USoundMix* Mix = PauseSoundMix.IsNull() ? nullptr : PauseSoundMix.LoadSynchronous();
+	const UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	if (!Mix || !World)
+	{
+		bSoundMixPushed = false;
+		return;
+	}
+	if (bPush)
+	{
+		UGameplayStatics::PushSoundMixModifier(World, Mix);
+	}
+	else
+	{
+		UGameplayStatics::PopSoundMixModifier(World, Mix);
+	}
+	bSoundMixPushed = bPush;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 게임패드 연결 끊김(ESC 메뉴 기획 6장)
+
+void UCXMenuSubsystem::HandleDeviceConnectionChange(EInputDeviceConnectionState NewState, FPlatformUserId UserId, FInputDeviceId DeviceId)
+{
+	// 키보드/마우스(기본 입력 장치)는 대상 아님. 시작화면은 자체 처리(CXTitleMenuWidget).
+	if (DeviceId == IPlatformInputDeviceMapper::Get().GetDefaultInputDevice() || !IsPauseableWorld())
+	{
+		return;
+	}
+	UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance());
+
+	if (NewState == EInputDeviceConnectionState::Disconnected)
+	{
+		// 시작화면에서 배정된 패드면 그 슬롯, 아니면(맵에서 바로 시작 등) 첫 게임패드 슬롯(기본 P2 여동생)
+		int32 Player = GI ? GI->FindSlotByGamepad(DeviceId) : INDEX_NONE;
+		if (Player == INDEX_NONE)
+		{
+			for (int32 i = 0; i < UCXGameInstance::NumPlayerSlots; ++i)
+			{
+				if (!GI || GI->GetSlotDeviceType(i) == ECXInputDeviceType::Gamepad)
+				{
+					Player = i;
+					break;
+				}
+			}
+		}
+		if (Player != INDEX_NONE)
+		{
+			SetPlayerConnection(Player, false);
+		}
+	}
+	else if (NewState == EInputDeviceConnectionState::Connected && DisconnectedPlayer != INDEX_NONE)
+	{
+		// 끊긴 슬롯에 다시 연결된 패드를 배정(같은 패드면 같은 ID)
+		if (GI && GI->GetSlotDeviceType(DisconnectedPlayer) == ECXInputDeviceType::Gamepad && GI->FindSlotByGamepad(DeviceId) == INDEX_NONE)
+		{
+			GI->AssignSlotGamepad(DisconnectedPlayer, DeviceId);
+		}
+		SetPlayerConnection(DisconnectedPlayer, true);
+	}
+}
+
+void UCXMenuSubsystem::SetPlayerConnection(int32 PlayerIndex, bool bConnected)
+{
+	if (!bConnected)
+	{
+		DisconnectedPlayer = PlayerIndex;
+		bReconnected = false;
+		// 즉시 일시정지 메뉴 자동 열기(이미 열려 있으면 경고만 갱신)
+		if (!PauseMenu)
+		{
+			OpenPauseMenu(nullptr);
+		}
+	}
+	else if (DisconnectedPlayer == PlayerIndex)
+	{
+		DisconnectedPlayer = INDEX_NONE;
+		bReconnected = PauseMenu != nullptr;
+	}
+	if (PauseMenu)
+	{
+		PauseMenu->RefreshConnectionState();
+	}
+}
+
+void UCXMenuSubsystem::DebugSimulateGamepadConnection(int32 PlayerIndex, bool bConnected)
+{
+	if (PlayerIndex >= 0 && PlayerIndex < UCXGameInstance::NumPlayerSlots && IsPauseableWorld())
+	{
+		SetPlayerConnection(PlayerIndex, bConnected);
+	}
 }

@@ -43,6 +43,9 @@ public:
 	/** 닫기 요청(페이드아웃 시작). 연결 끊김 경고 중이거나 이미 닫는 중이면 무시. */
 	void RequestResume();
 
+	/** 메뉴를 연 플레이어(포커스 하이라이트 색). */
+	void SetOpenedBy(int32 PlayerIndex);
+
 	/** 서브시스템의 연결 끊김/재연결 상태를 화면에 반영. */
 	void RefreshConnectionState();
 

@@ -62,6 +62,7 @@ public:
 	/**
 	 *  테스트/자동화용: 장치 입력을 흉내 내 메뉴로 보낸다(포커스 검사 생략).
 	 *  Action: 1 Up, 2 Down, 3 Left, 4 Right, 5 Accept, 6 Back, 7 Start. bGamepad면 DeviceId의 게임패드 입력.
+	 *  메뉴가 없을 때 Back(ESC)/Start는 일시정지 메뉴 열기 경로(HandlePauseKey)로 간다.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "CX|Menu|Debug")
 	bool SimulateMenuInput(int32 Action, bool bGamepad, int32 DeviceId = 0);
@@ -145,6 +146,7 @@ private:
 	TSoftObjectPtr<USoundMix> PauseSoundMix;
 
 	bool bSoundMixPushed = false;
+	bool bDeinitializing = false;
 	bool bMenuBlocked = false;
 	bool bMapLoading = false;
 	bool bLeavingMap = false;

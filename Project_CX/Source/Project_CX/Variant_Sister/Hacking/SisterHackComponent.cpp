@@ -62,7 +62,8 @@ void USisterHackComponent::BuildInputAssets()
 	HackMappingContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Left);
 	HackMappingContext->MapKey(InteractAction, EKeys::F);
 	HackMappingContext->MapKey(CancelAction, EKeys::Gamepad_FaceButton_Right);
-	HackMappingContext->MapKey(CancelAction, EKeys::Escape);
+	// 키보드 해킹 취소는 Backspace — Escape는 ESC(일시정지) 메뉴 전용(설정 메뉴 기획 4.4 키 충돌)
+	HackMappingContext->MapKey(CancelAction, EKeys::BackSpace);
 	HackMappingContext->MapKey(UpAction, EKeys::Gamepad_DPad_Up);
 	HackMappingContext->MapKey(UpAction, EKeys::Up);
 	HackMappingContext->MapKey(DownAction, EKeys::Gamepad_DPad_Down);

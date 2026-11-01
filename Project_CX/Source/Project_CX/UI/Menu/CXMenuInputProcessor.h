@@ -17,6 +17,7 @@ class UCXMenuSubsystem;
  *  - 키: 방향키/Enter/ESC, 게임패드 D-pad/A/B/Start
  *  - 왼쪽 스틱: 데드존 0.5, 0.35초 첫 반복 후 0.1초 간격 자동 반복(0.2 입력 표)
  *  - 메뉴가 처리한 입력만 소비한다. 나머지(에디터 단축키 등)는 그대로 흘려보낸다.
+ *  - 메뉴가 없을 때: ESC / 게임패드 Start → 인게임이면 ESC(일시정지) 메뉴 열기. 재개 직후 0.15초는 키/클릭을 삼킨다.
  */
 class FCXMenuInputProcessor : public IInputProcessor
 {
