@@ -21,7 +21,7 @@ public class Project_CX : ModuleRules
 			"Slate"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore", "ApplicationCore" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Project_CX",
@@ -44,7 +44,10 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_Sister/Animation",
 			"Project_CX/Variant_Sister/Hacking",
 			"Project_CX/Coop",
-			"Project_CX/Coop/UI"
+			"Project_CX/Coop/UI",
+			"Project_CX/Core",
+			"Project_CX/Title",
+			"Project_CX/UI/Menu"
 		});
 
 		// Uncomment if you are using Slate UI
