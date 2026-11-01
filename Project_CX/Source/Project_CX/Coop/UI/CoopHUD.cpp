@@ -468,6 +468,15 @@ void ACoopHUD::DrawSplitEdge(const FLinearColor& Color)
 	{
 		DrawRect(EdgeColor, 0.0f, Canvas->ClipY - Thickness, Canvas->ClipX, Thickness);
 	}
+	// 좌우 분할(설정 메뉴 4.3): 세로 분할선 쪽
+	else if (LP->Origin.X > 0.01f)
+	{
+		DrawRect(EdgeColor, 0.0f, 0.0f, Thickness, Canvas->ClipY);
+	}
+	else if (LP->Size.X < 0.99f)
+	{
+		DrawRect(EdgeColor, Canvas->ClipX - Thickness, 0.0f, Thickness, Canvas->ClipY);
+	}
 }
 
 void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)

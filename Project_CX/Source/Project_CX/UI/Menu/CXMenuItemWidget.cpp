@@ -37,6 +37,7 @@ void UCXMenuItemWidget::NativeOnInitialized()
 
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Row"));
 	Background->SetContent(Row);
+	RowBox = Row;
 
 	FocusBar = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("FocusBar"));
 	{
@@ -97,6 +98,54 @@ void UCXMenuItemWidget::Setup(FName InItemId, const FText& InLabel, bool bCenter
 void UCXMenuItemWidget::SetLabel(const FText& InLabel)
 {
 	LabelText->SetText(InLabel);
+}
+
+void UCXMenuItemWidget::SetValueWidget(UWidget* ValueWidget, float LabelWidth)
+{
+	if (!ValueWidget || !RowBox)
+	{
+		return;
+	}
+	// 라벨은 고정 폭 칸으로 옮기고(값 열 정렬), 값 위젯은 라벨과 정보줄 사이에 넣는다.
+	if (LabelWidth > 0.0f && !LabelBox)
+	{
+		const int32 LabelIndex = RowBox->GetChildIndex(LabelText);
+		RowBox->RemoveChild(LabelText);
+		LabelBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("LabelBox"));
+		LabelBox->SetWidthOverride(LabelWidth);
+		LabelBox->AddChild(LabelText);
+		RowBox->InsertChildAt(LabelIndex, LabelBox);
+		if (UHorizontalBoxSlot* S = Cast<UHorizontalBoxSlot>(LabelBox->Slot))
+		{
+			S->SetVerticalAlignment(VAlign_Center);
+		}
+	}
+	RowBox->InsertChildAt(RowBox->GetChildIndex(InfoText), ValueWidget);
+	if (UHorizontalBoxSlot* S = Cast<UHorizontalBoxSlot>(ValueWidget->Slot))
+	{
+		S->SetVerticalAlignment(VAlign_Center);
+		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+	// 값 위젯만 마우스를 받게: 배경은 자기 자신만 히트 테스트 제외, 나머지 자식은 계속 제외
+	Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	RowBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	FocusBar->SetVisibility(ESlateVisibility::HitTestInvisible);
+	LabelText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (InfoText->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		InfoText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	for (UWidget* Child : RowBox->GetAllChildren())
+	{
+		if (Child && Child != ValueWidget && Child != LabelBox && Child->GetVisibility() == ESlateVisibility::Visible)
+		{
+			Child->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
+	if (LabelBox)
+	{
+		LabelBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 }
 
 void UCXMenuItemWidget::SetInfo(const FText& InInfo)

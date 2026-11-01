@@ -119,6 +119,14 @@ void UCXMenuSubsystem::PopMenu(UCXMenuWidgetBase* Menu)
 	if (UCXMenuWidgetBase* Top = GetTopMenu())
 	{
 		Top->LockInput();
+		// 내린 메뉴가 키보드 포커스를 갖고 있었으므로 아래 메뉴로 포커스를 돌려준다(포커스가 비면 IsGameViewportFocused가 false가 됨)
+		if (APlayerController* TopOwner = Top->GetOwningPlayer())
+		{
+			FInputModeUIOnly InputMode;
+			InputMode.SetWidgetToFocus(Top->TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			TopOwner->SetInputMode(InputMode);
+		}
 	}
 	else if (OwningPlayer)
 	{
@@ -239,7 +247,7 @@ void UCXMenuSubsystem::NotifyInputDeviceUsed(bool bMouse)
 
 bool UCXMenuSubsystem::SimulateMenuInput(int32 Action, bool bGamepad, int32 DeviceId)
 {
-	if (Action < static_cast<int32>(ECXMenuAction::Up) || Action > static_cast<int32>(ECXMenuAction::Start))
+	if (Action < static_cast<int32>(ECXMenuAction::Up) || Action > static_cast<int32>(ECXMenuAction::TabRight))
 	{
 		return false;
 	}

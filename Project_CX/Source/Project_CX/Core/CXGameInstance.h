@@ -4,23 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "CXGameUserSettings.h"
 #include "CXGameInstance.generated.h"
 
 class UCXSaveGame;
 
-/** 플레이어 슬롯(P1 오빠 / P2 여동생)이 쓰는 조작 장치 종류(설정 메뉴 기획 4.4 `조작 장치`). */
-UENUM(BlueprintType)
-enum class ECXInputDeviceType : uint8
-{
-	KeyboardMouse	UMETA(DisplayName = "Keyboard & Mouse"),
-	Gamepad			UMETA(DisplayName = "Gamepad")
-};
-
 /**
  *  프로젝트 게임 인스턴스 — 맵 이동(타이틀 → 인게임) 사이에 유지해야 하는 값을 들고 있다.
  *
- *  - 슬롯별 조작 장치 설정(설정 메뉴가 생기기 전까지 기본값: 오빠 키보드/마우스, 여동생 게임패드)
- *  - 시작화면 2P 장치 확인 결과(어느 게임패드가 어느 슬롯인지) → 인게임 ALocalCoopGameMode가 장치 매핑에 사용할 예정
+ *  - 슬롯별 조작 장치 종류: UCXGameUserSettings(GameUserSettings.ini)가 유일한 기준 — 여기서는 읽고/쓰기만 중계
+ *  - 시작화면 2P 장치 확인 결과(어느 게임패드가 어느 슬롯인지) → 둘 다 게임패드일 때 UCXGameViewportClient가 패드→플레이어 매핑에 사용
  *  - 시작화면 진입 연출을 이미 봤는지(첫 실행만 풀 연출)
  *  - 이어하기로 시작할 때 읽어 둔 세이브
  */
@@ -39,9 +32,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "CX|Players")
 	ECXInputDeviceType GetSlotDeviceType(int32 PlayerIndex) const;
 
-	/** 설정 메뉴(시작화면에서만 변경 가능)용. 바뀐 슬롯의 게임패드 확인은 초기화된다. */
+	/**
+	 *  설정 메뉴(시작화면에서만 변경 가능)용. UCXGameUserSettings에 즉시 저장하고, 바뀐 슬롯의 게임패드 확인은 초기화된다.
+	 *  둘 다 키보드가 되는 조합이면 바꾸지 않고 false.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "CX|Players")
-	void SetSlotDeviceType(int32 PlayerIndex, ECXInputDeviceType DeviceType);
+	bool SetSlotDeviceType(int32 PlayerIndex, ECXInputDeviceType DeviceType);
+
+	/** 현재 연결된 게임패드 수(키보드/마우스 기본 장치 제외). 패드가 하나도 없으면 0. */
+	static int32 GetConnectedGamepadCount();
 
 	/** 키보드 슬롯은 항상, 게임패드 슬롯은 Start로 패드가 배정된 뒤 준비 완료. */
 	UFUNCTION(BlueprintPure, Category = "CX|Players")
@@ -72,10 +71,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "CX|Save")
 	TObjectPtr<UCXSaveGame> PendingContinueSave;
 
-protected:
-	/** 슬롯별 조작 장치 기본값 [P1, P2]. */
-	UPROPERTY(EditDefaultsOnly, Category = "CX|Players")
-	TArray<ECXInputDeviceType> SlotDeviceTypes;
+	/** 설정 메뉴 마지막 탭(같은 세션에서 다시 열면 유지 — 설정 메뉴 기획 3장). */
+	int32 SettingsLastTab = 0;
 
 private:
 	FInputDeviceId SlotGamepads[NumPlayerSlots];

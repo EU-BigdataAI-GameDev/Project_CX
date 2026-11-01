@@ -47,6 +47,9 @@ public:
 	/** 화면 전환 직후 입력 잠금. */
 	void LockInput(float Seconds = CXMenuStyle::InputLockTime);
 
+	/** 마지막으로 메뉴를 조작한 플레이어(서브 화면이 포커스 색을 이어받을 때). */
+	int32 GetFocusPlayer() const { return FocusPlayer; }
+
 	/** 테스트/디버그용 상태 문자열(포커스 항목, 모달 여부 등). */
 	virtual FString GetDebugState() const;
 
@@ -82,6 +85,11 @@ protected:
 	void RefreshFocusVisuals();
 
 	void SetModalHost(UOverlay* Host) { ModalHost = Host; }
+
+	/** 마우스 커서가 보이는 중(마우스를 실제로 움직임) — 호버로 포커스를 옮겨도 되는지. */
+	bool IsPointerActive() const;
+	/** 키보드/마우스를 쓰는 플레이어 슬롯(마우스 입력의 포커스 색). */
+	int32 GetKeyboardPlayer() const;
 	void PlayUISound(ECXMenuSound Sound) const;
 
 	/** 마지막으로 메뉴를 조작한 플레이어(포커스 색). */
@@ -104,8 +112,6 @@ private:
 	void HandleItemHovered(UCXMenuItemWidget* Item);
 	void HandleItemClicked(UCXMenuItemWidget* Item);
 	bool IsItemShown(int32 Index) const;
-	bool IsPointerActive() const;
-	int32 GetKeyboardPlayer() const;
 
 	UPROPERTY(Transient) TObjectPtr<UOverlay> ModalHost;
 	UPROPERTY(Transient) TObjectPtr<UCXConfirmDialogWidget> Dialog;

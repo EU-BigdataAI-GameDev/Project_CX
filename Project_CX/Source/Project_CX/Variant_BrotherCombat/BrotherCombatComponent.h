@@ -8,6 +8,7 @@
 
 class ABrotherBullet;
 class UInputAction;
+class UInputMappingContext;
 class UEnhancedInputComponent;
 
 /**
@@ -131,6 +132,10 @@ protected:
 private:
 	FTimerHandle ReloadTimerHandle;
 	bool bInputBound = false;
+
+	/** 게임패드 사격 RT / 조준 LT 런타임 매핑(설정 메뉴 기획 4.5 — IMC_Default에는 마우스만 있다). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> GamepadMappingContext;
 
 	/** UpdateFacing이 OrientRotationToMovement를 껐다가 되돌릴 때 쓸, 최초 1회 캐싱한 원래 값. */
 	bool bDefaultOrientRotationToMovement = true;

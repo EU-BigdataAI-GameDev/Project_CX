@@ -5,6 +5,8 @@
 #include "CXMenuSubsystem.h"
 #include "CXNeonPanelWidget.h"
 #include "CXGameInstance.h"
+#include "CXSettingsWidget.h"
+#include "CXAudioSubsystem.h"
 #include "CoopHUD.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -403,10 +405,7 @@ void UCXPauseMenuWidget::OnItemActivated(FName ItemId)
 	}
 	else if (ItemId == CXPause::Settings)
 	{
-		// 설정 메뉴는 아직 미구현 → 시작화면과 같은 자리표시 알림창
-		PlayUISound(ECXMenuSound::Confirm);
-		ShowNotice(FText::FromString(TEXT("SETTINGS — COMING SOON")),
-			FText::FromString(TEXT("THE SETTINGS MENU IS NOT AVAILABLE YET.")));
+		OpenSettings();
 	}
 	else if (ItemId == CXPause::QuitToTitle)
 	{
@@ -414,6 +413,31 @@ void UCXPauseMenuWidget::OnItemActivated(FName ItemId)
 		ShowConfirm(FText::FromString(TEXT("RETURN TO TITLE?")),
 			FText::FromString(TEXT("PROGRESS ON THIS MAP WILL NOT BE SAVED.")),
 			[this]() { BeginQuitToTitle(); });
+	}
+}
+
+void UCXPauseMenuWidget::OpenSettings()
+{
+	PlayUISound(ECXMenuSound::Confirm);
+	// 설정 메뉴가 자체 딤/패널을 그리므로 ESC 메뉴는 잠시 숨긴다(월드는 계속 일시정지)
+	RootVisibilityBeforeSettings = RootOverlay->GetVisibility();
+	RootOverlay->SetVisibility(ESlateVisibility::Hidden);
+
+	TWeakObjectPtr<UCXPauseMenuWidget> WeakThis(this);
+	// 인게임에서는 조작 장치 보기 전용(설정 메뉴 기획 1장)
+	const UCXSettingsWidget* Settings = UCXSettingsWidget::Open(this, false, [WeakThis]()
+	{
+		if (UCXPauseMenuWidget* Pause = WeakThis.Get())
+		{
+			Pause->RootOverlay->SetVisibility(Pause->RootVisibilityBeforeSettings);
+			// 들어갔던 항목에 포커스 복원(0.3)
+			Pause->SetFocusItem(CXPause::Settings);
+			Pause->RefreshPlayerTags();
+		}
+	});
+	if (!Settings)
+	{
+		RootOverlay->SetVisibility(RootVisibilityBeforeSettings);
 	}
 }
 
@@ -452,6 +476,11 @@ void UCXPauseMenuWidget::BeginQuitToTitle()
 	if (UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(this))
 	{
 		Menus->NotifyLeavingMap();
+	}
+	// 화면 페이드와 같이 배경음도 내린다
+	if (UCXAudioSubsystem* Audio = UCXAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(QuitFadeTime);
 	}
 }
 

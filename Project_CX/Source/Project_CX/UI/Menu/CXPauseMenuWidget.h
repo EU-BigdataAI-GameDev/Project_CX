@@ -29,7 +29,7 @@ protected:
  *  인게임 ESC(일시정지) 메뉴(.claude/Plans/ESC 메뉴 기획.md).
  *
  *  - 열기/닫기/월드 일시정지는 UCXMenuSubsystem(OpenPauseMenu / FinishClosePauseMenu)이 담당하고, 이 위젯은 화면과 항목 동작만 맡는다.
- *  - 항목: RESUME(기본 포커스) / SETTINGS(자리표시 알림창) / QUIT TO TITLE(확인창 → 0.4초 검정 페이드 → 시작화면).
+ *  - 항목: RESUME(기본 포커스) / SETTINGS(설정 메뉴, 조작 장치는 보기 전용) / QUIT TO TITLE(확인창 → 0.4초 검정 페이드 → 시작화면).
  *  - 최상위 ESC/B, 게임패드 Start = RESUME과 동일(닫기). 닫을 때 0.15초 페이드아웃 후 재개.
  *  - 게임패드 연결 끊김: 상단 경고 + RESUME 숨김, 재연결되면 RECONNECTED + RESUME 복귀(6장).
  *  - 하단: 현재 구역명(ACoopHUD 구역명), 두 플레이어 장치/연결 태그, 조작 힌트.
@@ -75,6 +75,7 @@ protected:
 
 private:
 	void RefreshPlayerTags();
+	void OpenSettings();
 	void BeginQuitToTitle();
 	FString ResolveZoneName() const;
 	bool IsPlayerConnected(int32 PlayerIndex) const;
@@ -97,6 +98,9 @@ private:
 	/** 타이틀로 이동 페이드 중(입력 전부 무시). */
 	bool bQuitting = false;
 	float QuitElapsed = 0.0f;
+
+	/** 설정 메뉴가 떠 있는 동안 숨긴 루트의 원래 표시 상태. */
+	ESlateVisibility RootVisibilityBeforeSettings = ESlateVisibility::SelfHitTestInvisible;
 
 	/** 연결 끊김 경고 표시 중(RESUME 숨김). */
 	bool bShowingDisconnect = false;

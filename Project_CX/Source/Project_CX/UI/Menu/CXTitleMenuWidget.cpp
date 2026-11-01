@@ -6,6 +6,7 @@
 #include "CXTitleBackdropWidget.h"
 #include "CXGameInstance.h"
 #include "CXSaveGame.h"
+#include "CXSettingsWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -485,6 +486,53 @@ void UCXTitleMenuWidget::HandleDeviceConnectionChange(EInputDeviceConnectionStat
 	}
 }
 
+void UCXTitleMenuWidget::OpenSettings()
+{
+	PlayUISound(ECXMenuSound::Confirm);
+	// 배경은 그대로 두고 메뉴/슬롯만 숨긴다(설정 패널 뒤로 글자가 겹쳐 보이지 않게)
+	Content->SetVisibility(ESlateVisibility::Hidden);
+	DevicePromptRemaining = 0.0f;
+	DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
+
+	TWeakObjectPtr<UCXTitleMenuWidget> WeakThis(this);
+	// 시작화면에서는 조작 장치 변경 가능
+	if (!UCXSettingsWidget::Open(this, true, [WeakThis]()
+		{
+			if (UCXTitleMenuWidget* Title = WeakThis.Get())
+			{
+				Title->HandleSettingsClosed();
+			}
+		}))
+	{
+		Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+}
+
+void UCXTitleMenuWidget::HandleSettingsClosed()
+{
+	Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	// 바뀐 조작 장치에 맞춰 슬롯(READY / PRESS START) 다시 그림
+	bGamepadAttached = FSlateApplication::IsInitialized() && FSlateApplication::Get().IsGamepadAttached();
+	RefreshSlots();
+	// 들어갔던 항목에 포커스 복원(0.3)
+	SetFocusItem(CXTitle::Settings);
+
+	// 지정된 게임패드 수 > 연결된 수: 경고만(시작은 P2 PRESS START 단계에서 막힌다 — 설정 메뉴 기획 6장)
+	const int32 Missing = UCXGameUserSettings::GetCXGameUserSettings()->GetRequiredGamepadCount() - UCXGameInstance::GetConnectedGamepadCount();
+	if (Missing > 0)
+	{
+		ShowPrompt(Missing == 1 ? TEXT("1 MORE GAMEPAD REQUIRED") : FString::Printf(TEXT("%d MORE GAMEPADS REQUIRED"), Missing));
+	}
+}
+
+void UCXTitleMenuWidget::ShowPrompt(const FString& Message)
+{
+	DevicePromptText->SetText(FText::FromString(Message));
+	DevicePromptText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	DevicePromptRemaining = CXTitle::DevicePromptTime;
+	PlayUISound(ECXMenuSound::Denied);
+}
+
 void UCXTitleMenuWidget::ShowDevicePrompt()
 {
 	const UCXGameInstance* GI = UCXGameInstance::Get(this);
@@ -533,10 +581,7 @@ void UCXTitleMenuWidget::OnItemActivated(FName ItemId)
 	}
 	else if (ItemId == CXTitle::Settings)
 	{
-		// 설정 메뉴는 아직 미구현 → 자리표시 알림창
-		PlayUISound(ECXMenuSound::Confirm);
-		ShowNotice(FText::FromString(TEXT("SETTINGS — COMING SOON")),
-			FText::FromString(TEXT("THE SETTINGS MENU IS NOT AVAILABLE YET.")));
+		OpenSettings();
 	}
 	else if (ItemId == CXTitle::Quit)
 	{

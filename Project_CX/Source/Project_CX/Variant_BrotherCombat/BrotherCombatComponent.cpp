@@ -13,6 +13,10 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
 
 UBrotherCombatComponent::UBrotherCombatComponent()
 {
@@ -125,6 +129,25 @@ void UBrotherCombatComponent::TryBindInput()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("BrotherCombatComponent: AimAction이 지정되지 않아 조준 입력이 바인딩되지 않았습니다."));
+	}
+
+	// 게임패드 RT = 사격, LT = 조준(누르고 있기). 같은 Input Action을 쓰므로 위 바인딩이 그대로 받는다.
+	const APlayerController* PC = Cast<APlayerController>(PawnOwner->GetController());
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr)
+	{
+		if (!GamepadMappingContext)
+		{
+			GamepadMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_BrotherGamepad"));
+			if (FireAction)
+			{
+				GamepadMappingContext->MapKey(FireAction, EKeys::Gamepad_RightTrigger);
+			}
+			if (AimAction)
+			{
+				GamepadMappingContext->MapKey(AimAction, EKeys::Gamepad_LeftTrigger);
+			}
+		}
+		Subsystem->AddMappingContext(GamepadMappingContext, 1);
 	}
 
 	bInputBound = true;

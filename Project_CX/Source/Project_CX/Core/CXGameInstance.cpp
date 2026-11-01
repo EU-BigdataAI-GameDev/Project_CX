@@ -4,11 +4,11 @@
 #include "CXSaveGame.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 UCXGameInstance::UCXGameInstance()
 {
-	// 설정 메뉴가 없으므로 기획 기본값: 오빠 키보드/마우스, 여동생 게임패드
-	SlotDeviceTypes = { ECXInputDeviceType::KeyboardMouse, ECXInputDeviceType::Gamepad };
 }
 
 UCXGameInstance* UCXGameInstance::Get(const UObject* WorldContextObject)
@@ -19,21 +19,50 @@ UCXGameInstance* UCXGameInstance::Get(const UObject* WorldContextObject)
 
 ECXInputDeviceType UCXGameInstance::GetSlotDeviceType(int32 PlayerIndex) const
 {
-	return SlotDeviceTypes.IsValidIndex(PlayerIndex) ? SlotDeviceTypes[PlayerIndex] : ECXInputDeviceType::Gamepad;
+	// 조작 장치는 설정(GameUserSettings.ini)이 유일한 기준
+	return IsValidSlot(PlayerIndex) ? UCXGameUserSettings::GetCXGameUserSettings()->GetSlotDevice(PlayerIndex) : ECXInputDeviceType::Gamepad;
 }
 
-void UCXGameInstance::SetSlotDeviceType(int32 PlayerIndex, ECXInputDeviceType DeviceType)
+bool UCXGameInstance::SetSlotDeviceType(int32 PlayerIndex, ECXInputDeviceType DeviceType)
 {
 	if (!IsValidSlot(PlayerIndex))
 	{
-		return;
+		return false;
 	}
-	SlotDeviceTypes.SetNum(NumPlayerSlots);
-	if (SlotDeviceTypes[PlayerIndex] != DeviceType)
+	UCXGameUserSettings* Settings = UCXGameUserSettings::GetCXGameUserSettings();
+	if (Settings->GetSlotDevice(PlayerIndex) == DeviceType)
 	{
-		SlotDeviceTypes[PlayerIndex] = DeviceType;
-		ClearSlotGamepad(PlayerIndex);
+		return true;
 	}
+	if (!Settings->SetSlotDevice(PlayerIndex, DeviceType))
+	{
+		return false;
+	}
+	// 비정상 종료 대비: 조작 장치 변경은 즉시 저장(설정 메뉴 기획 5장)
+	Settings->SaveSettings();
+	ClearSlotGamepad(PlayerIndex);
+	return true;
+}
+
+int32 UCXGameInstance::GetConnectedGamepadCount()
+{
+	if (!FSlateApplication::IsInitialized() || !FSlateApplication::Get().IsGamepadAttached())
+	{
+		return 0;
+	}
+	// 키보드/마우스(기본 장치)를 뺀 연결 장치 수. XInput 최대 4개.
+	IPlatformInputDeviceMapper& Mapper = IPlatformInputDeviceMapper::Get();
+	TArray<FInputDeviceId> Devices;
+	Mapper.GetAllConnectedInputDevices(Devices);
+	int32 Count = 0;
+	for (const FInputDeviceId& Device : Devices)
+	{
+		if (Device != Mapper.GetDefaultInputDevice())
+		{
+			++Count;
+		}
+	}
+	return FMath::Clamp(Count, 1, 4);
 }
 
 bool UCXGameInstance::IsSlotReady(int32 PlayerIndex) const

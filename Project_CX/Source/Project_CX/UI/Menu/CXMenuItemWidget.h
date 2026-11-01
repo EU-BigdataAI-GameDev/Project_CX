@@ -10,6 +10,7 @@ class UTextBlock;
 class UImage;
 class UBorder;
 class USizeBox;
+class UHorizontalBox;
 class UCXMenuItemWidget;
 
 DECLARE_DELEGATE_OneParam(FCXMenuItemEvent, UCXMenuItemWidget* /*Item*/);
@@ -31,6 +32,12 @@ public:
 	void Setup(FName InItemId, const FText& InLabel, bool bCentered = false, float Width = 0.0f, int32 FontSize = 30);
 
 	void SetLabel(const FText& InLabel);
+
+	/**
+	 *  라벨 오른쪽에 값 위젯(설정 메뉴 슬라이더/선택값 등)을 끼운다. LabelWidth > 0이면 라벨 칸 폭 고정.
+	 *  값 위젯은 마우스를 직접 받을 수 있다(바 클릭/드래그) — 나머지 자식은 계속 히트 테스트 안 함.
+	 */
+	void SetValueWidget(UWidget* ValueWidget, float LabelWidth = 0.0f);
 	void SetInfo(const FText& InInfo);
 	void SetFocused(bool bInFocused, const FLinearColor& PlayerColor);
 
@@ -58,6 +65,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UImage> FocusBar;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LabelText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> InfoText;
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> RowBox;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> LabelBox;
 
 	FName ItemId;
 	bool bCenteredStyle = false;

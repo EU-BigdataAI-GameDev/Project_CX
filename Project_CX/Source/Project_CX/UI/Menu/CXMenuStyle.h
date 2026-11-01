@@ -19,7 +19,9 @@ enum class ECXMenuAction : uint8
 	Right,
 	Accept,		// Enter / 좌클릭 / A
 	Back,		// ESC / B
-	Start		// 게임패드 Start(장치 확인)
+	Start,		// 게임패드 Start(장치 확인)
+	TabLeft,	// Q / LB(설정 메뉴 탭 전환)
+	TabRight	// E / RB
 };
 
 /** 입력 프리프로세서가 만든 메뉴 입력 하나. 장치 정보로 어느 플레이어 입력인지 판단한다. */

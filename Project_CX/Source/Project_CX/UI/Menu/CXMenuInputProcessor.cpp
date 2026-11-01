@@ -21,6 +21,8 @@ namespace CXMenuInput
 		if (Key == EKeys::Enter || Key == EKeys::Gamepad_FaceButton_Bottom)	return ECXMenuAction::Accept;
 		if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)	return ECXMenuAction::Back;
 		if (Key == EKeys::Gamepad_Special_Right)						return ECXMenuAction::Start;
+		if (Key == EKeys::Q || Key == EKeys::Gamepad_LeftShoulder)		return ECXMenuAction::TabLeft;
+		if (Key == EKeys::E || Key == EKeys::Gamepad_RightShoulder)	return ECXMenuAction::TabRight;
 		return ECXMenuAction::None;
 	}
 
