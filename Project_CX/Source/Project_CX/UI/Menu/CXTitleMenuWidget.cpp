@@ -21,6 +21,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "CXAudioSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Sound/SoundBase.h"
@@ -601,6 +602,11 @@ void UCXTitleMenuWidget::BeginStartGame(const FString& MapPath)
 	bStarting = true;
 	StartFadeElapsed = 0.0f;
 	PendingMap = MapPath;
+	// 화면 페이드와 같이 배경음도 내린다
+	if (UCXAudioSubsystem* Audio = UCXAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(StartFadeTime);
+	}
 	DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
