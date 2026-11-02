@@ -11,16 +11,47 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
+#include "CXSfx.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
+
+namespace HackSfx
+{
+	USoundBase* Find(const TCHAR* Name)
+	{
+		return CXSfx::Find<USoundBase>(*FString::Printf(TEXT("/Game/Project_CX/Audio/SFX/Sister/%s.%s"), Name, Name));
+	}
+}
 
 USisterHackComponent::USisterHackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	HackLoopSound = HackSfx::Find(TEXT("SW_Hack_Loop"));
+	HackStartSound = HackSfx::Find(TEXT("SW_Hack_Start"));
+	HackCancelSound = HackSfx::Find(TEXT("SW_Hack_Cancel"));
+	CorrectSound = HackSfx::Find(TEXT("SW_Hack_Input"));
+	RoundClearSound = HackSfx::Find(TEXT("SW_Hack_RoundClear"));
+	DeniedSound = HackSfx::Find(TEXT("SW_Hack_Denied"));
+	GrantedSound = HackSfx::Find(TEXT("SW_Hack_Granted"));
+	DigitTickSound = HackSfx::Find(TEXT("SW_Hack_DigitTick"));
+	DetectSound = HackSfx::Find(TEXT("SW_Hack_Detect"));
 }
 
 void USisterHackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	BuildInputAssets();
+}
+
+void USisterHackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (HackLoopAudio)
+	{
+		HackLoopAudio->Stop();
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void USisterHackComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -105,6 +136,7 @@ void USisterHackComponent::UpdateFocus()
 	if (ActiveTerminal)
 	{
 		FocusTerminal = ActiveTerminal;
+		LastDetectedTerminal = ActiveTerminal;
 		return;
 	}
 
@@ -126,6 +158,13 @@ void USisterHackComponent::UpdateFocus()
 		}
 	}
 	FocusTerminal = Best;
+
+	// 단말기 감지(TERMINAL ONLINE) — 범위에 새로 들어온 순간 1회. 취소 직후 같은 단말기를 다시 잡을 때는 울리지 않는다.
+	if (Best && Best != LastDetectedTerminal.Get())
+	{
+		PlayHackSound(DetectSound);
+	}
+	LastDetectedTerminal = Best;
 }
 
 // ---------------------------------------------------------------- 세션
@@ -162,6 +201,8 @@ void USisterHackComponent::Interact()
 	ActiveTerminal->SetInProgress(true);
 	SetMovementLocked(true);
 	SetFeedback(EHackFeedback::None);
+	PlayHackSound(HackStartSound);
+	StartHackLoop();
 
 	if (ActiveTerminal->PuzzleType == EHackPuzzleType::ArrowSequence)
 	{
@@ -181,6 +222,7 @@ void USisterHackComponent::CancelHack()
 		return;
 	}
 	ActiveTerminal->SetInProgress(false);
+	PlayHackSound(HackCancelSound);
 	EndSession();
 }
 
@@ -200,6 +242,7 @@ void USisterHackComponent::InputDirection(EHackArrow Direction)
 		case EHackArrow::Left:  PasscodeCursor = (PasscodeCursor + 3) % 4; break;
 		case EHackArrow::Right: PasscodeCursor = (PasscodeCursor + 1) % 4; break;
 		}
+		PlayHackSound(DigitTickSound);
 		return;
 	}
 
@@ -283,6 +326,7 @@ void USisterHackComponent::EndSession()
 	ArrowIndex = 0;
 	RoundIndex = 0;
 	SetMovementLocked(false);
+	StopHackLoop();
 }
 
 void USisterHackComponent::SetMovementLocked(bool bLocked)
@@ -309,6 +353,65 @@ void USisterHackComponent::SetFeedback(EHackFeedback NewFeedback)
 {
 	Feedback = NewFeedback;
 	FeedbackTime = GetWorld()->GetTimeSeconds();
+
+	// HUD 판정 연출과 같은 프레임에 소리
+	switch (NewFeedback)
+	{
+	case EHackFeedback::Correct:
+		// ArrowIndex는 이미 다음 칸 — 맞힌 순서(1부터)마다 조금씩 높게
+		PlayHackSound(CorrectSound, 1.0f + CorrectPitchStep * FMath::Max(0, ArrowIndex - 1));
+		break;
+	case EHackFeedback::RoundClear:	PlayHackSound(RoundClearSound); break;
+	case EHackFeedback::Denied:		PlayHackSound(DeniedSound); break;
+	case EHackFeedback::Granted:	PlayHackSound(GrantedSound); break;
+	default: break;
+	}
+}
+
+// ---------------------------------------------------------------- 사운드
+
+bool USisterHackComponent::IsLocallyControlledOwner() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	return Pawn && Pawn->IsLocallyControlled();
+}
+
+void USisterHackComponent::PlayHackSound(USoundBase* Sound, float Pitch)
+{
+	if (!Sound || !IsLocallyControlledOwner())
+	{
+		return;
+	}
+	// 해킹 UI 원샷은 동시에 1개 — 이전 소리를 끊고 새 소리
+	if (UAudioComponent* Previous = LastHackOneShot.Get())
+	{
+		Previous->Stop();
+	}
+	LastHackOneShot = UGameplayStatics::SpawnSound2D(this, Sound, 1.0f, Pitch);
+}
+
+void USisterHackComponent::StartHackLoop()
+{
+	if (!HackLoopSound || !IsLocallyControlledOwner())
+	{
+		return;
+	}
+	if (!HackLoopAudio)
+	{
+		HackLoopAudio = UGameplayStatics::SpawnSound2D(this, HackLoopSound, 1.0f, 1.0f, 0.0f, nullptr, false, false);
+	}
+	else
+	{
+		HackLoopAudio->Play();
+	}
+}
+
+void USisterHackComponent::StopHackLoop()
+{
+	if (HackLoopAudio && HackLoopAudio->IsPlaying())
+	{
+		HackLoopAudio->FadeOut(HackLoopFadeOut, 0.0f);
+	}
 }
 
 // ---------------------------------------------------------------- 조회

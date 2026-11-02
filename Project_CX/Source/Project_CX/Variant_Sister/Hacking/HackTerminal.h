@@ -9,6 +9,8 @@
 class UStaticMeshComponent;
 class UPointLightComponent;
 class UBoxComponent;
+class UAudioComponent;
+class USoundBase;
 
 /** 단말기가 요구하는 퍼즐 종류(.claude/Plans/해킹 시스템 기획.md 3~4장). */
 UENUM(BlueprintType)
@@ -127,6 +129,28 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hack")
 	TObjectPtr<UPointLightComponent> StatusLight;
 
+	/** 대기 웅웅거림 루프(SW_Terminal_Hum, 3D·ATT_Small). 해킹 중엔 피치를 조금 올리고, 해킹되면 페이드아웃. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hack|Sound")
+	TObjectPtr<UAudioComponent> HumAudio;
+
+	/** 해킹 중 웅웅거림 피치(진행 중임을 소리로도). */
+	UPROPERTY(EditAnywhere, Category = "Hack|Sound")
+	float HumPitchInProgress = 1.15f;
+
+	/**
+	 *  레이저 게이트 꺼짐 — 상태가 InProgress → Hacked로 바뀌는 순간 UnlockActors 중심에서 1회(복제되는 State라 모든 머신).
+	 *  레벨 시작/접속 시 이미 Hacked로 받은 경우는 재생하지 않는다(효과음 적용 기획 6.1). 비어 있으면 무음.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Hack|Sound")
+	TObjectPtr<USoundBase> GateOffSound;
+
 	UPROPERTY(ReplicatedUsing = OnRep_State, BlueprintReadOnly, Category = "Hack")
 	EHackTerminalState State = EHackTerminalState::Locked;
+
+private:
+	void UpdateStateSounds();
+
+	/** 마지막으로 비주얼/소리에 반영한 상태(전환 감지용). */
+	EHackTerminalState AppliedState = EHackTerminalState::Locked;
+	bool bStateApplied = false;
 };

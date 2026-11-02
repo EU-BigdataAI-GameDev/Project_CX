@@ -23,6 +23,16 @@
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Rendering/DrawElements.h"
+#include "CXSfx.h"
+#include "Sound/SoundBase.h"
+
+UCXSettingsWidget::UCXSettingsWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 음량 바 한 칸(Kenney switch13). SFX 바는 같은 소리를 미리듣기로 — SCl_SFX_UI라 바꾼 효과음 음량이 바로 들린다.
+	SliderStepSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/UI/SW_UI_Slider.SW_UI_Slider"));
+	SfxPreviewSound = SliderStepSound;
+}
 
 namespace CXSettings
 {
@@ -1086,6 +1096,10 @@ void UCXSettingsWidget::SetVolume(FName Id, int32 NewValue)
 			if (Id == CXSettings::Sfx && SfxPreviewSound)
 			{
 				Audio->PlaySfxPreview(this, SfxPreviewSound);
+			}
+			else if (SliderStepSound)
+			{
+				Audio->PlaySfxPreview(this, SliderStepSound);
 			}
 			else
 			{

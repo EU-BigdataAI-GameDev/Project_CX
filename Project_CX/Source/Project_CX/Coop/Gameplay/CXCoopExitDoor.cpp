@@ -15,6 +15,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
+#include "CXSfx.h"
+#include "Sound/SoundBase.h"
 
 namespace CXExitDoor
 {
@@ -56,6 +58,10 @@ ACXCoopExitDoor::ACXCoopExitDoor()
 	CubeMesh = CubeFinder.Object;
 	BodyMaterial = BodyFinder.Object;
 	NeonMaterial = NeonFinder.Object;
+
+	// 효과음 적용 기획: 버튼 = Kenney switch16, 열림 = doorOpen_001(3D·ATT_Medium은 에셋 설정)
+	ButtonSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/World/SW_Door_Button.SW_Door_Button"));
+	OpenSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/World/SW_Door_Open.SW_Door_Open"));
 
 	using namespace CXExitDoor;
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -279,10 +285,20 @@ void ACXCoopExitDoor::PressButton(ECoopCharacterRole InRole)
 void ACXCoopExitDoor::OnRep_Buttons()
 {
 	RefreshLights();
+	// 새로 눌린 버튼 위치에서 한 번씩(OnRep이 두 버튼 변화를 한 번에 받아도 각각)
 	if (ButtonSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, ButtonSound, GetActorLocation());
+		if (bBrotherPressed && !bBrotherButtonSounded)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, ButtonSound, GetButtonLocation(ECoopCharacterRole::Brother));
+		}
+		if (bSisterPressed && !bSisterButtonSounded)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, ButtonSound, GetButtonLocation(ECoopCharacterRole::Sister));
+		}
 	}
+	bBrotherButtonSounded = bBrotherPressed;
+	bSisterButtonSounded = bSisterPressed;
 }
 
 void ACXCoopExitDoor::OnRep_Opening()

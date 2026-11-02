@@ -32,7 +32,10 @@ ACoopHUD::ACoopHUD()
 {
 	ZoneTitles.Add(TEXT("Map1"), TEXT("SCRAP STREET"));
 	ZoneTitles.Add(TEXT("Map1_SoulCity"), TEXT("SCRAP STREET"));
+	// 2026-11-02 맵 이름 변경(Map1_SoulCity1 / Map2_SoulCity2) — 예전 이름도 유지
+	ZoneTitles.Add(TEXT("Map1_SoulCity1"), TEXT("SCRAP STREET"));
 	ZoneTitles.Add(TEXT("Map2"), TEXT("SQUATTER STACKS"));
+	ZoneTitles.Add(TEXT("Map2_SoulCity2"), TEXT("SQUATTER STACKS"));
 	ZoneTitles.Add(TEXT("Map3"), TEXT("WASTE PLANT"));
 	ZoneTitles.Add(TEXT("Map5"), TEXT("THE PIT"));
 }

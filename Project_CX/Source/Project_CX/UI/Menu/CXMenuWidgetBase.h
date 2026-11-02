@@ -30,6 +30,9 @@ class UCXMenuWidgetBase : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	/** UI 사운드 슬롯 기본값(효과음 적용 기획 2.5 — Kenney UI Audio, SCl_SFX_UI). */
+	UCXMenuWidgetBase(const FObjectInitializer& ObjectInitializer);
+
 	/** 메뉴 입력 하나 처리. 소비했으면 true(엔진/에디터로 넘기지 않음). */
 	bool HandleMenuInput(const FCXMenuInput& Input, int32 PlayerIndex);
 

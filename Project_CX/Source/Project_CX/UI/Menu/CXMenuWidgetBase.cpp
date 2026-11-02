@@ -10,6 +10,26 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "GameFramework/PlayerController.h"
+#include "CXSfx.h"
+
+namespace CXMenuSfx
+{
+	USoundBase* Find(const TCHAR* Name)
+	{
+		return CXSfx::Find<USoundBase>(*FString::Printf(TEXT("/Game/Project_CX/Audio/SFX/UI/%s.%s"), Name, Name));
+	}
+}
+
+UCXMenuWidgetBase::UCXMenuWidgetBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// UI 사운드는 PlaySound2D(bIsUISound = true)로 재생 — 일시정지(ESC 메뉴) 중에도 들린다. 에셋 사운드 클래스는 SCl_SFX_UI.
+	SoundMove = CXMenuSfx::Find(TEXT("SW_UI_Move"));
+	SoundConfirm = CXMenuSfx::Find(TEXT("SW_UI_Confirm"));
+	SoundBack = CXMenuSfx::Find(TEXT("SW_UI_Back"));
+	SoundOpen = CXMenuSfx::Find(TEXT("SW_UI_Open"));
+	SoundDenied = CXMenuSfx::Find(TEXT("SW_UI_Denied"));
+}
 
 void UCXMenuWidgetBase::NativeOnInitialized()
 {

@@ -33,6 +33,8 @@ class UCXTitleMenuWidget : public UCXMenuWidgetBase
 	GENERATED_BODY()
 
 public:
+	UCXTitleMenuWidget(const FObjectInitializer& ObjectInitializer);
+
 	virtual bool HandleAnyInput() override;
 	virtual FString GetDebugState() const override;
 

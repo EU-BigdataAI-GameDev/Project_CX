@@ -145,4 +145,8 @@ private:
 
 	float OpenAlpha = 0.0f;
 	bool bClearNotified = false;
+
+	/** 버튼음 중복 방지 — 이 머신에서 이미 소리를 낸 버튼. */
+	bool bBrotherButtonSounded = false;
+	bool bSisterButtonSounded = false;
 };

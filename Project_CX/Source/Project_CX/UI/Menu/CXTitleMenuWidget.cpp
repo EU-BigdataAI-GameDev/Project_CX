@@ -26,6 +26,14 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Sound/SoundBase.h"
+#include "CXSfx.h"
+
+UCXTitleMenuWidget::UCXTitleMenuWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 타이틀 네온 점등 지직(Kenney forceField_000)
+	SoundNeonBuzz = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/UI/SW_UI_NeonBuzz.SW_UI_NeonBuzz"));
+}
 
 namespace CXTitle
 {

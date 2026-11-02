@@ -17,17 +17,59 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "CXSfx.h"
+#include "Components/AudioComponent.h"
+#include "Sound/SoundBase.h"
 
 UBrotherCombatComponent::UBrotherCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
+
+	ReloadChargeSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_Reload_Charge.SW_Brother_Reload_Charge"));
+	ReloadDoneSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_Reload_Done.SW_Brother_Reload_Done"));
+	DryFireSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_DryFire.SW_Brother_DryFire"));
+	LowAmmoSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_LowAmmo.SW_Brother_LowAmmo"));
+	AimLockSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_AimLock.SW_Brother_AimLock"));
 }
 
 void UBrotherCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentAmmo = MaxAmmo;
+}
+
+void UBrotherCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (ReloadAudio)
+	{
+		ReloadAudio->Stop();
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+bool UBrotherCombatComponent::IsLocallyControlledOwner() const
+{
+	const APawn* PawnOwner = Cast<APawn>(GetOwner());
+	return PawnOwner && PawnOwner->IsLocallyControlled();
+}
+
+void UBrotherCombatComponent::PlayLocal2D(USoundBase* Sound) const
+{
+	// HUD 성격의 소리(탄약 부족·조준 고정)는 오빠를 조작하는 로컬 머신에서만(효과음 적용 기획 6.5)
+	if (Sound && IsLocallyControlledOwner())
+	{
+		UGameplayStatics::PlaySound2D(this, Sound);
+	}
+}
+
+void UBrotherCombatComponent::UpdateReloadSound()
+{
+	if (bIsReloading && ReloadAudio && ReloadAudio->IsPlaying())
+	{
+		// 장전 시간이 바뀌어도 소리를 다시 만들 필요 없이 진행도로 상승감을 낸다(기획 2.2)
+		ReloadAudio->SetPitchMultiplier(FMath::Lerp(ReloadPitchStart, ReloadPitchEnd, GetReloadProgress()));
+	}
 }
 
 void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -65,6 +107,16 @@ void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 
 	UpdateFacing(OwnerCharacter, DeltaTime);
+
+	// 조준 고정(LOCK) 타겟을 새로 잡은 순간 짧은 삑
+	AActor* LockTarget = bIsAiming ? CurrentTarget.Get() : nullptr;
+	if (LockTarget && LockTarget != LastLockTarget.Get())
+	{
+		PlayLocal2D(AimLockSound);
+	}
+	LastLockTarget = LockTarget;
+
+	UpdateReloadSound();
 }
 
 void UBrotherCombatComponent::UpdateFacing(ACharacter* OwnerCharacter, float DeltaTime)
@@ -227,6 +279,11 @@ void UBrotherCombatComponent::Fire()
 {
 	if (bIsReloading)
 	{
+		// 탄약 0(자동 장전 중)에 쏘면 헛방
+		if (CurrentAmmo <= 0 && DryFireSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, DryFireSound, GetOwner()->GetActorLocation());
+		}
 		return;
 	}
 
@@ -255,7 +312,16 @@ void UBrotherCombatComponent::Fire()
 			: OwnerCharacter->GetActorForwardVector();
 	}
 
+	const int32 PrevAmmo = CurrentAmmo;
 	CurrentAmmo = FMath::Max(CurrentAmmo - 1, 0);
+
+	// 탄약 부족 경계(HUD LOW CHARGE와 같은 기준)를 넘는 순간 1회
+	const int32 LowThreshold = FMath::CeilToInt(MaxAmmo * LowAmmoRatio);
+	if (PrevAmmo > LowThreshold && CurrentAmmo <= LowThreshold && CurrentAmmo > 0)
+	{
+		PlayLocal2D(LowAmmoSound);
+	}
+
 	if (CurrentAmmo <= 0)
 	{
 		StartReload();
@@ -318,10 +384,34 @@ void UBrotherCombatComponent::StartReload()
 {
 	bIsReloading = true;
 	GetWorld()->GetTimerManager().SetTimer(ReloadTimerHandle, this, &UBrotherCombatComponent::FinishReload, ReloadTime, false);
+
+	// 충전 루프: 캐릭터에 붙여 재생, 피치는 TickComponent에서 진행도로 올린다
+	if (ReloadChargeSound)
+	{
+		if (!ReloadAudio && GetOwner())
+		{
+			ReloadAudio = UGameplayStatics::SpawnSoundAttached(ReloadChargeSound, GetOwner()->GetRootComponent(), NAME_None, FVector::ZeroVector,
+				EAttachLocation::KeepRelativeOffset, true, 1.0f, ReloadPitchStart, 0.0f, nullptr, nullptr, false);
+		}
+		else if (ReloadAudio)
+		{
+			ReloadAudio->SetPitchMultiplier(ReloadPitchStart);
+			ReloadAudio->Play();
+		}
+	}
 }
 
 void UBrotherCombatComponent::FinishReload()
 {
 	CurrentAmmo = MaxAmmo;
 	bIsReloading = false;
+
+	if (ReloadAudio)
+	{
+		ReloadAudio->FadeOut(0.05f, 0.0f);
+	}
+	if (ReloadDoneSound && GetOwner())
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ReloadDoneSound, GetOwner()->GetActorLocation());
+	}
 }

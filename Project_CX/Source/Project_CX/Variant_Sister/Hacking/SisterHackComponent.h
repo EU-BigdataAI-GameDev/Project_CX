@@ -9,6 +9,8 @@
 
 class UInputAction;
 class UInputMappingContext;
+class UAudioComponent;
+class USoundBase;
 
 /** HUD 연출용 최근 판정 결과. */
 UENUM(BlueprintType)
@@ -104,6 +106,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	/** 이 거리(cm) 밖으로 나가면 FocusTerminal을 놓는다(단말기 InteractRange와 함께 사용, 더 작은 값 적용). */
@@ -113,6 +116,47 @@ protected:
 	/** 해킹 성공 표시를 보여준 뒤 세션을 닫기까지의 시간. */
 	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack")
 	float GrantedHoldTime = 1.2f;
+
+	// ------------------------------------------------------------ 사운드(효과음 적용 기획 2.3 — 비어 있으면 무음)
+	// 해킹 UI 소리는 여동생을 조작하는 로컬 머신에서만 2D로 재생한다. 사이버/신스 계열로 통일해 총·발소리와 구분.
+	// 원샷은 동시에 1개(새 소리가 나면 이전 것 정지 — 기획 5.4 해킹 UI).
+
+	/** 해킹 중 루프. 세션 종료 시 HackLoopFadeOut초 페이드아웃. */
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> HackLoopSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	float HackLoopFadeOut = 0.3f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> HackStartSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> HackCancelSound;
+
+	/** 화살표 정답 입력. 순서마다 피치를 CorrectPitchStep씩 올린다. */
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> CorrectSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	float CorrectPitchStep = 0.06f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> RoundClearSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> DeniedSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> GrantedSound;
+
+	/** 비밀번호 퍼즐 숫자 변경 / 자리 이동. */
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> DigitTickSound;
+
+	/** 해킹 가능한 단말기가 범위 안에 들어온 순간(TERMINAL ONLINE). */
+	UPROPERTY(EditDefaultsOnly, Category = "Sister|Hack|Sound")
+	TObjectPtr<USoundBase> DetectSound;
 
 private:
 	void UpdateFocus();
@@ -124,6 +168,11 @@ private:
 	void FinishSuccess();
 	void EndSession();
 	void SetMovementLocked(bool bLocked);
+
+	bool IsLocallyControlledOwner() const;
+	void PlayHackSound(USoundBase* Sound, float Pitch = 1.0f);
+	void StartHackLoop();
+	void StopHackLoop();
 
 	void OnInputUp() { InputDirection(EHackArrow::Up); }
 	void OnInputDown() { InputDirection(EHackArrow::Down); }
@@ -170,4 +219,12 @@ private:
 	bool bInputBound = false;
 	float FocusTimer = 0.0f;
 	FTimerHandle GrantedTimer;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> HackLoopAudio;
+
+	TWeakObjectPtr<UAudioComponent> LastHackOneShot;
+
+	/** 감지음 중복 방지 — 마지막으로 감지음을 낸 단말기(범위를 벗어나면 비움). */
+	TWeakObjectPtr<AHackTerminal> LastDetectedTerminal;
 };

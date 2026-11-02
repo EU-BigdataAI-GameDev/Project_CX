@@ -12,6 +12,7 @@
 #include "CXMenuSubsystem.h"
 #include "CXGameClearWidget.h"
 #include "CoopInteractComponent.h"
+#include "CXPlayerAudioComponent.h"
 #include "CXCoopExitDoor.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -31,6 +32,8 @@ ALocalCoopGameMode::ALocalCoopGameMode()
 	Map1Track.FadeIn = 1.0f;
 	Map1Track.Crossfade = 2.5f;
 	MapMusic.Add(TEXT("Map1_SoulCity"), Map1Track);
+	// 2026-11-02 맵 이름 변경: 실제 Map1 레벨은 Map1_SoulCity1(Map1_SoulCity는 리디렉터) — 둘 다 둔다
+	MapMusic.Add(TEXT("Map1_SoulCity1"), Map1Track);
 }
 
 void ALocalCoopGameMode::BeginPlay()
@@ -113,6 +116,8 @@ void ALocalCoopGameMode::SetPlayerDefaults(APawn* PlayerPawn)
 {
 	Super::SetPlayerDefaults(PlayerPawn);
 	UCoopInteractComponent::EnsureOn(PlayerPawn);
+	// 공용 발소리·점프·착지 + 리스너 위치(효과음 적용 기획 6.1, 6.3)
+	UCXPlayerAudioComponent::EnsureOn(PlayerPawn);
 }
 
 // ---------------------------------------------------------------- 게임 클리어

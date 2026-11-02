@@ -35,7 +35,7 @@ public:
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
-	/** 스폰된 플레이어 폰에 공용 상호작용(F/X) 컴포넌트를 붙인다(오빠 BP는 C++ 부모가 없어 런타임에 추가). */
+	/** 스폰된 플레이어 폰에 공용 상호작용(F/X)·플레이어 소리 컴포넌트를 붙인다(오빠 BP는 C++ 부모가 없어 런타임에 추가). */
 	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
 
 	/**

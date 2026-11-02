@@ -152,6 +152,8 @@ public:
 	 */
 	static UCXSettingsWidget* Open(UCXMenuWidgetBase* Opener, bool bAllowDeviceChange, TFunction<void()> OnClosed);
 
+	UCXSettingsWidget(const FObjectInitializer& ObjectInitializer);
+
 	virtual FString GetDebugState() const override;
 
 protected:
@@ -166,6 +168,10 @@ protected:
 	/** SFX 미리듣기 큐(비어 있으면 UI_Move 슬롯 사용, 그것도 없으면 무음). */
 	UPROPERTY(EditDefaultsOnly, Category = "Settings|Sound")
 	TObjectPtr<USoundBase> SfxPreviewSound;
+
+	/** 음량 바(전체/배경음) 한 칸 변경음(비어 있으면 UI_Move 슬롯). */
+	UPROPERTY(EditDefaultsOnly, Category = "Settings|Sound")
+	TObjectPtr<USoundBase> SliderStepSound;
 
 private:
 	void Configure(bool bInAllowDeviceChange, TFunction<void()> InOnClosed);
