@@ -59,8 +59,8 @@ void USisterHackComponent::BuildInputAssets()
 	RightAction = MakeAction(TEXT("IA_Hack_Right"));
 
 	HackMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Hack"));
-	HackMappingContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Left);
-	HackMappingContext->MapKey(InteractAction, EKeys::F);
+	// 해킹 시작/제출(F / X)은 공용 상호작용 키 → UCoopInteractComponent가 받아 Interact()로 넘긴다(같은 키 이중 바인딩 방지).
+	// InteractAction은 매핑 없이 남겨 둔다(키 매핑이 없으므로 트리거되지 않음).
 	HackMappingContext->MapKey(CancelAction, EKeys::Gamepad_FaceButton_Right);
 	// 키보드 해킹 취소는 Backspace — Escape는 ESC(일시정지) 메뉴 전용(설정 메뉴 기획 4.4 키 충돌)
 	HackMappingContext->MapKey(CancelAction, EKeys::BackSpace);
@@ -90,7 +90,6 @@ void USisterHackComponent::TryBindInput()
 		Subsystem->AddMappingContext(HackMappingContext, 10);
 	}
 
-	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &USisterHackComponent::Interact);
 	Input->BindAction(CancelAction, ETriggerEvent::Started, this, &USisterHackComponent::CancelHack);
 	Input->BindAction(UpAction, ETriggerEvent::Started, this, &USisterHackComponent::OnInputUp);
 	Input->BindAction(DownAction, ETriggerEvent::Started, this, &USisterHackComponent::OnInputDown);
@@ -130,6 +129,16 @@ void USisterHackComponent::UpdateFocus()
 }
 
 // ---------------------------------------------------------------- 세션
+
+bool USisterHackComponent::WantsInteract()
+{
+	if (ActiveTerminal)
+	{
+		return true;
+	}
+	UpdateFocus();
+	return FocusTerminal != nullptr;
+}
 
 void USisterHackComponent::Interact()
 {

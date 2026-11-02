@@ -8,6 +8,15 @@
 #include "Kismet/GameplayStatics.h"
 #include "CoopHUD.h"
 #include "CXGameUserSettings.h"
+#include "CXSaveGame.h"
+#include "CXMenuSubsystem.h"
+#include "CXGameClearWidget.h"
+#include "CoopInteractComponent.h"
+#include "CXCoopExitDoor.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Sound/SoundBase.h"
+#include "TimerManager.h"
 
 ALocalCoopGameMode::ALocalCoopGameMode()
 {
@@ -98,4 +107,84 @@ bool ALocalCoopGameMode::IsSecondLocalPlayer(const AController* Controller)
 	const UWorld* World = PlayerController->GetWorld();
 	const APlayerController* FirstPlayerController = World ? World->GetFirstPlayerController() : nullptr;
 	return FirstPlayerController && FirstPlayerController != PlayerController;
+}
+
+void ALocalCoopGameMode::SetPlayerDefaults(APawn* PlayerPawn)
+{
+	Super::SetPlayerDefaults(PlayerPawn);
+	UCoopInteractComponent::EnsureOn(PlayerPawn);
+}
+
+// ---------------------------------------------------------------- 게임 클리어
+
+void ALocalCoopGameMode::NotifyGameCleared()
+{
+	if (bGameCleared)
+	{
+		return;
+	}
+	bGameCleared = true;
+
+	// 클리어하면 세이브 초기화 → 다음 시작화면에는 NEW GAME만
+	UCXSaveGame::DeleteSlot();
+
+	UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(this);
+	if (Menus)
+	{
+		// 클리어화면(진입 연출 포함) 동안 ESC/Start로 일시정지 메뉴가 열리지 않게. 맵 이동 시 서브시스템이 자동 해제.
+		Menus->SetMenuBlocked(true);
+	}
+
+	// 게임플레이 입력 차단(두 폰 모두) + 제자리 정지
+	APlayerController* FirstLocal = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC || !PC->IsLocalController())
+		{
+			continue;
+		}
+		if (!FirstLocal || (PC->GetLocalPlayer() && PC->GetLocalPlayer()->GetLocalPlayerIndex() == 0))
+		{
+			FirstLocal = PC;
+		}
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			Pawn->DisableInput(PC);
+			if (ACharacter* Character = Cast<ACharacter>(Pawn))
+			{
+				Character->GetCharacterMovement()->StopMovementImmediately();
+			}
+		}
+		PC->FlushPressedKeys();
+	}
+
+	// 인게임 BGM을 내려 정지 + 클리어 징글 슬롯
+	if (UCXAudioSubsystem* Audio = UCXAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(ClearMusicFadeTime);
+	}
+	if (ClearJingle)
+	{
+		UGameplayStatics::PlaySound2D(this, ClearJingle, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+	}
+
+	// 클리어화면: 화면 전체에 하나(1P 컨트롤러 소유, 누구나 조작). 위젯이 딤 0.5초 → 패널 페이드인을 직접 연출한다.
+	if (Menus && FirstLocal)
+	{
+		Menus->PushMenu(UCXGameClearWidget::StaticClass(), FirstLocal, 200);
+	}
+	// 딤이 다 깔리면 월드 정지(부활 카운트다운·해킹 타이머 포함)
+	GetWorldTimerManager().SetTimer(ClearPauseTimer, this, &ALocalCoopGameMode::PauseForGameClear, FMath::Max(0.01f, ClearPauseDelay), false);
+}
+
+void ALocalCoopGameMode::PauseForGameClear()
+{
+	UGameplayStatics::SetGamePaused(this, true);
+}
+
+void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)
+{
+	const ACXCoopExitDoor* Door = ACXCoopExitDoor::DebugSpawnExitDoor(this, OffsetY, OffsetX);
+	UE_LOG(LogTemp, Log, TEXT("CXSpawnExitDoor: %s"), Door ? *Door->GetActorLocation().ToString() : TEXT("failed"));
 }

@@ -5,6 +5,8 @@
 #include "SisterCharacter.h"
 #include "SisterHackComponent.h"
 #include "HackTerminal.h"
+#include "CoopInteractComponent.h"
+#include "CXGameInstance.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
@@ -107,6 +109,11 @@ void ACoopHUD::DrawHUD()
 				DrawBrotherWeapon(*Combat);
 			}
 		}
+	}
+
+	if (MyPawn)
+	{
+		DrawInteractPrompt(*MyPawn, MyColor);
 	}
 
 	if (const APawn* Partner = FindPartnerPawn())
@@ -313,6 +320,40 @@ void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, floa
 	{
 		Label(FString::Printf(TEXT("%.0fm"), DistM), P.X, P.Y - R - 16.0f * S(), C, GEngine->GetTinyFont(), 1.0f, true);
 	}
+}
+
+void ACoopHUD::DrawInteractPrompt(const APawn& MyPawn, const FLinearColor& Color)
+{
+	const UCoopInteractComponent* Interact = MyPawn.FindComponentByClass<UCoopInteractComponent>();
+	FVector Location;
+	FString Prompt;
+	if (!PlayerOwner || !Interact || !Interact->GetFocusPrompt(Location, Prompt))
+	{
+		return;
+	}
+	FVector ViewLoc;
+	FRotator ViewRot;
+	PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+	if (FVector::DotProduct(Location - ViewLoc, ViewRot.Vector()) <= 0.0f)
+	{
+		return;
+	}
+	const FVector P = Project(Location, false);
+	if (P.X < 0.0f || P.X > Canvas->ClipX || P.Y < 0.0f || P.Y > Canvas->ClipY)
+	{
+		return;
+	}
+
+	// 키 표기: 이 캐릭터의 조작 장치 설정(슬롯 0 오빠 / 1 여동생) 기준 — 키보드 F / 게임패드 X
+	const int32 Slot = UCoopInteractComponent::GetPawnRole(&MyPawn) == ECoopCharacterRole::Sister ? 1 : 0;
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	const bool bKeyboard = GI ? GI->GetSlotDeviceType(Slot) == ECXInputDeviceType::KeyboardMouse : Slot == 0;
+	const FString Text = FString::Printf(TEXT("%s %s"), bKeyboard ? TEXT("[F]") : TEXT("[X]"), *Prompt);
+
+	// 버튼을 감싸는 펄스 브래킷 + 위쪽 안내 문구
+	const float Half = (14.0f + 3.0f * Pulse(6.0f)) * S();
+	Bracket(FVector2D(P.X, P.Y), Half, 6.0f * S(), Color, 2.0f);
+	Label(Text, P.X, P.Y - Half - 22.0f * S(), Color, GEngine->GetSmallFont(), 1.0f, true);
 }
 
 void ACoopHUD::DrawTargetMarker(const UBrotherCombatComponent& Combat)

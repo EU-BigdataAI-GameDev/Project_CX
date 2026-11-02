@@ -45,6 +45,8 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_Sister/Hacking",
 			"Project_CX/Coop",
 			"Project_CX/Coop/UI",
+			"Project_CX/Coop/Gameplay",
+			"Project_CX/Coop/Interfaces",
 			"Project_CX/Core",
 			"Project_CX/Title",
 			"Project_CX/UI/Menu"

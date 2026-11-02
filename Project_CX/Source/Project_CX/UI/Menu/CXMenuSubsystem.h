@@ -83,7 +83,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "CX|Menu|Pause")
 	bool IsPauseMenuOpen() const { return PauseMenu != nullptr; }
 
-	/** 게임 오버 연출/사망 판정 직후 등 ESC 메뉴를 막아야 하는 상태(해당 시스템이 생기면 여기서 켠다). */
+	/** 게임 오버 연출/사망 판정 직후·게임 클리어 등 ESC 메뉴를 막아야 하는 상태. 맵 이동(PreLoadMap) 시 자동으로 풀린다. */
 	UFUNCTION(BlueprintCallable, Category = "CX|Menu|Pause")
 	void SetMenuBlocked(bool bBlocked) { bMenuBlocked = bBlocked; }
 

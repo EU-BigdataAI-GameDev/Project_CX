@@ -20,9 +20,16 @@ class UCXPauseDimWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	/** 딤 진하기(기본 55% — 게임 클리어화면은 70%). */
+	void SetDimAlpha(float InAlpha) { DimAlpha = InAlpha; }
+
 protected:
 	virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+
+private:
+	float DimAlpha = 0.55f;
 };
 
 /**

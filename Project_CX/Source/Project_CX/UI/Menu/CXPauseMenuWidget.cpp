@@ -49,7 +49,7 @@ int32 UCXPauseDimWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Al
 {
 	const float Opacity = InWidgetStyle.GetColorAndOpacityTint().A;
 	const FVector2f Size = FVector2f(AllottedGeometry.GetLocalSize());
-	CXMenuStyle::DrawRect(OutDrawElements, LayerId, AllottedGeometry, FVector2f::ZeroVector, Size, CXMenuStyle::Dim * FLinearColor(1, 1, 1, Opacity));
+	CXMenuStyle::DrawRect(OutDrawElements, LayerId, AllottedGeometry, FVector2f::ZeroVector, Size, CXMenuStyle::Dim.CopyWithNewOpacity(DimAlpha * Opacity));
 
 	// 가로 스캔라인(1px, 3px 간격) — 정지 화면이 "모니터 위 화면"처럼 읽히게
 	const FLinearColor Line(0.0f, 0.0f, 0.0f, CXPause::ScanlineAlpha * Opacity);

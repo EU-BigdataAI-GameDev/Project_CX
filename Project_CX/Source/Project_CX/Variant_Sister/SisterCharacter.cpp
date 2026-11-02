@@ -2,6 +2,7 @@
 
 #include "SisterCharacter.h"
 #include "SisterHackComponent.h"
+#include "CoopInteractComponent.h"
 #include "SisterAnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -52,6 +53,7 @@ ASisterCharacter::ASisterCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	HackComponent = CreateDefaultSubobject<USisterHackComponent>(TEXT("HackComponent"));
+	InteractComponent = CreateDefaultSubobject<UCoopInteractComponent>(TEXT("InteractComponent"));
 }
 
 void ASisterCharacter::NotifyControllerChanged()

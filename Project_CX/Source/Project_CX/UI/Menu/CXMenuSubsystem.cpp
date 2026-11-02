@@ -384,6 +384,8 @@ void UCXMenuSubsystem::ResetPauseState()
 	bReconnected = false;
 	DisconnectedPlayer = INDEX_NONE;
 	GameplayInputBlockEnd = 0.0;
+	// 게임 클리어/오버 등에서 켠 차단은 그 맵에서만 — 맵 이동(PreLoadMap) 때 풀어서 다음 세션에서 ESC가 다시 동작하게
+	bMenuBlocked = false;
 }
 
 void UCXMenuSubsystem::SetPauseSoundMix(bool bPush)

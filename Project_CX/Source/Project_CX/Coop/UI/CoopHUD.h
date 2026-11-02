@@ -91,6 +91,8 @@ private:
 	void DrawBrotherWeapon(const UBrotherCombatComponent& Combat);
 	void DrawSisterHackLink();
 	void DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM);
+	/** 공용 상호작용(F/X) 대상 안내 — 문 버튼 앞에서 "[F] PRESS"(해킹 단말기 마커와 같은 문법, 자기 색). */
+	void DrawInteractPrompt(const APawn& MyPawn, const FLinearColor& Color);
 	void DrawPistolIcon(float X, float Y, const FLinearColor& Color);
 	void DrawHackSession(const USisterHackComponent& Hack);
 	void DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Direction, const FLinearColor& Color);

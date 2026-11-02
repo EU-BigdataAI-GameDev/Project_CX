@@ -25,7 +25,8 @@ enum class EHackFeedback : uint8
  *  여동생 전용 해킹 로직(.claude/Plans/해킹 시스템 기획.md).
  *
  *  - 0.2초마다 가장 가까운 해킹 가능 단말기(AHackTerminal::InteractRange 이내)를 FocusTerminal로 잡는다.
- *  - 입력은 에셋 없이 런타임에 만든 Input Action/Mapping Context로 바인딩한다(게임패드 D-pad·X·B + 키보드 대응).
+ *  - 입력은 에셋 없이 런타임에 만든 Input Action/Mapping Context로 바인딩한다(게임패드 D-pad·B + 키보드 대응).
+ *    해킹 시작/제출 키(F/X)는 두 캐릭터 공용 상호작용 키라 UCoopInteractComponent가 받아 Interact()로 넘긴다.
  *  - 해킹 중에는 이동/점프를 잠그고, 화살표 퍼즐 또는 4자리 비밀번호 퍼즐을 진행한다.
  *  - 실패해도 무제한 재시도, 언제든 취소 가능(소프트락 없음).
  *
@@ -44,6 +45,12 @@ public:
 	/** FocusTerminal 해킹 시작. 해킹 중이면 비밀번호 퍼즐에서는 제출로 동작한다. */
 	UFUNCTION(BlueprintCallable, Category = "Sister|Hack")
 	void Interact();
+
+	/**
+	 *  공용 상호작용 키(F/X)를 해킹이 가져갈지 — 해킹 중이거나, 지금 범위 안에 해킹 가능한 단말기가 있으면 true.
+	 *  F/X는 UCoopInteractComponent가 바인딩하고 이 값이 참이면 Interact로 넘긴다(게임 클리어 화면 기획 2.1 — 해킹 우선, 그다음 문 버튼).
+	 */
+	bool WantsInteract();
 
 	UFUNCTION(BlueprintCallable, Category = "Sister|Hack")
 	void CancelHack();
