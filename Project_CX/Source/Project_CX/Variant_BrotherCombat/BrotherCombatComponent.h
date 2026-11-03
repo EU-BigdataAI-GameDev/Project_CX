@@ -8,7 +8,10 @@
 
 class ABrotherBullet;
 class UInputAction;
+class UInputMappingContext;
 class UEnhancedInputComponent;
+class UAudioComponent;
+class USoundBase;
 
 /**
  *  오빠 캐릭터의 자동 조준 사격 로직(.claude/Plans/공격 시스템.md).
@@ -52,8 +55,16 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Brother|Combat")
 	bool bIsReloading = false;
 
+	/** HUD용: 장전 진행도(0~1). 장전 중이 아니면 0. */
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	float GetReloadProgress() const;
+
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	int32 GetMaxAmmo() const { return MaxAmmo; }
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	/**
@@ -121,9 +132,55 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	FVector MuzzleOffset = FVector(60.0f, 0.0f, 60.0f);
 
+	// ------------------------------------------------------------ 사운드(효과음 적용 기획 2.2 — 비어 있으면 무음)
+	// 발사음·탄 충돌음은 복제되는 총알 액터(ABrotherBullet)가 낸다.
+
+	/** 장전(에너지 충전) 루프. 장전 진행도(GetReloadProgress)로 피치를 ReloadPitchStart → ReloadPitchEnd로 올린다. */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	TObjectPtr<USoundBase> ReloadChargeSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	float ReloadPitchStart = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	float ReloadPitchEnd = 1.6f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	TObjectPtr<USoundBase> ReloadDoneSound;
+
+	/** 탄약 0(장전 중)에 사격 입력. */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	TObjectPtr<USoundBase> DryFireSound;
+
+	/** 탄약이 LowAmmoRatio 이하로 내려가는 순간 1회(HUD LOW CHARGE와 같은 기준). */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	TObjectPtr<USoundBase> LowAmmoSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	float LowAmmoRatio = 0.25f;
+
+	/** 우클릭 조준(LOCK)으로 타겟을 새로 잡은 순간. */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
+	TObjectPtr<USoundBase> AimLockSound;
+
 private:
+	bool IsLocallyControlledOwner() const;
+	void PlayLocal2D(USoundBase* Sound) const;
+	void UpdateReloadSound();
+
 	FTimerHandle ReloadTimerHandle;
+
+	/** 장전 루프(재사용). */
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> ReloadAudio;
+
+	/** 조준 고정음 중복 방지 — 마지막으로 LOCK한 타겟. */
+	TWeakObjectPtr<AActor> LastLockTarget;
 	bool bInputBound = false;
+
+	/** 게임패드 사격 RT / 조준 LT 런타임 매핑(설정 메뉴 기획 4.5 — IMC_Default에는 마우스만 있다). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> GamepadMappingContext;
 
 	/** UpdateFacing이 OrientRotationToMovement를 껐다가 되돌릴 때 쓸, 최초 1회 캐싱한 원래 값. */
 	bool bDefaultOrientRotationToMovement = true;
