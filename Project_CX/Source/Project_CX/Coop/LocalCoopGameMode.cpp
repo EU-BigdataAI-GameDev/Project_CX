@@ -11,6 +11,9 @@
 #include "CXSaveGame.h"
 #include "CXMenuSubsystem.h"
 #include "CXGameClearWidget.h"
+#include "CXGameOverWidget.h"
+#include "CXPlayerLifeComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "CoopInteractComponent.h"
 #include "CXPlayerAudioComponent.h"
 #include "CXCoopExitDoor.h"
@@ -39,6 +42,12 @@ ALocalCoopGameMode::ALocalCoopGameMode()
 void ALocalCoopGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 게임 오버에서 끈 분할 화면을 되돌린다(재시작 = 같은 맵 다시 열기 — 뷰포트 설정은 맵 이동 후에도 남는다)
+	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
+	{
+		Viewport->SetForceDisableSplitscreen(false);
+	}
 
 	if (SecondPlayerPawnClass && !UGameplayStatics::GetPlayerController(this, 1))
 	{
@@ -118,13 +127,16 @@ void ALocalCoopGameMode::SetPlayerDefaults(APawn* PlayerPawn)
 	UCoopInteractComponent::EnsureOn(PlayerPawn);
 	// 공용 발소리·점프·착지 + 리스너 위치(효과음 적용 기획 6.1, 6.3)
 	UCXPlayerAudioComponent::EnsureOn(PlayerPawn);
+	// 사망/부활 상태 + 낙사 감지 + 안전 지면 기록(게임 오버화면 기획 9장)
+	UCXPlayerLifeComponent::EnsureOn(PlayerPawn);
 }
 
 // ---------------------------------------------------------------- 게임 클리어
 
 void ALocalCoopGameMode::NotifyGameCleared()
 {
-	if (bGameCleared)
+	// 게임 오버가 먼저 떴으면 클리어 무시(판정은 서버 한 곳에서 순서대로 — 클리어 화면 기획 6장)
+	if (bGameCleared || bGameOver)
 	{
 		return;
 	}
@@ -192,4 +204,364 @@ void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)
 {
 	const ACXCoopExitDoor* Door = ACXCoopExitDoor::DebugSpawnExitDoor(this, OffsetY, OffsetX);
 	UE_LOG(LogTemp, Log, TEXT("CXSpawnExitDoor: %s"), Door ? *Door->GetActorLocation().ToString() : TEXT("failed"));
+}
+
+// ---------------------------------------------------------------- 사망 / 부활 / 게임 오버
+
+bool ALocalCoopGameMode::IsControllerAlive(const AController* Controller) const
+{
+	if (!Controller || DeadWithoutPawn.Contains(TWeakObjectPtr<AController>(const_cast<AController*>(Controller))))
+	{
+		return false;
+	}
+	return UCXPlayerLifeComponent::IsPawnAlive(Controller->GetPawn());
+}
+
+void ALocalCoopGameMode::NotifyPlayerDied(AController* Controller, ECXDeathCause Cause)
+{
+	// 클리어 후 / 게임 오버 후에는 사망 무시
+	if (!Controller || bGameOver || bGameCleared)
+	{
+		return;
+	}
+	// 일시정지 메뉴 중에는 월드가 멈춰 사망이 일어나지 않는다(디버그 명령만 가능) — 메뉴가 겹치지 않게 무시
+	if (const UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(this))
+	{
+		if (Menus->IsPauseMenuOpen())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("NotifyPlayerDied: ignored while pause menu is open"));
+			return;
+		}
+	}
+
+	const TWeakObjectPtr<AController> Weak(Controller);
+	APawn* Pawn = Controller->GetPawn();
+	UCXPlayerLifeComponent* Life = Pawn ? Pawn->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+	if (Pawn && Life && !Life->IsAlive())
+	{
+		return;
+	}
+	if (!Pawn)
+	{
+		// 안전망 경로: 폰이 이미 파괴됨(엔진 KillZ 등). 같은 컨트롤러 중복 보고 무시
+		if (DeadWithoutPawn.Contains(Weak) || RespawnTimers.Contains(Weak))
+		{
+			return;
+		}
+		DeadWithoutPawn.Add(Weak);
+	}
+
+	const double Now = GetWorld()->GetTimeSeconds();
+	AController* PrevDead = LastDeathController.Get();
+	const bool bSimultaneous = PrevDead && PrevDead != Controller && (Now - LastDeathTime) <= SimultaneousDeathWindow;
+	LastDeathController = Controller;
+	LastDeathTime = Now;
+
+	bool bPartnerAlive = false;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (PC && PC != Controller && IsControllerAlive(PC))
+		{
+			bPartnerAlive = true;
+			break;
+		}
+	}
+
+	const bool bSister = IsSisterController(Controller);
+	UE_LOG(LogTemp, Log, TEXT("NotifyPlayerDied: %s cause=%d partnerAlive=%d"), bSister ? TEXT("SISTER") : TEXT("BROTHER"), static_cast<int32>(Cause), bPartnerAlive ? 1 : 0);
+
+	if (!bPartnerAlive)
+	{
+		// 부활 대기 중 나머지도 사망(또는 혼자) → 게임 오버. 0.1초 안이면 동시 사망(두 이름)
+		if (Life)
+		{
+			Life->EnterDeath(Cause, -1.0f);
+		}
+		bool bBrotherFell = !bSister;
+		bool bSisterFell = bSister;
+		if (bSimultaneous)
+		{
+			if (IsSisterController(PrevDead))
+			{
+				bSisterFell = true;
+			}
+			else
+			{
+				bBrotherFell = true;
+			}
+		}
+		TriggerGameOver(bBrotherFell, bSisterFell);
+		return;
+	}
+
+	// 부활 대기 10초(월드 타이머 — ESC 메뉴 일시정지 중 멈춤)
+	if (Life)
+	{
+		Life->EnterDeath(Cause, RespawnDelay);
+	}
+	FTimerHandle& RespawnHandle = RespawnTimers.FindOrAdd(Weak);
+	GetWorldTimerManager().SetTimer(RespawnHandle, FTimerDelegate::CreateUObject(this, &ALocalCoopGameMode::RespawnPlayer, Weak), FMath::Max(0.01f, RespawnDelay), false);
+
+	// 사망자 칸 카메라: 1초 그 자리 → 파트너 추적(카메라 컴포넌트는 건드리지 않고 뷰 타깃만 바꾼다)
+	if (Cast<APlayerController>(Controller))
+	{
+		FTimerHandle& ViewHandle = DeadViewTimers.FindOrAdd(Weak);
+		GetWorldTimerManager().SetTimer(ViewHandle, FTimerDelegate::CreateUObject(this, &ALocalCoopGameMode::SwitchDeadView, Weak), FMath::Max(0.01f, DeadViewHoldTime), false);
+	}
+}
+
+void ALocalCoopGameMode::SwitchDeadView(TWeakObjectPtr<AController> WeakController)
+{
+	DeadViewTimers.Remove(WeakController);
+	APlayerController* PC = Cast<APlayerController>(WeakController.Get());
+	if (!PC || bGameOver || IsControllerAlive(PC))
+	{
+		return;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* Other = It->Get();
+		if (Other && Other != PC && IsControllerAlive(Other))
+		{
+			PC->SetViewTargetWithBlend(Other->GetPawn(), DeadViewBlendTime);
+			return;
+		}
+	}
+}
+
+void ALocalCoopGameMode::RespawnPlayer(TWeakObjectPtr<AController> WeakController)
+{
+	RespawnTimers.Remove(WeakController);
+	if (FTimerHandle* ViewHandle = DeadViewTimers.Find(WeakController))
+	{
+		GetWorldTimerManager().ClearTimer(*ViewHandle);
+		DeadViewTimers.Remove(WeakController);
+	}
+
+	AController* Controller = WeakController.Get();
+	if (!Controller || bGameOver || bGameCleared)
+	{
+		return;
+	}
+
+	// 부활 위치: 살아 있는 파트너 근처 안전 지면(기획 2.1 기본안) → 실패하면 맵 시작 지점
+	APawn* Pawn = Controller->GetPawn();
+	FVector Location = Pawn ? Pawn->GetActorLocation() : FVector::ZeroVector;
+	FRotator Rotation = Pawn ? Pawn->GetActorRotation() : FRotator::ZeroRotator;
+	bool bFound = false;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It && !bFound; ++It)
+	{
+		const APlayerController* Other = It->Get();
+		if (Other && Other != Controller && IsControllerAlive(Other))
+		{
+			if (const UCXPlayerLifeComponent* PartnerLife = Other->GetPawn()->FindComponentByClass<UCXPlayerLifeComponent>())
+			{
+				bFound = PartnerLife->FindRespawnSpotFor(Pawn, Location, Rotation);
+			}
+		}
+	}
+	if (!bFound)
+	{
+		// TODO(세이브포인트): 마지막 세이브포인트가 생기면 여기서 먼저 시도
+		if (const AActor* Start = FindPlayerStart(Controller))
+		{
+			Location = Start->GetActorLocation();
+			Rotation = Start->GetActorRotation();
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("RespawnPlayer: %s at %s (%s)"), IsSisterController(Controller) ? TEXT("SISTER") : TEXT("BROTHER"),
+		*Location.ToCompactString(), bFound ? TEXT("near partner") : TEXT("player start"));
+
+	UCXPlayerLifeComponent* Life = Pawn ? Pawn->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+	if (Pawn && Life && !DeadWithoutPawn.Contains(WeakController))
+	{
+		Life->Revive(Location, Rotation, RespawnInvulnerableTime);
+	}
+	else
+	{
+		// 폰이 파괴된 경우: 새로 스폰(SetPlayerDefaults가 컴포넌트를 다시 붙인다)
+		DeadWithoutPawn.Remove(WeakController);
+		if (Pawn)
+		{
+			Pawn->Destroy();
+		}
+		RestartPlayerAtTransform(Controller, FTransform(FRotator(0.0f, Rotation.Yaw, 0.0f), Location));
+		if (UCXPlayerLifeComponent* NewLife = UCXPlayerLifeComponent::EnsureOn(Controller->GetPawn()))
+		{
+			NewLife->StartInvulnerability(RespawnInvulnerableTime);
+		}
+	}
+
+	// 카메라를 자기 폰으로 복귀
+	if (APlayerController* PC = Cast<APlayerController>(Controller))
+	{
+		if (APawn* NewPawn = PC->GetPawn())
+		{
+			PC->SetViewTargetWithBlend(NewPawn, DeadViewBlendTime * 0.6f);
+		}
+	}
+}
+
+void ALocalCoopGameMode::ClearLifeTimers()
+{
+	FTimerManager& Timers = GetWorldTimerManager();
+	for (TPair<TWeakObjectPtr<AController>, FTimerHandle>& Pair : RespawnTimers)
+	{
+		Timers.ClearTimer(Pair.Value);
+	}
+	for (TPair<TWeakObjectPtr<AController>, FTimerHandle>& Pair : DeadViewTimers)
+	{
+		Timers.ClearTimer(Pair.Value);
+	}
+	RespawnTimers.Reset();
+	DeadViewTimers.Reset();
+}
+
+void ALocalCoopGameMode::TriggerGameOver(bool bBrotherFell, bool bSisterFell)
+{
+	if (bGameOver || bGameCleared)
+	{
+		return;
+	}
+	bGameOver = true;
+	ClearLifeTimers();
+
+	UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(this);
+	if (Menus)
+	{
+		// 게임 오버 중(진입 연출 포함) ESC/Start로 일시정지 메뉴가 열리지 않게. 맵 이동 시 서브시스템이 자동 해제.
+		Menus->SetMenuBlocked(true);
+	}
+
+	// 부활 대기 중이던 사람도 부활 없음으로 확정 + 게임플레이 입력 차단
+	APlayerController* FirstLocal = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			if (UCXPlayerLifeComponent* Life = Pawn->FindComponentByClass<UCXPlayerLifeComponent>())
+			{
+				Life->CancelRespawn();
+			}
+			Pawn->DisableInput(PC);
+		}
+		if (PC->IsLocalController())
+		{
+			PC->FlushPressedKeys();
+			if (!FirstLocal || (PC->GetLocalPlayer() && PC->GetLocalPlayer()->GetLocalPlayerIndex() == 0))
+			{
+				FirstLocal = PC;
+			}
+		}
+	}
+
+	// BGM 컷 + 저음 신호 끊김 효과 슬롯
+	if (UCXAudioSubsystem* Audio = UCXAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(GameOverMusicFadeTime);
+	}
+	if (GameOverSound)
+	{
+		UGameplayStatics::PlaySound2D(this, GameOverSound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+	}
+
+	// 마지막 사망 순간 슬로우(0.3) → 실시간 0.5초 뒤 월드 정지 + 전체 화면 전환
+	UGameplayStatics::SetGlobalTimeDilation(this, GameOverTimeDilation);
+
+	// 게임 오버화면: 화면 전체 하나(1P 컨트롤러 소유, 누구나 조작). 위젯이 노이즈/딤/패널 연출을 실시간으로 직접 한다.
+	if (Menus && FirstLocal)
+	{
+		if (UCXGameOverWidget* Widget = Cast<UCXGameOverWidget>(Menus->PushMenu(UCXGameOverWidget::StaticClass(), FirstLocal, 200)))
+		{
+			Widget->SetFallen(bBrotherFell, bSisterFell);
+		}
+	}
+	// 월드 타이머는 딜레이션을 받으므로 게임 시간 = 실시간 × 딜레이션
+	const float Delay = FMath::Max(0.01f, GameOverSlowMoTime * FMath::Max(0.01f, GameOverTimeDilation));
+	GetWorldTimerManager().SetTimer(GameOverPauseTimer, this, &ALocalCoopGameMode::EnterGameOverPause, Delay, false);
+	UE_LOG(LogTemp, Log, TEXT("TriggerGameOver: brother=%d sister=%d"), bBrotherFell ? 1 : 0, bSisterFell ? 1 : 0);
+}
+
+void ALocalCoopGameMode::EnterGameOverPause()
+{
+	UGameplayStatics::SetGlobalTimeDilation(this, 1.0f);
+	UGameplayStatics::SetGamePaused(this, true);
+	// 분할선이 사라지며 전체 화면 하나로(맵 이동 시 BeginPlay/메뉴 서브시스템이 되돌린다)
+	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
+	{
+		Viewport->SetForceDisableSplitscreen(true);
+	}
+}
+
+// ---------------------------------------------------------------- 디버그
+
+bool ALocalCoopGameMode::DebugKillPlayer(int32 LocalPlayerIndex)
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC && PC->GetLocalPlayer() && PC->GetLocalPlayer()->GetLocalPlayerIndex() == LocalPlayerIndex)
+		{
+			const bool bWasAlive = IsControllerAlive(PC);
+			NotifyPlayerDied(PC, ECXDeathCause::Debug);
+			return bWasAlive && !IsControllerAlive(PC);
+		}
+	}
+	return false;
+}
+
+void ALocalCoopGameMode::CXKillPlayer(const FString& Who)
+{
+	const FString Arg = Who.TrimStartAndEnd().ToLower();
+	TArray<APlayerController*> Targets;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+		const bool bSister = IsSisterController(PC);
+		const int32 Index = PC->GetLocalPlayer() ? PC->GetLocalPlayer()->GetLocalPlayerIndex() : INDEX_NONE;
+		const bool bMatch = Arg == TEXT("all") || Arg == TEXT("both")
+			|| ((Arg == TEXT("brother") || Arg == TEXT("b")) && !bSister)
+			|| ((Arg == TEXT("sister") || Arg == TEXT("s")) && bSister)
+			|| (Arg.IsNumeric() && FCString::Atoi(*Arg) == Index);
+		if (bMatch)
+		{
+			Targets.Add(PC);
+		}
+	}
+	for (APlayerController* PC : Targets)
+	{
+		NotifyPlayerDied(PC, ECXDeathCause::Debug);
+	}
+	UE_LOG(LogTemp, Log, TEXT("CXKillPlayer %s: %d target(s) - %s"), *Arg, Targets.Num(), *GetLifeDebugState());
+}
+
+FString ALocalCoopGameMode::GetLifeDebugState() const
+{
+	FString Out = FString::Printf(TEXT("gameOver=%d cleared=%d"), bGameOver ? 1 : 0, bGameCleared ? 1 : 0);
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+		const int32 Index = PC->GetLocalPlayer() ? PC->GetLocalPlayer()->GetLocalPlayerIndex() : INDEX_NONE;
+		const APawn* Pawn = PC->GetPawn();
+		const UCXPlayerLifeComponent* Life = Pawn ? Pawn->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+		const AActor* ViewTarget = PC->GetViewTarget();
+		Out += FString::Printf(TEXT(" | P%d %s pawn=%s view=%s %s"), Index, IsSisterController(PC) ? TEXT("SISTER") : TEXT("BROTHER"),
+			Pawn ? *Pawn->GetName() : TEXT("none"), ViewTarget ? *ViewTarget->GetName() : TEXT("none"),
+			Life ? *Life->GetDebugState() : TEXT("(no life)"));
+	}
+	return Out;
 }

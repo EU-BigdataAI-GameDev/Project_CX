@@ -10,6 +10,8 @@
 class UBrotherCombatComponent;
 class USisterHackComponent;
 class UFont;
+class USoundBase;
+class UCXPlayerLifeComponent;
 
 /**
  *  로컬 2인 협동용 인게임 HUD(.claude/Plans/HUD 기획.md).
@@ -86,6 +88,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Hack")
 	FString HackKeyHint = TEXT("[X]");
 
+	/** 부활 대기 마지막 3초 틱(에셋 없음 → 무음). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Respawn")
+	TObjectPtr<USoundBase> RespawnTickSound;
+
+	/** 부활 직후 REBOOTED 표시 시간(초). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Respawn")
+	float RebootedShowTime = 1.5f;
+
 private:
 	void DrawPlayerTag(const FLinearColor& Color, const FString& SlotText, const FString& DisplayName, const FString& RoleText);
 	void DrawBrotherWeapon(const UBrotherCombatComponent& Combat);
@@ -105,6 +115,10 @@ private:
 	void DrawTargetMarker(const UBrotherCombatComponent& Combat);
 	void DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName);
 	void DrawZoneBanner();
+	/** 사망자 칸: 어둡게 + 비네팅 + 노이즈 + SIGNAL LOST / 남은 초 / 진행 바 / REBOOTING IN ns(게임 오버화면 기획 3장). */
+	void DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLinearColor& Color);
+	/** 부활 직후 REBOOTED. */
+	void DrawRebooted(const UCXPlayerLifeComponent& Life, const FLinearColor& Color);
 	void DrawSplitEdge(const FLinearColor& Color);
 
 	/** 분할 칸 기준 좌표(1920x540)를 실제 픽셀로 변환하는 배율. */
@@ -126,4 +140,6 @@ private:
 	float UIScale = 1.0f;
 	float StartTime = 0.0f;
 	FString ZoneTitle;
+	/** 마지막으로 틱 소리를 낸 남은 초(같은 초에 한 번만). */
+	int32 LastTickSecond = INDEX_NONE;
 };

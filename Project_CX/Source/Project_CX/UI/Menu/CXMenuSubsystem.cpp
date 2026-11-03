@@ -386,6 +386,14 @@ void UCXMenuSubsystem::ResetPauseState()
 	GameplayInputBlockEnd = 0.0;
 	// 게임 클리어/오버 등에서 켠 차단은 그 맵에서만 — 맵 이동(PreLoadMap) 때 풀어서 다음 세션에서 ESC가 다시 동작하게
 	bMenuBlocked = false;
+	// 게임 오버화면이 끈 분할 화면도 맵 이동 시 원복(재시작/타이틀로 어느 경로든)
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UGameViewportClient* Viewport = GameInstance->GetGameViewportClient())
+		{
+			Viewport->SetForceDisableSplitscreen(false);
+		}
+	}
 }
 
 void UCXMenuSubsystem::SetPauseSoundMix(bool bPush)

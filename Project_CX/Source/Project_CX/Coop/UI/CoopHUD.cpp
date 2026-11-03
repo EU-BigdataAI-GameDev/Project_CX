@@ -6,6 +6,8 @@
 #include "SisterHackComponent.h"
 #include "HackTerminal.h"
 #include "CoopInteractComponent.h"
+#include "CXPlayerLifeComponent.h"
+#include "Sound/SoundBase.h"
 #include "CXGameInstance.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -94,17 +96,33 @@ void ACoopHUD::DrawHUD()
 	const bool bIsSister = Cast<ASisterCharacter>(MyPawn) != nullptr;
 	const FLinearColor MyColor = bIsSister ? SisterColor : BrotherColor;
 
+	// 사망(부활 대기/게임 오버) 중에는 무기·조준·해킹·상호작용 표시를 끄고 대기 화면을 그린다(게임 오버화면 기획 3장)
+	const UCXPlayerLifeComponent* MyLife = MyPawn ? MyPawn->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+	const bool bDead = MyLife && !MyLife->IsAlive();
+
+	if (bDead)
+	{
+		DrawRespawnOverlay(*MyLife, MyColor);
+	}
+	else
+	{
+		LastTickSecond = INDEX_NONE;
+	}
+
 	DrawSplitEdge(MyColor);
 
 	if (bIsSister)
 	{
 		DrawPlayerTag(MyColor, TEXT("P2"), TEXT("SISTER"), TEXT("INFILTRATION  //  HACK"));
-		DrawSisterHackLink();
+		if (!bDead)
+		{
+			DrawSisterHackLink();
+		}
 	}
 	else
 	{
 		DrawPlayerTag(MyColor, TEXT("P1"), TEXT("BROTHER"), TEXT("COMBAT  //  RAILGUN"));
-		if (MyPawn)
+		if (MyPawn && !bDead)
 		{
 			if (const UBrotherCombatComponent* Combat = MyPawn->FindComponentByClass<UBrotherCombatComponent>())
 			{
@@ -114,18 +132,119 @@ void ACoopHUD::DrawHUD()
 		}
 	}
 
-	if (MyPawn)
+	if (MyPawn && !bDead)
 	{
 		DrawInteractPrompt(*MyPawn, MyColor);
 	}
 
-	if (const APawn* Partner = FindPartnerPawn())
+	const APawn* Partner = bDead ? nullptr : FindPartnerPawn();
+	if (Partner)
 	{
 		const bool bPartnerIsSister = Cast<ASisterCharacter>(Partner) != nullptr;
-		DrawPartnerIndicator(*Partner, bPartnerIsSister ? SisterColor : BrotherColor, bPartnerIsSister ? TEXT("SISTER") : TEXT("BROTHER"));
+		FString PartnerName = bPartnerIsSister ? TEXT("SISTER") : TEXT("BROTHER");
+		FLinearColor PartnerColor = bPartnerIsSister ? SisterColor : BrotherColor;
+		// 파트너 부활 대기 중: 머리 위 표시가 SIGNAL LOST + 남은 초로 바뀐다
+		const UCXPlayerLifeComponent* PartnerLife = Partner->FindComponentByClass<UCXPlayerLifeComponent>();
+		if (PartnerLife && !PartnerLife->IsAlive())
+		{
+			PartnerName = PartnerLife->GetLifeState() == ECXLifeState::AwaitingRespawn
+				? FString::Printf(TEXT("%s  SIGNAL LOST  %d"), *PartnerName, FMath::CeilToInt(PartnerLife->GetRespawnRemaining()))
+				: FString::Printf(TEXT("%s  SIGNAL LOST"), *PartnerName);
+			PartnerColor = PartnerColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(6.0f));
+		}
+		DrawPartnerIndicator(*Partner, PartnerColor, PartnerName);
+	}
+
+	if (MyLife && MyLife->IsAlive())
+	{
+		DrawRebooted(*MyLife, MyColor);
 	}
 
 	DrawZoneBanner();
+}
+
+// ---------------------------------------------------------------- 부활 대기(게임 오버화면 기획 3장)
+
+void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLinearColor& Color)
+{
+	const float W = Canvas->ClipX;
+	const float H = Canvas->ClipY;
+
+	// 어둡게(채도 0 대신 — 포스트프로세스/카메라는 건드리지 않는다) + 가장자리 비네팅
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.6f), 0.0f, 0.0f, W, H);
+	for (int32 i = 1; i <= 8; ++i)
+	{
+		const float T = i * 16.0f * S();
+		const FLinearColor V(0.0f, 0.0f, 0.0f, 0.08f);
+		DrawRect(V, 0.0f, 0.0f, W, T);
+		DrawRect(V, 0.0f, H - T, W, T);
+		DrawRect(V, 0.0f, T, T, H - 2.0f * T);
+		DrawRect(V, W - T, T, T, H - 2.0f * T);
+	}
+	// 약한 신호 노이즈(가로 줄)
+	for (int32 i = 0; i < 14; ++i)
+	{
+		const float Y = FMath::FRand() * H;
+		DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.02f + 0.05f * FMath::FRand()), 0.0f, Y, W, (1.0f + 2.0f * FMath::FRand()) * S());
+	}
+
+	const float CX = W * 0.5f;
+	const float CY = H * 0.46f;
+	Label(TEXT("SIGNAL LOST"), CX, CY - 150.0f * S(), WarningColor.CopyWithNewOpacity(0.75f + 0.25f * Pulse(5.0f)), GEngine->GetLargeFont(), 1.3f, true);
+
+	if (Life.GetLifeState() != ECXLifeState::AwaitingRespawn)
+	{
+		// 게임 오버 확정 — 카운트다운 없음
+		return;
+	}
+
+	const float Remaining = Life.GetRespawnRemaining();
+	const int32 Seconds = FMath::Max(0, FMath::CeilToInt(Remaining));
+
+	// 남은 초(플레이어 색). 마지막 3초는 펄스 + 틱
+	float NumScale = 4.2f;
+	float NumAlpha = 1.0f;
+	if (Seconds <= 3)
+	{
+		const float Frac = Remaining - FMath::FloorToFloat(Remaining);
+		NumScale *= 1.0f + 0.18f * Frac;
+		NumAlpha = 0.6f + 0.4f * Frac;
+		if (Seconds > 0 && Seconds != LastTickSecond)
+		{
+			if (RespawnTickSound)
+			{
+				UGameplayStatics::PlaySound2D(this, RespawnTickSound);
+			}
+		}
+	}
+	LastTickSecond = Seconds;
+	const FString Num = FString::Printf(TEXT("%02d"), Seconds);
+	float TW = 0.0f, TH = 0.0f;
+	GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), NumScale * S() * 1.45f);
+	Label(Num, CX, CY - 10.0f * S() - TH * 0.5f, Color.CopyWithNewOpacity(NumAlpha), GEngine->GetLargeFont(), NumScale, true);
+
+	// 진행 바(채워진 쪽 = 지난 시간)
+	const float BarW = 520.0f * S();
+	const float BarH = 6.0f * S();
+	const float BarX = CX - BarW * 0.5f;
+	const float BarY = CY + 52.0f * S();
+	const float Duration = FMath::Max(0.01f, Life.GetRespawnDuration());
+	const float Progress = FMath::Clamp(1.0f - Remaining / Duration, 0.0f, 1.0f);
+	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.12f), BarX, BarY, BarW, BarH);
+	DrawRect(Color.CopyWithNewOpacity(0.9f), BarX, BarY, BarW * Progress, BarH);
+
+	Label(FString::Printf(TEXT("REBOOTING IN %ds"), Seconds), CX, BarY + 16.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.8f), GEngine->GetSmallFont(), 1.0f, true);
+}
+
+void ACoopHUD::DrawRebooted(const UCXPlayerLifeComponent& Life, const FLinearColor& Color)
+{
+	const float Since = Life.GetTimeSinceRevive();
+	if (Since < 0.0f || Since > RebootedShowTime)
+	{
+		return;
+	}
+	const float Alpha = 1.0f - FMath::Clamp((Since - RebootedShowTime * 0.6f) / (RebootedShowTime * 0.4f), 0.0f, 1.0f);
+	Label(TEXT("REBOOTED"), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f - 130.0f * S(), Color.CopyWithNewOpacity(Alpha), GEngine->GetLargeFont(), 1.3f, true);
 }
 
 // ---------------------------------------------------------------- 요소

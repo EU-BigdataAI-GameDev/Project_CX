@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoopInteractComponent.h"
+#include "CXPlayerLifeComponent.h"
 #include "SisterCharacter.h"
 #include "SisterHackComponent.h"
 #include "BrotherCombatComponent.h"
@@ -62,8 +63,9 @@ ECoopCharacterRole UCoopInteractComponent::GetPawnRole(const APawn* Pawn)
 
 bool UCoopInteractComponent::IsPawnAbleToInteract(const APawn* Pawn)
 {
-	// TODO(체력/부활 시스템): 사망·부활 대기 중이면 false
-	return IsValid(Pawn) && !Pawn->IsActorBeingDestroyed() && Pawn->GetController() != nullptr && !Pawn->IsHidden();
+	// 사망·부활 대기 중이면 false(UCXPlayerLifeComponent — 게임 오버화면 기획 2장)
+	return IsValid(Pawn) && !Pawn->IsActorBeingDestroyed() && Pawn->GetController() != nullptr && !Pawn->IsHidden()
+		&& UCXPlayerLifeComponent::IsPawnAlive(Pawn);
 }
 
 void UCoopInteractComponent::BeginPlay()
