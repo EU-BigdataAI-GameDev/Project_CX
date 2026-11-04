@@ -25,11 +25,13 @@ class UCXHealthComponent;
  *  - 적: 거미로봇 머리 위 체력 바(피격 후 3초 또는 오빠의 CurrentTarget일 때 — 전투 시스템 기획 9.2)
  *  - 오빠: 레일건 탄약/장전 패널(좌하단), 조준 타겟 마커
  *  - 여동생: 해킹 링크 패널(좌하단) + 근처 해킹 단말기 활성화 표시(월드 마커/프롬프트) + 해킹 중 퍼즐 오버레이
- *    + 적 해킹 대상(ICXHackTarget — 거미로봇)에도 같은 마름모 마커/`[X] HACK`(쿨타임 중엔 RELINK n초), 적 해킹 중 주파수 동조 패널
+ *    + 적 해킹 대상(ICXHackTarget — 거미로봇)에도 같은 마름모 마커/`[X] HACK`(쿨타임 중엔 RELINK n초), 적 해킹 중 화살표 시퀀스 패널(1x5, 4초)
  *  - 공통: 그로기 중인 적 머리 위 SYSTEM DOWN + 남은 시간 바(두 플레이어 칸 모두 — 해킹 시스템 기획 10장)
  *  - 공통: 세이브포인트 저장 배너 PROGRESS SAVED, 출구 NEXT AREA OFFLINE(두 칸), 출구 안 대기 WAITING FOR PARTNER(자기 칸),
  *    맵 이동 카메라 페이드를 HUD 위에도 덮음(세이브포인트·맵 이동 기획 5장)
  *    (해킹 UI는 여동생 폰을 가진 HUD에서만 그린다 → 오빠 화면에는 절대 나타나지 않는다)
+ *  - 예외(해킹 시스템 기획 11장 메모리 패턴): 메모리 패턴 단말기 세션 중 오빠 칸에 PATTERN RELAY 패널 — 패턴 점멸은 오빠 칸에만,
+ *    여동생 칸은 같은 3x3 숫자판(점멸 없음) + 커서. 오빠가 중계 거리 밖이면 MOVE CLOSER // SIGNAL WEAK
  */
 UCLASS()
 class ACoopHUD : public AHUD
@@ -94,6 +96,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Hack")
 	FString HackKeyHint = TEXT("[X]");
 
+	/** 메모리 패턴 중계 패널(오빠 칸)에서 노드가 켜질 때마다 내는 짧은 틱 — 노드와 무관하게 같은 피치(소리로 정답이 새지 않게). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Hack")
+	TObjectPtr<USoundBase> MemoryFlashSound;
+
+	/** 메모리 패턴 점멸 색(밝은 청록). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Hack")
+	FLinearColor MemoryFlashColor = FLinearColor(0.1f, 0.95f, 1.0f, 1.0f);
+
 	/** 부활 대기 마지막 3초 틱(에셋 없음 → 무음). */
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Respawn")
 	TObjectPtr<USoundBase> RespawnTickSound;
@@ -143,8 +153,12 @@ private:
 	void DrawEnemyHackMarkers();
 	/** 두 칸 공통: 그로기 중인 적 머리 위 SYSTEM DOWN + 남은 시간 바. */
 	void DrawEnemyStunMarkers();
-	/** 여동생 칸: 적 해킹(주파수 동조) 패널 — 단말기 해킹 오버레이와 같은 스타일. */
+	/** 여동생 칸: 적 해킹(화살표 5칸 + 4초 시간 바) 패널 — 단말기 해킹 오버레이와 같은 스타일, 칸 위쪽 가운데. */
 	void DrawEnemyHackSession(const USisterHackComponent& Hack);
+	/** 화살표 칸 한 줄(완료 채움 / 현재 펄스 / 대기 흐림). CenterX 기준 가운데 정렬. */
+	void DrawArrowCells(const TArray<EHackArrow>& Sequence, int32 DoneCount, bool bAllDone, float CenterX, float Y, float Cell, float Gap, const FLinearColor& Accent);
+	/** 주파수 동조 막대(파형 + 목표 구간 LOCK + 왕복 커서) — 단말기 주파수 동조 패널. */
+	void DrawFreqLockBar(const USisterHackComponent& Hack, float BarX, float BarY, float BarW, float BarH, bool bGranted, bool bMiss);
 	/** 플레이어 태그 아래 체력 바(10칸 + HP 70/100, 30 이하 붉은 펄스). */
 	void DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearColor& Color);
 	/** 피격 직후 자기 칸 가장자리 붉은 플래시. */
@@ -157,6 +171,12 @@ private:
 	void DrawInteractPrompt(const APawn& MyPawn, const FLinearColor& Color);
 	void DrawPistolIcon(float X, float Y, const FLinearColor& Color);
 	void DrawHackSession(const USisterHackComponent& Hack);
+	/** 여동생 칸: 메모리 패턴 세션(3x3 숫자판 + 커서, 점멸 없음) + 중계 상태. */
+	void DrawMemoryHackSession(const USisterHackComponent& Hack, const AHackTerminal& Terminal);
+	/** 오빠 칸: 진행 중인 메모리 패턴 단말기가 있으면 PATTERN RELAY 패널(패턴 점멸) / 거리 밖이면 MOVE CLOSER. */
+	void DrawMemoryRelay(const APawn& MyPawn);
+	/** 3x3 노드 한 칸(전화 키패드 숫자 반투명). Flash 0~1 = 점멸 세기. */
+	void DrawMemoryNode(float X, float Y, float Cell, int32 Node, const FLinearColor& Accent, float Dim, float Flash, bool bCursor, bool bPressed);
 	void DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Direction, const FLinearColor& Color);
 
 	/** 이미 해킹된 단말기는 표시/활성 대상에서 뺀다. */
@@ -199,6 +219,9 @@ private:
 	float UIScale = 1.0f;
 	float StartTime = 0.0f;
 	FString ZoneTitle;
+	/** 메모리 패턴 점멸 틱 중복 방지(마지막으로 소리를 낸 재생 회차·순번). */
+	int64 LastMemoryFlashKey = -1;
+
 	/** 마지막으로 틱 소리를 낸 남은 초(같은 초에 한 번만). */
 	int32 LastTickSecond = INDEX_NONE;
 };

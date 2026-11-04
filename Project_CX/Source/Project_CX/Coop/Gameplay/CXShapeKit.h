@@ -53,7 +53,7 @@ namespace CXShapeKit
 
 	inline void SetNeon(UStaticMeshComponent* Mesh, UMaterialInterface* NeonMaterial, const FLinearColor& Color, float Intensity)
 	{
-		if (UMaterialInstanceDynamic* MID = GetOrCreateMID(Mesh, NeonMaterial))
+		if (UMaterialInstanceDynamic* MID = CXShapeKit::GetOrCreateMID(Mesh, NeonMaterial))
 		{
 			MID->SetVectorParameterValue(TEXT("Color"), Color);
 			MID->SetScalarParameterValue(TEXT("Intensity"), Intensity);
@@ -62,7 +62,7 @@ namespace CXShapeKit
 
 	inline void SetBody(UStaticMeshComponent* Mesh, UMaterialInterface* BodyMaterial, const FLinearColor& Color)
 	{
-		if (UMaterialInstanceDynamic* MID = GetOrCreateMID(Mesh, BodyMaterial))
+		if (UMaterialInstanceDynamic* MID = CXShapeKit::GetOrCreateMID(Mesh, BodyMaterial))
 		{
 			MID->SetVectorParameterValue(TEXT("Color"), Color);
 		}

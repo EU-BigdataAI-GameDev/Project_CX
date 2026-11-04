@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "CoopInteractable.h"
 #include "CXSavePoint.generated.h"
 
 class UStaticMeshComponent;
@@ -17,18 +18,25 @@ class USoundBase;
 /**
  *  세이브포인트(.claude/Plans/세이브포인트·맵 이동 기획.md 3장).
  *
- *  - 살아 있는 플레이어 아무나 구역(ZoneExtent)에 들어오면 서버가 CX_Slot0에 저장한다(맵·ID·구역명·시각·스폰 위치).
- *    방문당 1회 — 구역이 비면 다시 무장된다. 게임 오버/클리어/맵 이동 중에는 저장하지 않는다.
+ *  - 상호작용 저장: 살아 있는 플레이어(오빠/여동생 누구나)가 구역(ZoneExtent) 안에서 공용 상호작용 키(F / 게임패드 X)를
+ *    누르면 서버가 CX_Slot0에 저장한다(맵·ID·구역명·시각·스폰 위치). ICoopInteractable → UCoopInteractComponent가 포커스/HUD
+ *    안내("[F] SAVE")/서버 검증을 맡는다. 이미 저장된 뒤에도 다시 눌러 덮어쓸 수 있다(연타 방지 쿨다운 InteractCooldown).
+ *    게임 오버/클리어/맵 이동 중에는 저장하지 않는다.
+ *  - bAutoSaveOnEnter(기본 꺼짐)를 켜면 예전처럼 구역에 들어오기만 해도 방문당 1회 자동 저장(구역이 비면 다시 무장).
  *  - 저장하면 표시등 주황(대기) → 초록(저장됨), 두 칸 HUD 배너 `PROGRESS SAVED`, SW_Hack_Granted 1회.
  *    저장 상태와 저장 횟수는 복제(listen server) — 각 머신이 OnRep에서 소리/배너 시각을 기록한다.
  *  - 이어하기/RETRY 때 게임모드가 두 사람을 GetSpawnFloorFor(오빠 -Y / 여동생 +Y)에 스폰하고 MarkSpawnedHere를 부른다.
  *  - 체력은 저장하지 않는다(이어하기·부활 = 100 — 사용자 결정).
  *
  *  비주얼: 엔진 큐브 + M_NeonEmissive(단말기 기둥 + 화면 + 꼭대기 비컨 + 바닥 패드 + 포인트 라이트 + 라벨).
+ *  대표 에셋 PylonMesh(기본 Soul City SM_glowstick02 — 맵 어디에도 쓰지 않은 발광 튜브)를 단말기 양옆에 키워 세운
+ *  "빛 기둥 두 개 + 상태색 SAVE 간판" 실루엣으로 먼 사이드뷰 카메라에서도 바로 읽히게 한다(해킹 단말기 = 회색 환풍구 상자와 구분).
+ *  PylonMesh가 비거나 없으면 예전 큐브 단말기만 그린다(fallback).
+ *  충돌: BodyCollision 상자(BlockAll, Camera·Visibility 무시 — 스프링암·바닥 트레이스에 걸리지 않게)가 몸체를 막는다.
  *  로컬 좌표: 원점 = 바닥 중앙, -X = 카메라 쪽(사이드뷰 카메라가 +X를 본다), 단말기 몸체는 +X(뒤)에 선다.
  */
 UCLASS()
-class ACXSavePoint : public AActor
+class ACXSavePoint : public AActor, public ICoopInteractable
 {
 	GENERATED_BODY()
 
@@ -76,6 +84,12 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	// ICoopInteractable — 구역 안의 살아 있는 플레이어가 F/X로 저장
+	virtual bool CanInteract(const APawn* Pawn) const override;
+	virtual void Interact(APawn* Pawn) override;
+	virtual FVector GetInteractLocation(const APawn* Pawn) const override;
+	virtual FString GetInteractPrompt(const APawn* Pawn) const override { return TEXT("SAVE"); }
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -93,12 +107,36 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "CX|SavePoint")
 	FVector ZoneExtent = FVector(260.0f, 160.0f, 160.0f);
 
+	/** 켜면 구역에 들어오기만 해도 자동 저장(방문당 1회, 예전 방식). 기본 꺼짐 = 상호작용(F/X)으로만 저장. */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint")
+	bool bAutoSaveOnEnter = false;
+
+	/** 상호작용 저장 연타 방지(초, 서버 기준). */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint", meta = (ClampMin = "0.0"))
+	float InteractCooldown = 1.0f;
+
 	/** 스폰 위치: 원점에서 가로(Y)로 ±이 값(오빠 -, 여동생 +), 깊이(X)는 SpawnDepth. */
 	UPROPERTY(EditAnywhere, Category = "CX|SavePoint")
 	float SpawnSpacing = 90.0f;
 
 	UPROPERTY(EditAnywhere, Category = "CX|SavePoint")
 	float SpawnDepth = -40.0f;
+
+	/** 단말기 대표 에셋(양옆 빛 기둥, 바운드 기준으로 받침 위에 세움). 비우면 큐브 단말기만(fallback). */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint|Visual")
+	TObjectPtr<UStaticMesh> PylonMesh;
+
+	/** 빛 기둥 균일 스케일(기본 2.5 → 높이 약 260cm). */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint|Visual", meta = (ClampMin = "0.1"))
+	float PylonScale = 2.5f;
+
+	/** 빛 기둥 가로 간격(원점에서 ±Y, cm). */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint|Visual", meta = (ClampMin = "40.0"))
+	float PylonSpacing = 105.0f;
+
+	/** 몸체 충돌 상자(플레이어가 통과하지 못하게). 끄면 충돌 없음(맵 COL 박스로 대신할 때). */
+	UPROPERTY(EditAnywhere, Category = "CX|SavePoint|Visual")
+	bool bBlockPawns = true;
 
 	/** 저장 효과음(기존 에셋 SW_Hack_Granted). */
 	UPROPERTY(EditAnywhere, Category = "CX|SavePoint|Sound")
@@ -117,10 +155,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TObjectPtr<UPointLightComponent> StatusLight;
 	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TObjectPtr<UTextRenderComponent> TitleLabel;
 	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TObjectPtr<UTextRenderComponent> StatusLabel;
+	/** 대표 에셋 빛 기둥 2개(PylonMesh). */
+	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TArray<TObjectPtr<UStaticMeshComponent>> Pylons;
+	/** 기둥 위아래 상태색 고리 + 간판 위아래 상태색 막대. */
+	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TArray<TObjectPtr<UStaticMeshComponent>> AccentNeon;
+	/** 간판 뒤판(어두운 판 — 글씨 대비). */
+	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TObjectPtr<UStaticMeshComponent> SignPlate;
+	UPROPERTY(VisibleAnywhere, Category = "CX|SavePoint") TObjectPtr<UBoxComponent> BodyCollision;
 
 private:
 	void CheckZone();
 	void ApplyMaterials();
+	/** PylonMesh 유무에 따라 에셋 단말기 / 큐브 fallback 배치와 충돌 상자를 맞춘다. */
+	void LayoutTerminal();
+	bool UsesPylonAsset() const { return PylonMesh != nullptr; }
 	void RefreshVisuals(float Time);
 	/** 서버: 저장 성공 → 상태 복제 + 로컬 피드백. bFeedback=false면 배너/소리 없이 상태만. */
 	void SetSavedState(bool bWithFeedback);
@@ -145,4 +193,6 @@ private:
 	uint8 LastSeenSerial = 0;
 	double LastFeedbackRealTime = -1.0;
 	FTimerHandle ZoneTimer;
+	/** 서버: 마지막 상호작용 저장 시각(월드 초). */
+	double LastInteractSaveTime = -100.0;
 };

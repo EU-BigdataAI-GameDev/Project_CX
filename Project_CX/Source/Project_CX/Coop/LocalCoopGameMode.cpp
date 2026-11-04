@@ -22,6 +22,9 @@
 #include "CXCoopExitDoor.h"
 #include "CXSavePoint.h"
 #include "CXLevelExit.h"
+#include "HackTerminal.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
 #include "Components/CapsuleComponent.h"
 #include "Misc/PackageName.h"
@@ -309,6 +312,71 @@ void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)
 {
 	const ACXCoopExitDoor* Door = ACXCoopExitDoor::DebugSpawnExitDoor(this, OffsetY, OffsetX);
 	UE_LOG(LogTemp, Log, TEXT("CXSpawnExitDoor: %s"), Door ? *Door->GetActorLocation().ToString() : TEXT("failed"));
+}
+
+AActor* ALocalCoopGameMode::DebugSpawnMemoryTerminal(int32 LocalPlayerIndex, float OffsetY, float DepthX)
+{
+	const APawn* Pawn = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (PC && PC->GetLocalPlayer() && PC->GetLocalPlayer()->GetLocalPlayerIndex() == LocalPlayerIndex)
+		{
+			Pawn = PC->GetPawn();
+		}
+	}
+	if (!Pawn)
+	{
+		return nullptr;
+	}
+
+	// 바닥 찾기(폰 기준 앞 OffsetY, 뒤쪽 DepthX)
+	const FVector Base = Pawn->GetActorLocation() + FVector(DepthX, OffsetY, 0.0f);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(CXSpawnMemoryTerminal), false, Pawn);
+	FHitResult Hit;
+	FVector SpawnLocation = Base - FVector(0.0f, 0.0f, 90.0f);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Base + FVector(0.0f, 0.0f, 200.0f), Base - FVector(0.0f, 0.0f, 800.0f), ECC_Pawn, Params))
+	{
+		SpawnLocation = Hit.ImpactPoint;
+	}
+
+	// 배치 스크립트(add_map1_hacking.py / build_save_corridor.py)와 같은 단말기 모양: 환풍구 메시 세워서, 화면 쪽을 향하게
+	AHackTerminal* Terminal = GetWorld()->SpawnActorDeferred<AHackTerminal>(AHackTerminal::StaticClass(), FTransform(SpawnLocation), nullptr, nullptr,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (!Terminal)
+	{
+		return nullptr;
+	}
+	Terminal->TerminalName = TEXT("DEBUG_ECHO");
+	Terminal->PuzzleType = EHackPuzzleType::MemoryPattern;
+	if (UStaticMeshComponent* Mesh = Terminal->FindComponentByClass<UStaticMeshComponent>())
+	{
+		if (UStaticMesh* VentMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02b.SM_Slums_Vent_02b")))
+		{
+			Mesh->SetStaticMesh(VentMesh);
+			Mesh->SetRelativeScale3D(FVector(0.9f, 1.4f, 1.5f));
+			Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, 101.0f * 1.5f * 0.5f));
+			Mesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+		}
+	}
+	Terminal->FinishSpawning(FTransform(SpawnLocation));
+	UE_LOG(LogTemp, Log, TEXT("DebugSpawnMemoryTerminal: %s at %s"), *Terminal->GetName(), *SpawnLocation.ToString());
+	return Terminal;
+}
+
+void ALocalCoopGameMode::CXSpawnMemoryTerminal(float OffsetY, float DepthX)
+{
+	// 여동생을 조작하는 로컬 플레이어 기준
+	int32 Index = 1;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (PC && PC->GetLocalPlayer() && IsSisterController(PC))
+		{
+			Index = PC->GetLocalPlayer()->GetLocalPlayerIndex();
+		}
+	}
+	DebugSpawnMemoryTerminal(Index, OffsetY, DepthX);
 }
 
 // ---------------------------------------------------------------- 사망 / 부활 / 게임 오버

@@ -23,7 +23,7 @@ class UInputMappingContext;
  *    1) 여동생이 해킹 중이면 해킹 입력(비밀번호 제출 등)
  *    2) 해킹 가능한 단말기가 포커스면 해킹 시작
  *    3) 그 외에는 포커스된 상호작용 대상(문 버튼 등)
- *    4) 아무것도 없으면 적 해킹(ICXHackTarget, 거미로봇 — 주파수 동조 퍼즐 → 성공 시 그로기 3초, 해킹 시스템 기획 10장)
+ *    4) 아무것도 없으면 적 해킹(ICXHackTarget, 거미로봇 — 화살표 5칸·4초 퍼즐 → 성공 시 그로기 3초, 해킹 시스템 기획 10장)
  *  → 해킹 키(F/X)는 이 컴포넌트 하나만 바인딩하고 USisterHackComponent::Interact로 넘긴다(같은 키 이중 바인딩 없음).
  *
  *  ASisterCharacter는 생성자에서 붙이고, 오빠(BP_Brother, 부모 Character)는 ALocalCoopGameMode::SetPlayerDefaults가 런타임에 붙인다.

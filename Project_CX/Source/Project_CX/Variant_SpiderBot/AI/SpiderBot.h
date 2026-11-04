@@ -43,7 +43,7 @@ enum class ESpiderBotState : uint8
  *    피격 반응은 짧은 붉은 점멸만(넉백 없음).
  *  - 애니메이션: 공격 = AS_SpiderBot_Attack(언리얼 에디터 Python으로 Idle 포즈 기반 생성 — saw_base/saw_elbow 내려찍기 +
  *    saw_blade 회전 + body 숙임) 루프 재생. 걷기는 임시(이동 중 Idle 재생 속도↑), 사망은 피직스 에셋 래그돌.
- *  - 여동생 해킹 대상(ICXHackTarget): 주파수 동조 퍼즐 성공 → 서버에서 ApplyHackStun → Stunned 3초(해킹 시스템 기획 10장).
+ *  - 여동생 해킹 대상(ICXHackTarget): 화살표 시퀀스 퍼즐(5칸, 4초) 성공 → 서버에서 ApplyHackStun → Stunned 3초(해킹 시스템 기획 10장).
  *    그로기 중: 이동·공격 정지, 재해킹 불가, 총알 피해는 그대로. 연출(모든 머신, 복제된 State·StunEndTime 기준) =
  *    톱 팔이 떨어진 자세로 멈춤 + 경련, 머티리얼 정전 깜빡임, 청록/자홍 전기 불빛, 스파크 파티클·소리, 끝날 때 재부팅음.
  *  - 레벨에 C++ 클래스를 바로 배치할 수 있도록 메시/애님/사운드 기본값을 생성자에서 지정한다(BP 불필요).

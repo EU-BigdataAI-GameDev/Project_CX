@@ -161,6 +161,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Local Coop|Debug")
 	FString GetFlowDebugState() const;
 
+	/**
+	 *  테스트용 콘솔 명령: 여동생 앞(+Y) OffsetY, 레인 뒤쪽(+X) DepthX에 메모리 패턴 단말기(해킹 시스템 기획 11장) 런타임 스폰
+	 *  (레벨에 저장하지 않음, 연결된 게이트 없음). 예) CXSpawnMemoryTerminal 250 100
+	 */
+	UFUNCTION(Exec)
+	void CXSpawnMemoryTerminal(float OffsetY = 250.0f, float DepthX = 100.0f);
+
+	/** 테스트용: CXSpawnMemoryTerminal과 같음. 로컬 플레이어 인덱스(0/1) 기준. 스폰한 단말기(실패하면 nullptr). */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	AActor* DebugSpawnMemoryTerminal(int32 LocalPlayerIndex, float OffsetY, float DepthX);
+
 	/** 테스트용 콘솔 명령: 첫 플레이어 근처에 출구 문을 런타임 스폰(레벨에 저장하지 않음). 예) CXSpawnExitDoor 500 150 */
 	UFUNCTION(Exec)
 	void CXSpawnExitDoor(float OffsetY = 500.0f, float OffsetX = 150.0f);

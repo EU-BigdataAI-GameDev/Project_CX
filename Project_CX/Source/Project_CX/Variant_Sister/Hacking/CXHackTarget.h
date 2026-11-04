@@ -20,7 +20,7 @@ class UCXHackTarget : public UInterface
  *  - ACoopHUD가 여동생 칸에서 이 인터페이스를 구현한 액터에 단말기와 같은 마름모 마커 + 거리,
  *    GetHackInteractRange() 안이고 해킹 가능(IsHackTargetAvailable + 여동생 쿨타임 아님)이면 `[X] HACK`을 그린다.
  *    그로기 중(GetHackStunRemaining > 0)이면 두 플레이어 칸 모두에 SYSTEM DOWN 마커 + 남은 시간 바를 그린다.
- *  - 흐름: USisterHackComponent::TryHackEnemy → 여동생 로컬에서 주파수 동조 퍼즐 → 성공 시 서버에서 ApplyHackSuccess.
+ *  - 흐름: USisterHackComponent::TryHackEnemy → 여동생 로컬에서 화살표 시퀀스 퍼즐(5칸, 4초) → 성공 시 서버에서 ApplyHackSuccess.
  *  - F/X 우선순위: 해킹 세션 > 단말기 > 문 버튼 > 이 대상(UCoopInteractComponent).
  */
 class ICXHackTarget

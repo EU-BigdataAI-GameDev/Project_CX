@@ -5,11 +5,13 @@
 #include "CXSaveGame.h"
 #include "CXSfx.h"
 #include "CXPlayerLifeComponent.h"
+#include "CoopInteractComponent.h"
 #include "CoopHUD.h"
 #include "LocalCoopGameMode.h"
 #include "Components/BoxComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -28,6 +30,15 @@ namespace CXSavePointStyle
 	const FLinearColor SteelLight(0.11f, 0.115f, 0.13f, 1.0f);
 	constexpr float FlashTime = 0.8f;
 	constexpr float CheckInterval = 0.1f;
+
+	// 대표 에셋: Soul City 발광 튜브(맵 어디에도 배치하지 않은 메시 — 장식과 헷갈리지 않음)
+	const TCHAR* PylonMeshPath = TEXT("/Game/SoulCity/Environment/Meshes/Props/SM_glowstick02.SM_glowstick02");
+	constexpr float PlinthTop = 20.0f;
+	constexpr float BodyX = 55.0f;		// 몸체 깊이 중심(로컬 +X = 뒤)
+	constexpr float SignHalfHeight = 32.0f;
+	// BodyPieces 순서(생성자와 맞춤)
+	constexpr int32 PlinthIndex = 0;
+	constexpr int32 AntennaIndex = 4;
 }
 
 ACXSavePoint::ACXSavePoint()
@@ -45,6 +56,8 @@ ACXSavePoint::ACXSavePoint()
 	CubeMesh = CubeFinder.Object;
 	BodyMaterial = BodyFinder.Object;
 	NeonMaterial = NeonFinder.Object;
+
+	PylonMesh = CXSfx::Find<UStaticMesh>(CXSavePointStyle::PylonMeshPath);
 
 	// 저장 = "접속 허가" 계열 확인음(해킹 성공과 같은 에셋 재사용 — 효과음 적용 기획)
 	SaveSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Sister/SW_Hack_Granted.SW_Hack_Granted"));
@@ -87,6 +100,32 @@ ACXSavePoint::ACXSavePoint()
 	PadLines.Add(MakeCube(this, TEXT("PadLeft"), Root, CubeMesh, FVector((PadFront + PadBack) * 0.5f, -PadHalfY, 1.5f), FVector(PadBack - PadFront, 4.0f, 3.0f)));
 	PadLines.Add(MakeCube(this, TEXT("PadRight"), Root, CubeMesh, FVector((PadFront + PadBack) * 0.5f, PadHalfY, 1.5f), FVector(PadBack - PadFront, 4.0f, 3.0f)));
 
+	// 대표 에셋 빛 기둥 2개 + 상태색 고리/간판 막대 + 간판 뒤판 — 위치·크기는 LayoutTerminal(PylonMesh 바운드 기준)
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		UStaticMeshComponent* Pylon = CreateDefaultSubobject<UStaticMeshComponent>(*FString::Printf(TEXT("Pylon%d"), Side));
+		Pylon->SetupAttachment(Root);
+		Pylon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Pylon->SetGenerateOverlapEvents(false);
+		Pylon->SetCastShadow(false);
+		Pylon->SetCanEverAffectNavigation(false);
+		Pylons.Add(Pylon);
+	}
+	for (int32 Index = 0; Index < 6; ++Index)
+	{
+		AccentNeon.Add(MakeCube(this, *FString::Printf(TEXT("Accent%d"), Index), Root, CubeMesh, FVector::ZeroVector, FVector(4.0f)));
+	}
+	SignPlate = MakeCube(this, TEXT("SignPlate"), Root, CubeMesh, FVector::ZeroVector, FVector(10.0f));
+
+	BodyCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BodyCollision"));
+	BodyCollision->SetupAttachment(Root);
+	BodyCollision->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	// 스프링암이 걸려 카메라가 당겨지지 않게(맵 COL 박스·해킹 단말기와 같은 규칙), 바닥/스폰 트레이스(Visibility)에도 안 걸리게
+	BodyCollision->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	BodyCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+	BodyCollision->SetGenerateOverlapEvents(false);
+	BodyCollision->ShapeColor = FColor(255, 60, 60);
+
 	StatusLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("StatusLight"));
 	StatusLight->SetupAttachment(Root);
 	StatusLight->SetRelativeLocation(FVector(-30.0f, 0.0f, 200.0f));
@@ -112,8 +151,92 @@ ACXSavePoint::ACXSavePoint()
 	TitleLabel->SetRelativeLocation(FVector(30.0f, 0.0f, 300.0f));
 	TitleLabel->SetText(FText::FromString(TEXT("SAVE POINT")));
 	TitleLabel->SetTextRenderColor(FColor(230, 235, 240));
-	StatusLabel = MakeLabel(TEXT("StatusLabel"), 150.0f, 13.0f);
+	StatusLabel = MakeLabel(TEXT("StatusLabel"), 150.0f, 15.0f);
 	StatusLabel->SetText(FText::FromString(TEXT("STANDBY")));
+
+	LayoutTerminal();
+}
+
+void ACXSavePoint::LayoutTerminal()
+{
+	using namespace CXSavePointStyle;
+	const bool bAsset = UsesPylonAsset();
+
+	UStaticMeshComponent* Plinth = BodyPieces.IsValidIndex(PlinthIndex) ? BodyPieces[PlinthIndex].Get() : nullptr;
+	UStaticMeshComponent* Antenna = BodyPieces.IsValidIndex(AntennaIndex) ? BodyPieces[AntennaIndex].Get() : nullptr;
+	if (Antenna)
+	{
+		Antenna->SetVisibility(!bAsset);	// 에셋 단말기에서는 간판과 겹친다
+	}
+	for (UStaticMeshComponent* Pylon : Pylons)
+	{
+		Pylon->SetStaticMesh(PylonMesh);
+		Pylon->SetVisibility(bAsset);
+	}
+	for (UStaticMeshComponent* Accent : AccentNeon)
+	{
+		Accent->SetVisibility(bAsset);
+	}
+	SignPlate->SetVisibility(bAsset);
+
+	float BodyTop = 250.0f;
+	float BodyHalfY = 40.0f;
+	if (bAsset)
+	{
+		// 기둥: 바운드 중심을 (BodyX, ±PylonSpacing)에, 바닥을 받침 윗면에 — 피벗이 어디든 같은 자리에 선다
+		const FBox Bounds = PylonMesh->GetBoundingBox();
+		const FVector Center = Bounds.GetCenter() * PylonScale;
+		const FVector Size = Bounds.GetSize() * PylonScale;
+		const float Height = Size.Z;
+		const float Radius = 0.5f * FMath::Max(Size.X, Size.Y);
+		const float Top = PlinthTop + Height;
+		for (int32 Side = 0; Side < Pylons.Num(); ++Side)
+		{
+			const float Y = (Side == 0 ? -1.0f : 1.0f) * PylonSpacing;
+			Pylons[Side]->SetRelativeScale3D(FVector(PylonScale));
+			Pylons[Side]->SetRelativeLocation(FVector(BodyX - Center.X, Y - Center.Y, PlinthTop - Bounds.Min.Z * PylonScale));
+
+			// 상태색 고리(기둥 아래·위 — 발광 튜브의 어두운 마개 바로 안쪽)
+			const FVector RingSize(2.0f * Radius + 8.0f, 2.0f * Radius + 8.0f, 6.0f);
+			AccentNeon[Side * 2]->SetRelativeLocation(FVector(BodyX, Y, PlinthTop + Height * 0.14f));
+			AccentNeon[Side * 2]->SetRelativeScale3D(RingSize / 100.0f);
+			AccentNeon[Side * 2 + 1]->SetRelativeLocation(FVector(BodyX, Y, Top - Height * 0.14f));
+			AccentNeon[Side * 2 + 1]->SetRelativeScale3D(RingSize / 100.0f);
+		}
+
+		// 기둥 꼭대기를 잇는 간판: 어두운 뒤판 + 위아래 상태색 막대 + SAVE POINT 글씨
+		const float SignZ = Top + SignHalfHeight + 6.0f;
+		const float SignWidth = 2.0f * (PylonSpacing + Radius) + 20.0f;
+		SignPlate->SetRelativeLocation(FVector(BodyX + 3.0f, 0.0f, SignZ));
+		SignPlate->SetRelativeScale3D(FVector(10.0f, SignWidth, 2.0f * SignHalfHeight) / 100.0f);
+		AccentNeon[4]->SetRelativeLocation(FVector(BodyX - 4.0f, 0.0f, SignZ + SignHalfHeight));
+		AccentNeon[4]->SetRelativeScale3D(FVector(5.0f, SignWidth + 10.0f, 6.0f) / 100.0f);
+		AccentNeon[5]->SetRelativeLocation(FVector(BodyX - 4.0f, 0.0f, SignZ - SignHalfHeight));
+		AccentNeon[5]->SetRelativeScale3D(FVector(5.0f, SignWidth + 10.0f, 6.0f) / 100.0f);
+		TitleLabel->SetRelativeLocation(FVector(BodyX - 4.0f, 0.0f, SignZ));
+		TitleLabel->SetWorldSize(36.0f);
+
+		if (Plinth)
+		{
+			Plinth->SetRelativeScale3D(FVector(90.0f, 2.0f * (PylonSpacing + Radius) + 40.0f, PlinthTop) / 100.0f);
+		}
+		BodyTop = SignZ + SignHalfHeight + 3.0f;
+		BodyHalfY = PylonSpacing + Radius + 10.0f;
+	}
+	else
+	{
+		TitleLabel->SetRelativeLocation(FVector(30.0f, 0.0f, 300.0f));
+		TitleLabel->SetWorldSize(26.0f);
+		if (Plinth)
+		{
+			Plinth->SetRelativeScale3D(FVector(90.0f, 150.0f, PlinthTop) / 100.0f);
+		}
+	}
+
+	// 몸체 충돌: 받침 앞 끝(X 10)부터 뒤로 — 앞쪽(스폰 자리 X -40 ± 캡슐)은 비워 둔다
+	BodyCollision->SetRelativeLocation(FVector(BodyX, 0.0f, 0.5f * BodyTop));
+	BodyCollision->SetBoxExtent(FVector(BodyX - 10.0f, BodyHalfY, 0.5f * BodyTop));
+	BodyCollision->SetCollisionEnabled(bBlockPawns ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 }
 
 void ACXSavePoint::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -131,6 +254,7 @@ void ACXSavePoint::OnConstruction(const FTransform& Transform)
 		ZoneBox->SetBoxExtent(ZoneExtent);
 		ZoneBox->SetRelativeLocation(FVector(0.0f, 0.0f, ZoneExtent.Z));
 	}
+	LayoutTerminal();
 	ApplyMaterials();
 }
 
@@ -138,7 +262,7 @@ void ACXSavePoint::BeginPlay()
 {
 	Super::BeginPlay();
 	ApplyMaterials();
-	if (HasAuthority())
+	if (HasAuthority() && bAutoSaveOnEnter)
 	{
 		GetWorldTimerManager().SetTimer(ZoneTimer, this, &ACXSavePoint::CheckZone, CXSavePointStyle::CheckInterval, true);
 	}
@@ -151,6 +275,7 @@ void ACXSavePoint::ApplyMaterials()
 	{
 		SetBody(Piece, BodyMaterial, Piece->GetName().Contains(TEXT("Bezel")) ? CXSavePointStyle::SteelLight : CXSavePointStyle::Steel);
 	}
+	SetBody(SignPlate, BodyMaterial, CXSavePointStyle::Steel * 0.5f);
 	RefreshVisuals(0.0f);
 }
 
@@ -177,6 +302,10 @@ void ACXSavePoint::RefreshVisuals(float Time)
 	for (UStaticMeshComponent* Line : PadLines)
 	{
 		SetNeon(Line, NeonMaterial, Color, 3.0f * Breath + 12.0f * Boost);
+	}
+	for (UStaticMeshComponent* Accent : AccentNeon)
+	{
+		SetNeon(Accent, NeonMaterial, Color, 10.0f * Breath + 40.0f * Boost);
 	}
 	if (StatusLight)
 	{
@@ -257,6 +386,36 @@ void ACXSavePoint::CheckZone()
 			bArmed = false;
 		}
 	}
+}
+
+bool ACXSavePoint::CanInteract(const APawn* Pawn) const
+{
+	// 오빠/여동생 누구나, 살아 있고 구역 안이면 — 이미 저장됐어도 다시 저장 가능(진행 위치 갱신)
+	return Pawn && UCoopInteractComponent::IsPawnAbleToInteract(Pawn) && IsPawnInZone(Pawn);
+}
+
+void ACXSavePoint::Interact(APawn* Pawn)
+{
+	if (!HasAuthority() || !CanInteract(Pawn))
+	{
+		return;
+	}
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastInteractSaveTime < InteractCooldown)
+	{
+		return;
+	}
+	if (SaveNow())
+	{
+		LastInteractSaveTime = Now;
+		UE_LOG(LogTemp, Log, TEXT("CXSavePoint %s: saved by interact (%s)"), *GetSavePointId().ToString(), *GetNameSafe(Pawn));
+	}
+}
+
+FVector ACXSavePoint::GetInteractLocation(const APawn* Pawn) const
+{
+	// HUD 안내 = 단말기 화면(사이드뷰에서 몸체 앞면)
+	return Screen ? Screen->GetComponentLocation() : GetActorLocation() + FVector(0.0f, 0.0f, 150.0f);
 }
 
 bool ACXSavePoint::SaveNow()
@@ -400,8 +559,9 @@ ACXSavePoint* ACXSavePoint::FindById(const UWorld* World, FName Id)
 
 FString ACXSavePoint::GetDebugState() const
 {
-	return FString::Printf(TEXT("%s id=%s saved=%d serial=%d armed=%d since=%.2f loc=%s"), *GetName(), *GetSavePointId().ToString(),
-		bSaved ? 1 : 0, SaveSerial, bArmed ? 1 : 0, GetTimeSinceSaved(), *GetActorLocation().ToCompactString());
+	return FString::Printf(TEXT("%s id=%s saved=%d serial=%d armed=%d since=%.2f loc=%s terminal=%s"), *GetName(), *GetSavePointId().ToString(),
+		bSaved ? 1 : 0, SaveSerial, bArmed ? 1 : 0, GetTimeSinceSaved(), *GetActorLocation().ToCompactString(),
+		UsesPylonAsset() ? *PylonMesh->GetName() : TEXT("shape-fallback"));
 }
 
 // ---------------------------------------------------------------- 테스트용
