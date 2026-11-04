@@ -1,0 +1,175 @@
+"""
+세이브 복도 검증 — build_save_corridor.py 결과를 저장된 레벨에서 다시 확인한다(에디터 원격 실행).
+
+1회차: 현재 레벨이 복도가 아니면 불러오고 끝(로드는 자기 호출에서만). 2회차: 검사.
+검사: manifest 일치 / GameMode·KillZ / PlayerStart 2개(하나는 Sister)가 바닥 위 / COL 설정(Pawn 막음·Camera 무시·숨김) /
+      아트 NoCollision / 카메라 앞(X < -120) 가림 / 레인 전 구간 바닥 연속(간격·턱 없음) / 양 끝·앞뒤 막힘 /
+      오빠·여동생 캡슐로 시작 → 세이브포인트 → 출구까지 레인 앞쪽 길이 막히지 않음 / 세이브포인트·출구 설정과 도달 가능.
+"""
+import unreal, json, math
+
+LEVEL = "/Game/Project_CX/Maps/Map_SaveCorridor"
+TAG = "GEN_SaveCorridor"
+LANE_F, LANE_B = -120.0, 150.0
+Y_START, Y_END = -400.0, 3600.0
+STEP_MAX = 45.0     # 캐릭터 자동 계단 높이(실측 45)
+
+
+def validate():
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    actors = eas.get_all_level_actors()
+    gen = [a for a in actors if TAG in [str(t) for t in a.tags]]
+    m = json.load(open(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir() + "../Docs/LevelManifests/Map_SaveCorridor_manifest.json"), encoding="utf-8"))
+    fails = []
+
+    def check(ok, msg):
+        print(("PASS " if ok else "FAIL ") + msg)
+        if not ok:
+            fails.append(msg)
+
+    check(len(gen) == len(m["actors"]), f"generated {len(gen)} = manifest {len(m['actors'])}")
+    ws = world.get_world_settings()
+    gm = ws.get_editor_property("default_game_mode")
+    check(gm is not None and gm.get_name() == "BP_GameMode_C", f"GameMode {gm.get_name() if gm else None}")
+    check(abs(ws.get_editor_property("kill_z") + 1500.0) < 1, f"KillZ {ws.get_editor_property('kill_z')}")
+
+    starts = [a for a in actors if isinstance(a, unreal.PlayerStart)]
+    tags = sorted(str(a.get_editor_property("player_start_tag")) for a in starts)
+    check(len(starts) == 2 and tags.count("Sister") == 1, f"PlayerStarts {[(a.get_actor_label(), str(a.get_editor_property('player_start_tag'))) for a in starts]}")
+
+    def trace(a, b, ignore=()):
+        h = unreal.SystemLibrary.line_trace_single(world, a, b, unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, False, list(ignore),
+                                                   unreal.DrawDebugTrace.NONE, True)
+        if not h:
+            return None, None
+        t = h.to_tuple()
+        return t[4], t[9]
+
+    for a in starts:
+        l = a.get_actor_location()
+        hh = 80.0 if str(a.get_editor_property("player_start_tag")) == "Sister" else 88.0
+        p, hit = trace(unreal.Vector(l.x, l.y, l.z), unreal.Vector(l.x, l.y, l.z - 400), starts)
+        gap = (l.z - hh) - p.z if p else None
+        check(p is not None and hit.get_actor_label().startswith("COL_") and gap is not None and -5 <= gap <= 10,
+              f"{a.get_actor_label()} on floor (feet-floor gap {None if gap is None else round(gap, 1)} on {hit.get_actor_label() if hit else None})")
+
+    # ---------------------------------------------------------------- 충돌/가시성
+    cols, bad = [], []
+    for a in gen:
+        if not isinstance(a, unreal.StaticMeshActor):
+            continue
+        c = a.static_mesh_component
+        if a.get_actor_label().startswith("COL_"):
+            cols.append(a)
+            if c.get_collision_response_to_channel(unreal.CollisionChannel.ECC_PAWN) != unreal.CollisionResponseType.ECR_BLOCK or \
+               c.get_collision_response_to_channel(unreal.CollisionChannel.ECC_CAMERA) != unreal.CollisionResponseType.ECR_IGNORE or \
+               c.is_visible() or not c.get_editor_property("hidden_in_game"):
+                bad.append(a.get_actor_label())
+        elif str(c.get_collision_profile_name()) != "NoCollision" or c.static_mesh is None:
+            bad.append(a.get_actor_label())
+    for a in gen:
+        if isinstance(a, unreal.TextRenderActor) and str(a.get_editor_property("text_render").get_collision_profile_name()) != "NoCollision":
+            bad.append(a.get_actor_label())
+    check(not bad, f"COL boxes {len(cols)} (Pawn block / Camera ignore / hidden), art+text NoCollision — bad: {bad[:8]}")
+
+    # ---------------------------------------------------------------- 바닥 연속성(레인 3줄, 20cm 간격)
+    def floor_at(x, y):
+        p, hit = trace(unreal.Vector(x, y, 2000), unreal.Vector(x, y, -1000))
+        return (p.z, hit.get_actor_label()) if p else (None, None)
+    profile = {}
+    for x in (-80.0, 0.0, 110.0):
+        prev, gaps, steps = None, [], []
+        y = Y_START + 40
+        while y <= Y_END - 40:
+            z, lab = floor_at(x, y)
+            if z is None or not lab.startswith("COL_") or lab.startswith("COL_Bound"):
+                gaps.append((round(y), lab))
+            else:
+                if lab.startswith("COL_Prop"):
+                    pass   # 소품 위(뒤쪽 줄) — 소품은 막힘 검사에서 따로 본다
+                elif prev is not None and abs(z - prev) > STEP_MAX:
+                    steps.append((round(y), round(prev), round(z)))
+                if not lab.startswith("COL_Prop"):
+                    prev = z
+                    profile.setdefault(x, []).append((y, z))
+            y += 20.0
+        check(not gaps and not steps, f"floor continuous at X={x:.0f}: gaps {gaps[:5]} steps>{STEP_MAX:.0f} {steps[:5]}")
+    zs = [z for _, z in profile.get(0.0, [])]
+    print("      floor heights along lane:", sorted(set(round(z) for z in zs))[:3], "...", "min", round(min(zs)), "max", round(max(zs)))
+
+    # ---------------------------------------------------------------- 막힘(양 끝, 앞, 뒤)
+    def blocked_by(a, b, prefix):
+        p, hit = trace(a, b)
+        return hit is not None and hit.get_actor_label().startswith(prefix), (hit.get_actor_label() if hit else None)
+    ok, lab = blocked_by(unreal.Vector(0, Y_START + 150, 90), unreal.Vector(0, Y_START - 500, 90), "COL_Bound_Start")
+    check(ok, f"start end closed ({lab})")
+    ok, lab = blocked_by(unreal.Vector(0, Y_END - 150, -90), unreal.Vector(0, Y_END + 500, -90), "COL_Bound_End")
+    check(ok, f"far end closed ({lab})")
+    for y, z in ((0, 90), (1750, -90), (3300, -90)):
+        okf, lf = blocked_by(unreal.Vector(0, y, z), unreal.Vector(-600, y, z), "COL_Bound_Front")
+        okb, lb = blocked_by(unreal.Vector(-60, y, z), unreal.Vector(800, y, z), "COL_")
+        check(okf and okb, f"lane sides closed at Y={y} (front {lf}, back {lb})")
+
+    # ---------------------------------------------------------------- 카메라 앞 가림(X < -120 에 그 Y의 발판 높이를 넘는 메시 금지, 레인 Y 범위 안만)
+    prof0 = profile.get(0.0, [])
+    def floor_top(y0, y1):
+        tops = [z for y, z in prof0 if y0 - 20 <= y <= y1 + 20]
+        return max(tops) if tops else None
+    viol = []
+    for a in gen:
+        if a.get_actor_label().startswith("COL_") or not isinstance(a, unreal.StaticMeshActor):
+            continue
+        o, e = a.get_actor_bounds(False)
+        if o.x - e.x < LANE_F - 5 and o.y + e.y > Y_START + 1 and o.y - e.y < Y_END - 1:   # 양 끝 마감벽(레인 밖)은 제외
+            top = floor_top(o.y - e.y, o.y + e.y)
+            if top is None or o.z + e.z > top + 5:
+                viol.append((a.get_actor_label(), round(o.x - e.x), round(o.z + e.z), top))
+    check(not viol, f"front-occluder violations {len(viol)} {viol[:6]}")
+
+    # ---------------------------------------------------------------- 캡슐 통과(레인 앞쪽 X=-60 줄, 30cm 간격)
+    col_set = set(a.get_actor_label() for a in cols)
+    def overlap(x, y, z_feet, hh):
+        hits = unreal.SystemLibrary.capsule_overlap_actors(world, unreal.Vector(x, y, z_feet + hh + 3), 34.0, hh,
+                                                           [unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY1], unreal.StaticMeshActor, [])
+        return [h.get_actor_label() for h in (hits or []) if h.get_actor_label() in col_set]
+    for who, hh in (("sister", 80.0), ("brother", 88.0)):
+        blocked = []
+        y = Y_START + 40
+        while y <= Y_END - 40:
+            z, lab = floor_at(-60.0, y)
+            if z is not None:
+                # 경사면에서는 캡슐 아래쪽이 면에 닿으므로 3cm 더 띄운다
+                h = overlap(-60.0, y, z + 3, hh)
+                if h:
+                    blocked.append((round(y), h[0]))
+            y += 30.0
+        check(not blocked, f"{who} capsule path start->exit at X=-60 clear: blocked {blocked[:5]}")
+
+    # ---------------------------------------------------------------- 세이브포인트 / 출구
+    sps = [a for a in actors if a.get_class().get_name() == "CXSavePoint"]
+    exs = [a for a in actors if a.get_class().get_name() == "CXLevelExit"]
+    check(len(sps) == 1 and str(sps[0].get_editor_property("save_point_id")) == "SP_Corridor_01", f"save point {[a.get_actor_label() for a in sps]}")
+    check(len(exs) == 1 and exs[0].get_next_map_package() == "/Game/Project_CX/Maps/Map3_Final", f"exit next={exs[0].get_next_map_package() if exs else None}")
+    for a in sps + exs:
+        l = a.get_actor_location()
+        zx = a.get_editor_property("zone_extent")
+        z, lab = floor_at(l.x, l.y)
+        path_in_zone = (l.x - zx.x) <= -60.0 <= (l.x + zx.x)
+        check(z is not None and abs(z - l.z) < 2 and path_in_zone and Y_START < l.y - zx.y and l.y + zx.y < Y_END,
+              f"{a.get_actor_label()} at {[round(l.x), round(l.y), round(l.z)]} on floor {z} ({lab}), zone X {round(l.x - zx.x)}..{round(l.x + zx.x)} covers path, "
+              f"Y {round(l.y - zx.y)}..{round(l.y + zx.y)}")
+    print("RESULT:", "ALL PASS" if not fails else f"{len(fails)} FAIL")
+
+
+def run():
+    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    cur = les.get_current_level().get_outermost().get_name() if les.get_current_level() else ""
+    if cur != LEVEL:
+        unreal.SystemLibrary.collect_garbage()
+        print("load_level:", les.load_level(LEVEL), "— run this script again to validate")
+        return
+    validate()
+
+
+run()

@@ -1,0 +1,337 @@
+{
+ "level": "/Game/Project_CX/Maps/Map1_SoulCity1.Map1_SoulCity1",
+ "tag": "GEN_WallFill",
+ "note": "add-only wall hole fills; remove = delete actors tagged GEN_WallFill",
+ "actors": [
+  {
+   "label": "FILL_S1_StartBackdrop",
+   "folder": "Art/S1_ScrapStreet/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a",
+   "loc": [
+    560.0,
+    -1325.0,
+    151.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.125,
+    1.0,
+    1.5
+   ],
+   "bounds": [
+    528,
+    592,
+    -2000,
+    -650,
+    -320,
+    624
+   ]
+  },
+  {
+   "label": "FILL_S2_StairBack_A",
+   "folder": "Art/S2_DroneWatch/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01a.SM_Slums_Wall_01a",
+   "ref": "SM_Slums_Wall_01a",
+   "loc": [
+    340.0,
+    3080.0,
+    30.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "bounds": [
+    321,
+    359,
+    2930,
+    3230,
+    -121,
+    182
+   ]
+  },
+  {
+   "label": "FILL_S2_StairBack_B",
+   "folder": "Art/S2_DroneWatch/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01a.SM_Slums_Wall_01a",
+   "ref": "SM_Slums_Wall_01a",
+   "loc": [
+    340.0,
+    3380.0,
+    30.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "bounds": [
+    321,
+    359,
+    3230,
+    3530,
+    -121,
+    182
+   ]
+  },
+  {
+   "label": "FILL_S2_StairBack_Gap",
+   "folder": "Art/S2_DroneWatch/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01a.SM_Slums_Wall_01a",
+   "ref": "SM_Slums_Wall_01a",
+   "loc": [
+    345.0,
+    2966.0,
+    308.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "bounds": [
+    326,
+    364,
+    2816,
+    3116,
+    157,
+    460
+   ]
+  },
+  {
+   "label": "FILL_S3_FarRow_Mid",
+   "folder": "Art/S3_TowerExterior/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02e.SM_Slums_Distance_02e",
+   "ref": "SM_Slums_Distance_02e7",
+   "loc": [
+    1610.5,
+    6213.0,
+    517.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "bounds": [
+    1560,
+    1661,
+    6028,
+    6398,
+    226,
+    809
+   ]
+  },
+  {
+   "label": "FILL_S3_FarRow_Top",
+   "folder": "Art/S3_TowerExterior/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01c.SM_Slums_Distance_01c",
+   "ref": "SM_Slums_Distance_01c9",
+   "loc": [
+    1671.0,
+    6215.0,
+    979.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "bounds": [
+    1620,
+    1722,
+    6031,
+    6399,
+    789,
+    1169
+   ]
+  },
+  {
+   "label": "FILL_S4_BackLower_A1",
+   "folder": "Art/S4_CoreHack/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a3",
+   "loc": [
+    452.0,
+    8659.0,
+    398.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    0.745,
+    1.0,
+    0.9936
+   ],
+   "bounds": [
+    420,
+    484,
+    8212,
+    9106,
+    86,
+    711
+   ]
+  },
+  {
+   "label": "FILL_S4_BackLower_A2",
+   "folder": "Art/S4_CoreHack/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a3",
+   "loc": [
+    452.0,
+    8659.0,
+    -226.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    0.745,
+    1.0,
+    0.9936
+   ],
+   "bounds": [
+    420,
+    484,
+    8212,
+    9106,
+    -539,
+    86
+   ]
+  },
+  {
+   "label": "FILL_S4_BackLower_B1",
+   "folder": "Art/S4_CoreHack/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a5",
+   "loc": [
+    452.0,
+    9553.0,
+    398.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    0.745,
+    1.0,
+    0.9936
+   ],
+   "bounds": [
+    420,
+    484,
+    9106,
+    10000,
+    86,
+    711
+   ]
+  },
+  {
+   "label": "FILL_S4_BackLower_B2",
+   "folder": "Art/S4_CoreHack/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a5",
+   "loc": [
+    452.0,
+    9553.0,
+    -226.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    0.745,
+    1.0,
+    0.9936
+   ],
+   "bounds": [
+    420,
+    484,
+    9106,
+    10000,
+    -539,
+    86
+   ]
+  },
+  {
+   "label": "FILL_S5_EndBackdrop",
+   "folder": "Art/S5_Escape/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a7",
+   "loc": [
+    560.0,
+    13425.0,
+    151.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.29,
+    1.0,
+    1.5
+   ],
+   "bounds": [
+    528,
+    592,
+    12651,
+    14199,
+    -320,
+    624
+   ]
+  }
+ ]
+}
