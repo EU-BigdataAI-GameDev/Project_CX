@@ -4,14 +4,18 @@
 1회차: 현재 레벨이 복도가 아니면 불러오고 끝(로드는 자기 호출에서만). 2회차: 검사.
 검사: manifest 일치 / GameMode·KillZ / PlayerStart 2개(하나는 Sister)가 바닥 위 / COL 설정(Pawn 막음·Camera 무시·숨김) /
       아트 NoCollision / 카메라 앞(X < -120) 가림 / 레인 전 구간 바닥 연속(간격·턱 없음) / 양 끝·앞뒤 막힘 /
-      오빠·여동생 캡슐로 시작 → 세이브포인트 → 출구까지 레인 앞쪽 길이 막히지 않음 / 세이브포인트·출구 설정과 도달 가능.
+      오빠·여동생 캡슐로 시작 → 세이브포인트 → 출구까지 레인 앞쪽 길이 막히지 않음 / 세이브포인트·출구 설정과 도달 가능 /
+      세이브 단말기: 대표 에셋(SM_glowstick02 빛 기둥) 사용·몸체 충돌(Pawn 막음·Camera/Visibility 무시)·이어하기 스폰 자리가 몸체와 안 겹침.
+      v1.3(2026-11-04): 해킹 단말기·레이저 게이트 없음(HackTerminal 0개, HackGate 액터 0개) — 시작 → 출구까지 캡슐 통로 막힘 0.
+      세이브는 상호작용(F/X): auto_save_on_enter 꺼짐, 통로(X -60)가 세이브 구역 안이라 지나가며 F/X를 누를 수 있음.
 """
 import unreal, json, math
 
 LEVEL = "/Game/Project_CX/Maps/Map_SaveCorridor"
 TAG = "GEN_SaveCorridor"
 LANE_F, LANE_B = -120.0, 150.0
-Y_START, Y_END = -400.0, 3600.0
+Y_START, Y_END = -400.0, 1800.0     # 22m(2026-11-04 단축), 바닥 0 평지
+FLOOR_Z = 0.0
 STEP_MAX = 45.0     # 캐릭터 자동 계단 높이(실측 45)
 
 
@@ -87,7 +91,7 @@ def validate():
                 gaps.append((round(y), lab))
             else:
                 if lab.startswith("COL_Prop"):
-                    pass   # 소품 위(뒤쪽 줄) — 소품은 막힘 검사에서 따로 본다
+                    pass   # 소품 위 — 막힘 검사에서 따로 본다
                 elif prev is not None and abs(z - prev) > STEP_MAX:
                     steps.append((round(y), round(prev), round(z)))
                 if not lab.startswith("COL_Prop"):
@@ -104,11 +108,11 @@ def validate():
         return hit is not None and hit.get_actor_label().startswith(prefix), (hit.get_actor_label() if hit else None)
     ok, lab = blocked_by(unreal.Vector(0, Y_START + 150, 90), unreal.Vector(0, Y_START - 500, 90), "COL_Bound_Start")
     check(ok, f"start end closed ({lab})")
-    ok, lab = blocked_by(unreal.Vector(0, Y_END - 150, -90), unreal.Vector(0, Y_END + 500, -90), "COL_Bound_End")
+    ok, lab = blocked_by(unreal.Vector(0, Y_END - 150, 90), unreal.Vector(0, Y_END + 500, 90), "COL_Bound_End")
     check(ok, f"far end closed ({lab})")
-    for y, z in ((0, 90), (1750, -90), (3300, -90)):
+    for y, z in ((0, 90), (600, 90), (1500, 90)):
         okf, lf = blocked_by(unreal.Vector(0, y, z), unreal.Vector(-600, y, z), "COL_Bound_Front")
-        okb, lb = blocked_by(unreal.Vector(-60, y, z), unreal.Vector(800, y, z), "COL_")
+        okb, lb = blocked_by(unreal.Vector(-60, y, z), unreal.Vector(800, y, z), "COL_")   # 세이브 단말기 충돌은 Visibility 무시라 뒤 경계까지 간다
         check(okf and okb, f"lane sides closed at Y={y} (front {lf}, back {lb})")
 
     # ---------------------------------------------------------------- 카메라 앞 가림(X < -120 에 그 Y의 발판 높이를 넘는 메시 금지, 레인 Y 범위 안만)
@@ -127,7 +131,10 @@ def validate():
                 viol.append((a.get_actor_label(), round(o.x - e.x), round(o.z + e.z), top))
     check(not viol, f"front-occluder violations {len(viol)} {viol[:6]}")
 
-    # ---------------------------------------------------------------- 캡슐 통과(레인 앞쪽 X=-60 줄, 30cm 간격)
+    # ---------------------------------------------------------------- 해킹 단말기·게이트 없음(v1.3) + 캡슐 통과(레인 앞쪽 X=-60 줄, 30cm 간격)
+    terms = [a for a in actors if a.get_class().get_name() == "HackTerminal"]
+    gate_any = [a.get_actor_label() for a in actors if "HackGate" in a.get_actor_label() or "PitGate" in a.get_actor_label()]
+    check(not terms and not gate_any, f"no hack terminal / gate in corridor: terminals {[a.get_actor_label() for a in terms]} gate {gate_any[:4]}")
     col_set = set(a.get_actor_label() for a in cols)
     def overlap(x, y, z_feet, hh):
         hits = unreal.SystemLibrary.capsule_overlap_actors(world, unreal.Vector(x, y, z_feet + hh + 3), 34.0, hh,
@@ -139,17 +146,17 @@ def validate():
         while y <= Y_END - 40:
             z, lab = floor_at(-60.0, y)
             if z is not None:
-                # 경사면에서는 캡슐 아래쪽이 면에 닿으므로 3cm 더 띄운다
                 h = overlap(-60.0, y, z + 3, hh)
                 if h:
                     blocked.append((round(y), h[0]))
             y += 30.0
-        check(not blocked, f"{who} capsule path start->exit at X=-60 clear: blocked {blocked[:5]}")
+        check(not blocked, f"{who} capsule path start->exit at X=-60 clear (exit freely reachable): blocked {blocked[:5]}")
 
     # ---------------------------------------------------------------- 세이브포인트 / 출구
     sps = [a for a in actors if a.get_class().get_name() == "CXSavePoint"]
     exs = [a for a in actors if a.get_class().get_name() == "CXLevelExit"]
     check(len(sps) == 1 and str(sps[0].get_editor_property("save_point_id")) == "SP_Corridor_01", f"save point {[a.get_actor_label() for a in sps]}")
+    check(len(sps) == 1 and not sps[0].get_editor_property("auto_save_on_enter"), f"save point saves by interact (auto_save_on_enter={sps[0].get_editor_property('auto_save_on_enter') if sps else None})")
     check(len(exs) == 1 and exs[0].get_next_map_package() == "/Game/Project_CX/Maps/Map3_Final", f"exit next={exs[0].get_next_map_package() if exs else None}")
     for a in sps + exs:
         l = a.get_actor_location()
@@ -159,6 +166,32 @@ def validate():
         check(z is not None and abs(z - l.z) < 2 and path_in_zone and Y_START < l.y - zx.y and l.y + zx.y < Y_END,
               f"{a.get_actor_label()} at {[round(l.x), round(l.y), round(l.z)]} on floor {z} ({lab}), zone X {round(l.x - zx.x)}..{round(l.x + zx.x)} covers path, "
               f"Y {round(l.y - zx.y)}..{round(l.y + zx.y)}")
+    check(all(abs(z - FLOOR_Z) < 1 for z in zs), f"flat floor at Z {FLOOR_Z:.0f} (no stairs)")
+
+    # ---------------------------------------------------------------- 세이브 단말기(대표 에셋 / 몸체 충돌 / 스폰 자리)
+    if sps:
+        sp = sps[0]
+        dbg = sp.get_debug_state() if hasattr(sp, "get_debug_state") else ""
+        pm = sp.get_editor_property("pylon_mesh")
+        check(pm is not None and pm.get_name() == "SM_glowstick02" and "terminal=SM_glowstick02" in dbg, f"terminal asset {pm.get_name() if pm else None} ({dbg.split('terminal=')[-1] if dbg else '?'})")
+        bc = sp.get_editor_property("body_collision")
+        check(bc.get_collision_response_to_channel(unreal.CollisionChannel.ECC_PAWN) == unreal.CollisionResponseType.ECR_BLOCK and
+              bc.get_collision_response_to_channel(unreal.CollisionChannel.ECC_CAMERA) == unreal.CollisionResponseType.ECR_IGNORE and
+              bc.get_collision_response_to_channel(unreal.CollisionChannel.ECC_VISIBILITY) == unreal.CollisionResponseType.ECR_IGNORE and
+              bc.is_collision_enabled(), "terminal body collision: Pawn block / Camera+Visibility ignore")
+        o, e = bc.get_world_location(), bc.get_scaled_box_extent()
+        sl = sp.get_actor_location()
+        sd, ss = sp.get_editor_property("spawn_depth"), sp.get_editor_property("spawn_spacing")
+        spawn_x = sl.x + sd
+        clear = spawn_x + 34 < o.x - e.x and LANE_F < spawn_x - 34
+        check(clear and o.x + e.x <= LANE_B + 1, f"terminal body X {round(o.x - e.x)}..{round(o.x + e.x)} Y {round(o.y - e.y)}..{round(o.y + e.y)} Z ..{round(o.z + e.z)}; "
+              f"continue spawns X {round(spawn_x)} Y {round(sl.y - ss)}/{round(sl.y + ss)} clear of body")
+        col_set2 = set(a.get_actor_label() for a in cols)
+        for who, hh, dy in (("brother", 88.0, -ss), ("sister", 80.0, ss)):
+            hits = unreal.SystemLibrary.capsule_overlap_actors(world, unreal.Vector(spawn_x, sl.y + dy, FLOOR_Z + hh + 3), 34.0, hh,
+                                                               [unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY1], None, [])
+            names = [h.get_actor_label() for h in (hits or []) if h.get_actor_label() in col_set2 or h == sp]
+            check(not names, f"continue spawn {who} capsule free: {names}")
     print("RESULT:", "ALL PASS" if not fails else f"{len(fails)} FAIL")
 
 

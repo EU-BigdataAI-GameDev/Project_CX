@@ -3,7 +3,7 @@ Map1_SoulCity에 해킹 시스템(.claude/Plans/해킹 시스템 기획.md 6장)
 
 - 태그 GEN_Map1Hack 이 붙은 액터만 지우고 다시 만든다(레벨의 다른 액터는 건드리지 않음 → 사람이 다듬은 레벨에도 안전).
 - 비밀번호 단말기(S3 타워 L2 발판) + S4 입구 레이저 게이트
-- 화살표 단말기(S4 코어) + S5 탈출로 레이저 게이트
+- 주파수 동조 단말기(S4 코어) + S5 탈출로 레이저 게이트 (화살표 시퀀스는 적 해킹 전용으로 바뀌어 단말기에서 폐기 — 기획 0-1장)
 - 비밀번호 숫자 단서 4개(오빠 화면 전용) — S1~S3 레인 뒤 벽
 바닥 높이는 COL 박스에 라인트레이스로 구한다.
 """
@@ -113,9 +113,8 @@ z_top, _ = floor_at(0, 8300)
 gate1 = laser_gate("HackGate_S4Entry", 8260, z_top, z_top + 320, "Gameplay/Hacking/Gate_S4Entry")
 T1.set_editor_property("unlock_actors", gate1)
 
-# ---------------- 화살표 단말기(코어) + S5 탈출로 게이트
-T2 = terminal("HackTerminal_Core", 200, 9770, "CORE_MAINFRAME", unreal.HackPuzzleType.ARROW_SEQUENCE, "Gameplay/Hacking")
-T2.set_editor_property("arrow_round_lengths", [4, 5, 6])
+# ---------------- 주파수 동조 단말기(코어) + S5 탈출로 게이트 — 구간 폭·속도·제한 시간은 AHackTerminal 기본값(24/18/13%, 1.5/2.0/2.6, 제한 없음)
+T2 = terminal("HackTerminal_Core", 200, 9770, "CORE_MAINFRAME", unreal.HackPuzzleType.FREQUENCY_LOCK, "Gameplay/Hacking")
 z_core, _ = floor_at(0, 9900)
 gate2 = laser_gate("HackGate_S5Exit", 9985, z_core, z_core + 320, "Gameplay/Hacking/Gate_S5Exit")
 T2.set_editor_property("unlock_actors", gate2)

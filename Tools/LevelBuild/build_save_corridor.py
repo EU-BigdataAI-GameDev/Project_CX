@@ -3,8 +3,10 @@
 
 좌표계 : +Y 진행(화면 오른쪽), 카메라는 -X 쪽에서 +X를 바라봄, Z 위 (Map1/Map2와 같음)
 레인   : X ∈ [-120, 150] (Map2와 같은 폭). 레인 앞(X < -120)에는 발판 높이를 넘는 메시를 두지 않는다.
-길이   : Y -400 ~ 3600 (40m). 바닥 0 → 계단(30°) → -180.
+길이   : Y -400 ~ 1800 (22m, 2026-11-04 단축 — 40m는 Map2와 보스맵 사이 쉼터로 너무 길었다). 바닥 0 평지(계단 없음).
+         분할 화면 한 칸이 캐릭터 깊이에서 가로 약 17~18m를 보여, 도착 지점에서 세이브 단말기가, 단말기에서 출구가 보인다.
 충돌   : 투명 COL_ 큐브(BlockAll, Camera 무시, 게임 중 숨김)만. 아트 메시는 전부 NoCollision.
+해킹   : 없음(v1.3, 2026-11-04 — 메모리 패턴 단말기 PIT_GATE_ECHO와 출구 레이저 게이트 제거, 출구는 자유 통과). 세이브는 상호작용(F/X).
 조명   : 같은 스크립트(폴더 Lighting/*) — 차가운 형광등 + 세이브포인트 주변만 따뜻한 빛.
 
 실행(에디터 원격 실행 또는 UnrealEditor-Cmd -run=pythonscript):
@@ -24,12 +26,12 @@ MAT_DIR = "/Game/Project_CX/Environment/Materials"
 LANE_F, LANE_B = -120.0, 150.0      # 플레이 레인 앞/뒤
 FRONT_X = -320.0                    # 바닥판이 보이는 앞 끝(발판 높이까지만 — 가림 없음)
 WALL_X0, WALL_X1 = 150.0, 172.0     # 뒷벽(레인 바로 뒤)
-Y_START, Y_END = -400.0, 3600.0
-Z_HI, Z_LO = 0.0, -180.0            # 입구 층 / 복도 본층
-STAIR_Y0, STAIR_Y1 = 700.0, 1012.0  # 계단(런 312 / 라이즈 180 = 30°)
-SAVE_Y = 1750.0
-WALL_TOP = 660.0                    # 뒷벽 윗면(입구 층 + 660 / 본층 + 840 — 계단 구간 시야 포함)
-EXIT_Y = 3350.0
+Y_START, Y_END = -400.0, 1800.0     # 22m
+Z0 = 0.0                            # 바닥(평지)
+C1_Y0, C2_Y0 = 300.0, 1000.0        # 구간 경계: C0 입구 -400~300 / C1 세이브 쉼터 300~1000 / C2 피트 출입구 1000~1800
+SAVE_Y = 600.0                      # 세이브포인트(구역 Y 430~770)
+WALL_TOP = 660.0                    # 뒷벽 윗면(바닥 + 660 — 실측 화면 위 끝 ≈ 바닥 + 550 + 점프 90)
+EXIT_Y = 1550.0                     # 출구(구역 Y 1350~1750)
 
 WARM = (1.0, 0.62, 0.3)
 BULB = (1.0, 0.78, 0.5)
@@ -134,25 +136,6 @@ def build():
                 n = (pick(iy, iz) if pick else None) or rng.choice(names)
                 fit(n, x0, x1, y0 + d * iy, y0 + d * (iy + 1), z0 + h * iz, z0 + h * (iz + 1), yaw=90, folder=folder)
 
-    def stairs_art(x0, x1, y0, z0, y1, z1, folder):
-        """SM_stairs_W1_H3_00(런 312 / 라이즈 182). yaw 0이면 -Y 쪽으로 올라감 → +Y로 오르는 계단은 yaw 180(알려진 함정)."""
-        rise = abs(z1 - z0)
-        n = max(1, int(round((x1 - x0) / 183)))
-        yaw = 180.0 if (z1 - z0) * (y1 - y0) > 0 else 0.0
-        for i in range(n):
-            fit("SM_stairs_W1_H3_00", x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n, min(y0, y1), max(y0, y1),
-                min(z0, z1), min(z0, z1) + rise, yaw=yaw, folder=folder)
-
-    def under_stairs(x0, x1, y0, z0, y1, z1, base, folder, seg=78.0):
-        """계단 옆(카메라 쪽)에서 보이는 빈 삼각형을 계단식 벽판으로 막는다(윗면 = 계단면 아래)."""
-        n = max(1, int(abs(y1 - y0) // seg))
-        for i in range(n):
-            ya, yb = y0 + (y1 - y0) * i / n, y0 + (y1 - y0) * (i + 1) / n
-            za, zb = z0 + (z1 - z0) * i / n, z0 + (z1 - z0) * (i + 1) / n
-            h = min(za, zb) - base - 4
-            if h > 10:
-                fit("SM_Slums_Wall_02k", x0, x1, min(ya, yb), max(ya, yb), base, base + h, yaw=90, folder=folder)
-
     # ------------------------------------------------------------ collision helpers
     def col_setup(a, label, folder):
         comp = a.static_mesh_component
@@ -169,19 +152,6 @@ def build():
         a.set_actor_scale3d(unreal.Vector((x1 - x0) / 100, (y1 - y0) / 100, (z1 - z0) / 100))
         col_setup(a, label, folder)
         record(a, kind, {"box": [x0, x1, y0, y1, z0, z1]})
-        return a
-
-    def ramp(label, x0, x1, y0, z0, y1, z1, thick=20, folder="Collision"):
-        """윗면이 (y0,z0)→(y1,z1)인 경사 충돌."""
-        dy, dz = y1 - y0, z1 - z0
-        length = math.hypot(dy, dz)
-        ang = math.degrees(math.atan2(dz, dy))
-        ny, nz = -dz / length, dy / length
-        a = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector((x0 + x1) / 2, (y0 + y1) / 2 - ny * thick / 2, (z0 + z1) / 2 - nz * thick / 2))
-        a.set_actor_rotation(unreal.Rotator(pitch=ang, yaw=90, roll=0), False)
-        a.set_actor_scale3d(unreal.Vector(length / 100, (x1 - x0) / 100, thick / 100))
-        col_setup(a, label, folder)
-        record(a, "collision_ramp", {"x": [x0, x1], "from": [y0, z0], "to": [y1, z1], "angle": round(abs(ang), 1)})
         return a
 
     def prop(name, cx, cy, floor, yaw=90.0, scale=1.0, folder="Art", block=True):
@@ -255,78 +225,59 @@ def build():
 
     # ================================================================ 지형 충돌
     C = "Collision/Floor"
-    col("C0_Floor", LANE_F - 20, LANE_B + 20, Y_START, STAIR_Y0, -240, Z_HI, C)
-    ramp("C1_Stair", LANE_F - 20, LANE_B + 20, STAIR_Y0, Z_HI, STAIR_Y1, Z_LO, folder=C)
-    col("C1_StairBase", LANE_F - 20, LANE_B + 20, STAIR_Y0, STAIR_Y1, -240, Z_LO, C)
-    col("C2_Floor", LANE_F - 20, LANE_B + 20, STAIR_Y1, Y_END, -240, Z_LO, C)
+    col("Floor", LANE_F - 20, LANE_B + 20, Y_START, Y_END, -240, Z0, C)
 
-    # ================================================================ C0 입구 해치 (Y -400 ~ 700, 바닥 0)
+    # ================================================================ C0 입구 해치 (Y -400 ~ 300)
     S = "C0_EntryHatch"
-    floor_span(["SM_Slums_Floor_02a"], FRONT_X, LANE_B, Y_START, STAIR_Y0, Z_HI, 18, 200, 200, f"Art/{S}/Floor")
-    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, Y_START, STAIR_Y0, -400, Z_HI - 18, yaw=90, folder=f"Art/{S}/FloorEdge")
-    wall_span(WALLS_CONC, WALL_X0, WALL_X1, Y_START, STAIR_Y0, Z_HI, WALL_TOP, tile_z=330, folder=f"Art/{S}/BackWall")
+    floor_span(["SM_Slums_Floor_02a"], FRONT_X, LANE_B, Y_START, C1_Y0, Z0, 18, 200, 200, f"Art/{S}/Floor")
+    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, Y_START, C1_Y0, -400, Z0 - 18, yaw=90, folder=f"Art/{S}/FloorEdge")
+    wall_span(WALLS_CONC, WALL_X0, WALL_X1, Y_START, C1_Y0, Z0, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall")
     # 지나온 해치(닫힌 산업 셔터) — 시작 끝벽
     fit("SM_Slums_Wall_03a", FRONT_X, 450, Y_START - 64, Y_START, -400, WALL_TOP, yaw=0, folder=f"Art/{S}/Hatch")
-    fit("SM_Slums_Wall_03b", -100, 140, Y_START - 4, Y_START + 16, Z_HI, 300, yaw=0, folder=f"Art/{S}/Hatch")
+    fit("SM_Slums_Wall_03b", -100, 140, Y_START - 4, Y_START + 16, Z0, 300, yaw=0, folder=f"Art/{S}/Hatch")
     neon("C0_HatchTop", 20, Y_START + 20, 305, 240, "MI_Neon_Cyan_12", axis="X", thick=5)
-    # 벽 배관 + 환풍구 + 안내판
-    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 150, Z_HI + 300, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
-    art("SM_Slums_Vent_02b", WALL_X0 - 17, -150, Z_HI + 190, yaw=90, folder=f"Art/{S}/Vents")
-    text("C0_ZoneSign", WALL_X0 - 3, 300, Z_HI + 230, "SERVICE CORRIDOR  D5-07", 30, (0.55, 0.85, 1.0))
-    text("C0_ZoneSub", WALL_X0 - 3, 300, Z_HI + 200, "MAINTENANCE ACCESS // PIT LEVEL BELOW", 14, (0.5, 0.65, 0.8))
-    prop("SM_Slums_WoodWall_02c", 95, -250, Z_HI, yaw=90, folder=f"Art/{S}/Props")
-    prop("SM_Slums_Trashcan_Closed02", 110, 480, Z_HI, yaw=20, folder=f"Art/{S}/Props")
-    art("SM_Slums_Trash_01a", 90, 560, Z_HI, yaw=70, folder=f"Art/{S}/Props")
+    # 벽 배관 + 안내판 (해킹 단말기와 같은 Vent_02b 환풍구는 쓰지 않는다 — 세이브 단말기·해킹 단말기 혼동 방지)
+    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 0, Z0 + 330, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
+    text("C0_ZoneSign", WALL_X0 - 3, -60, Z0 + 230, "SERVICE CORRIDOR  D5-07", 30, (0.55, 0.85, 1.0))
+    text("C0_ZoneSub", WALL_X0 - 3, -60, Z0 + 200, "MAINTENANCE ACCESS // PIT GATE AHEAD", 14, (0.5, 0.65, 0.8))
+    prop("SM_Slums_WoodWall_02c", 95, -260, Z0, yaw=90, folder=f"Art/{S}/Props")
+    prop("SM_Slums_Trashcan_Closed02", 110, 200, Z0, yaw=20, folder=f"Art/{S}/Props")
+    prop("SM_Slums_Trashcan_Open01", 115, -60, Z0, yaw=200, folder=f"Art/{S}/Props")
+    art("SM_Slums_Trash_01a", 90, 120, Z0, yaw=70, folder=f"Art/{S}/Props")
 
-    # ================================================================ C1 정비 계단 (Y 700 ~ 1012, 0 → -180)
-    S = "C1_ServiceStairs"
-    stairs_art(FRONT_X, LANE_B, STAIR_Y0, Z_HI, STAIR_Y1, Z_LO, folder=f"Art/{S}/Stairs")
-    under_stairs(FRONT_X - 20, FRONT_X, STAIR_Y0, Z_HI, STAIR_Y1, Z_LO, -400, folder=f"Art/{S}/Side")
-    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, STAIR_Y0, STAIR_Y1, -400, Z_LO - 4, yaw=90, folder=f"Art/{S}/Side")
-    wall_span(WALLS_CONC, WALL_X0, WALL_X1, STAIR_Y0, STAIR_Y1, Z_LO, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall")
-    neon("C1_StepEdge", 15, STAIR_Y0 + 4, Z_HI + 2, 260, "MI_Neon_Orange", axis="X", thick=3)   # 첫 계단 가장자리 안내선
-    neon("C1_Handrail", WALL_X0 - 8, (STAIR_Y0 + STAIR_Y1) / 2, (Z_HI + Z_LO) / 2 + 100, 360, "MI_Neon_Cyan_12", thick=4)
+    # ================================================================ C1 세이브 쉼터 (Y 300 ~ 1000)
+    S = "C1_SaveBay"
+    floor_span(["SM_Slums_Floor_01a", "SM_Slums_Floor_01c", "SM_Slums_Floor_01e"], FRONT_X, LANE_B, C1_Y0, C2_Y0, Z0, 20, 260, 200, f"Art/{S}/Floor")
+    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, C1_Y0, C2_Y0, -400, Z0 - 20, yaw=90, folder=f"Art/{S}/FloorEdge")
+    # 뒷벽: 단말기 뒤(가운데 칸)는 민벽(Wall_02k)으로 비워 단말기 실루엣이 묻히지 않게, 양옆 가운데 층에 불 켜진 관리실 창문
+    win_cells = {(0, 1), (2, 1)}
+    wall_span(WALLS_CONC, WALL_X0, WALL_X1, C1_Y0, C2_Y0, Z0, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall",
+              pick=lambda iy, iz: rng.choice(WALLS_WIN) if (iy, iz) in win_cells else ("SM_Slums_Wall_02k" if iy == 1 else None))
+    # 쉼터 흔적: 누가 여기서 지냈다 — 상자 탁자, 전구, 벽에 건 천, 쓰레기봉투, 낙서
+    prop("SM_Slums_Trashbag", 115, 360, Z0, yaw=40, folder=f"Art/{S}/Camp")
+    prop("SM_Slums_WoodWall_02c", 95, 880, Z0, yaw=90, folder=f"Art/{S}/Camp")
+    art("SM_Slums_Light_01a_OP", 95, 880, Z0 + 114, yaw=0, folder=f"Art/{S}/Camp")
+    art("SM_Slums_Cloth_01a", WALL_X0 - 15, 940, Z0 + 60, yaw=90, scale=0.6, folder=f"Art/{S}/Camp")
+    text("C1_Graffiti", WALL_X0 - 3, 880, Z0 + 250, "KEEP THE LIGHT ON", 30, (1.0, 0.7, 0.35))
+    text("C1_Tally", WALL_X0 - 3, 880, Z0 + 215, "|||| |||| |||| ||", 18, (0.85, 0.8, 0.7))
+    text("C1_Names", WALL_X0 - 3, 360, Z0 + 160, "J + M  WERE HERE", 14, (0.8, 0.75, 0.65))
 
-    # ================================================================ C2 세이브 쉼터 (Y 1012 ~ 2500, 바닥 -180)
-    S = "C2_SaveBay"
-    floor_span(["SM_Slums_Floor_02a"], FRONT_X, LANE_B, STAIR_Y1, 1500, Z_LO, 18, 200, 200, f"Art/{S}/Floor")
-    floor_span(["SM_Slums_Floor_01a", "SM_Slums_Floor_01c", "SM_Slums_Floor_01e"], FRONT_X, LANE_B, 1500, 2500, Z_LO, 20, 260, 200, f"Art/{S}/Floor")
-    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, STAIR_Y1, 2500, -400, Z_LO - 18, yaw=90, folder=f"Art/{S}/FloorEdge")
-    # 뒷벽: 가운데 층에 창문 2칸(불 켜진 관리실)
-    win_cells = {(1, 1), (2, 1)}
-    wall_span(WALLS_CONC, WALL_X0, WALL_X1, STAIR_Y1, 2500, Z_LO, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall",
-              pick=lambda iy, iz: rng.choice(WALLS_WIN) if (iy, iz) in win_cells else None)
-    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 1300, Z_LO + 330, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
-    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 2200, Z_LO + 330, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
-    # 쉼터 흔적: 누가 여기서 지냈다 — 상자 탁자, 쓰레기봉투, 벽에 건 천, 낙서
-    prop("SM_Slums_WoodWall_02c", 95, 2150, Z_LO, yaw=90, folder=f"Art/{S}/Camp")
-    prop("SM_Slums_WoodWall_02b", 105, 2290, Z_LO, yaw=90, folder=f"Art/{S}/Camp")
-    prop("SM_Slums_Trashbag", 115, 2010, Z_LO, yaw=40, folder=f"Art/{S}/Camp")
-    art("SM_Slums_Light_01a_OP", 95, 2150, Z_LO + 114, yaw=0, folder=f"Art/{S}/Camp")
-    art("SM_Slums_Cloth_01a", WALL_X0 - 15, 2380, Z_LO + 60, yaw=90, scale=0.8, folder=f"Art/{S}/Camp")
-    text("C2_Graffiti", WALL_X0 - 3, 2150, Z_LO + 250, "KEEP THE LIGHT ON", 34, (1.0, 0.7, 0.35))
-    text("C2_Tally", WALL_X0 - 3, 2150, Z_LO + 215, "|||| |||| |||| ||", 20, (0.85, 0.8, 0.7))
-    text("C2_Names", WALL_X0 - 3, 1980, Z_LO + 160, "J + M  WERE HERE", 14, (0.8, 0.75, 0.65))
-    for yy in (1250, 2450):
-        art(rng.choice(LOW_JUNK), 120, yy, Z_LO, yaw=rng.uniform(0, 360), folder=f"Art/{S}/Props")
-
-    # ================================================================ C3 피트 출입구 (Y 2500 ~ 3600, 바닥 -180)
-    S = "C3_PitAccess"
-    floor_span(["SM_Slums_Floor_02a"], FRONT_X, LANE_B, 2500, Y_END, Z_LO, 18, 200, 200, f"Art/{S}/Floor")
-    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, 2500, Y_END, -400, Z_LO - 18, yaw=90, folder=f"Art/{S}/FloorEdge")
-    wall_span(WALLS_CONC, WALL_X0, WALL_X1, 2500, Y_END, Z_LO, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall")
-    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 2800, Z_LO + 330, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
-    prop("SM_Slums_Pipes_04c", WALL_X0 - 25, 2580, Z_LO, yaw=0, folder=f"Art/{S}/Pipes")
-    art("SM_Slums_Vent_02c", WALL_X0 - 17, 2680, Z_LO + 190, yaw=90, folder=f"Art/{S}/Vents")
-    text("C3_Warning", WALL_X0 - 3, 2900, Z_LO + 270, "PIT ACCESS  >>", 30, (1.0, 0.35, 0.2))
-    text("C3_WarningSub", WALL_X0 - 3, 2900, Z_LO + 240, "AUTHORIZED UNITS ONLY // NO RETURN PAST THIS POINT", 13, (0.9, 0.55, 0.45))
-    prop("SM_Slums_Pipe_01a", 110, 3040, Z_LO, yaw=0, folder=f"Art/{S}/Props")
-    prop("SM_Slums_Trashcan_Open01", 115, 2700, Z_LO, yaw=200, folder=f"Art/{S}/Props")
+    # ================================================================ C2 피트 출입구 (Y 1000 ~ 1800)
+    S = "C2_PitAccess"
+    floor_span(["SM_Slums_Floor_02a"], FRONT_X, LANE_B, C2_Y0, Y_END, Z0, 18, 200, 200, f"Art/{S}/Floor")
+    fit("SM_Slums_Wall_02k", FRONT_X - 20, FRONT_X, C2_Y0, Y_END, -400, Z0 - 18, yaw=90, folder=f"Art/{S}/FloorEdge")
+    wall_span(WALLS_CONC, WALL_X0, WALL_X1, C2_Y0, Y_END, Z0, WALL_TOP, tile_z=280, folder=f"Art/{S}/BackWall")
+    art("SM_Slums_Wall_Pipe_01", WALL_X0 - 40, 1250, Z0 + 330, yaw=90, scale=(1.0, 0.6, 0.6), folder=f"Art/{S}/Pipes")
+    prop("SM_Slums_Pipes_04c", WALL_X0 - 25, 1050, Z0, yaw=0, folder=f"Art/{S}/Pipes")
+    text("C2_Warning", WALL_X0 - 3, 1250, Z0 + 250, "PIT ACCESS  >>", 30, (1.0, 0.35, 0.2))
+    text("C2_WarningSub", WALL_X0 - 3, 1250, Z0 + 220, "AUTHORIZED UNITS ONLY // NO RETURN PAST THIS POINT", 13, (0.9, 0.55, 0.45))
+    # (쓰레기통 Open01은 C0 입구(Y -60)에 둔다 — 출구 프레임 안에 두면 문을 가린다)
+    prop("SM_Slums_Pipe_01a", 110, 1270, Z0, yaw=0, folder=f"Art/{S}/Props")
     # 끝: 닫힌 방폭문(보스맵 입구) — 출구 액터의 네온 프레임이 그 앞에 선다
     fit("SM_Slums_Wall_03a", FRONT_X, 450, Y_END, Y_END + 64, -400, WALL_TOP, yaw=0, folder=f"Art/{S}/BlastDoor")
-    fit("SM_Slums_Wall_03b", -100, 140, Y_END - 16, Y_END + 4, Z_LO, Z_LO + 330, yaw=0, folder=f"Art/{S}/BlastDoor")
-    for i, yy in enumerate(range(3150, 3560, 100)):   # 바닥 경고 줄무늬(레인 앞쪽 가장자리, 바닥 높이)
-        neon(f"C3_Hazard_{i}", -100, yy, Z_LO + 1, 40, "MI_Neon_Orange", axis="X", thick=3)
+    fit("SM_Slums_Wall_03b", -100, 140, Y_END - 16, Y_END + 4, Z0, Z0 + 330, yaw=0, folder=f"Art/{S}/BlastDoor")
+    for i, yy in enumerate(range(1400, 1760, 100)):   # 바닥 경고 줄무늬(레인 앞쪽 가장자리, 바닥 높이)
+        neon(f"C2_Hazard_{i}", -100, yy, Z0 + 1, 40, "MI_Neon_Orange", axis="X", thick=3)
 
     # ================================================================ 끝 너머 막힌 덩어리(카메라가 양 끝에서 좌우 ~9m를 보므로 빈 공간 대신 콘크리트 면)
     # 레인 밖(Y 범위 밖)이라 레인을 가리지 않는다. 정면(X = 바닥 앞 끝)만 보이면 된다.
@@ -335,13 +286,12 @@ def build():
         fit("SM_Slums_Floor_02a", FRONT_X - 10, WALL_X1, ya, yb, WALL_TOP - 10, WALL_TOP, yaw=0, folder=f"Art/EndMass_{k}")   # 윗면 뚜껑
 
     # ================================================================ 천장 보(머리 위 — 복도 느낌, 레인 위에만)
-    for i, yy in enumerate((-100, 450, 1300, 1900, 2600, 3200)):
-        floor_z = Z_HI if yy < STAIR_Y0 else Z_LO
-        fit("SM_Slums_Wall_02k", LANE_F, WALL_X1, yy - 15, yy + 15, floor_z + 430, floor_z + 470, yaw=90, folder="Art/Ceiling/Beams")
+    for i, yy in enumerate((-150, 300, 1000, 1450)):
+        fit("SM_Slums_Wall_02k", LANE_F, WALL_X1, yy - 15, yy + 15, Z0 + 430, Z0 + 470, yaw=90, folder="Art/Ceiling/Beams")
 
     # ================================================================ 조명: 차가운 기본광 + 형광등, 세이브포인트만 따뜻하게
     ATM = "Lighting/Atmosphere"
-    sky = eas.spawn_actor_from_class(unreal.SkyLight, unreal.Vector(0, 1600, 2000))
+    sky = eas.spawn_actor_from_class(unreal.SkyLight, unreal.Vector(0, 700, 2000))
     sc = sky.light_component
     sc.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     sc.set_editor_property("intensity", 0.8)
@@ -352,7 +302,7 @@ def build():
         sc.set_editor_property("cubemap", cube)
     finish(sky, ATM, "SkyLight_Corridor"); record(sky, "skylight")
 
-    key = eas.spawn_actor_from_class(unreal.DirectionalLight, unreal.Vector(0, 1600, 2500), unreal.Rotator(pitch=-48, yaw=25, roll=0))
+    key = eas.spawn_actor_from_class(unreal.DirectionalLight, unreal.Vector(0, 700, 2500), unreal.Rotator(pitch=-48, yaw=25, roll=0))
     kc = key.light_component
     kc.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     kc.set_editor_property("intensity", 1.2)
@@ -360,7 +310,7 @@ def build():
     kc.set_editor_property("cast_shadows", True)
     finish(key, ATM, "DirLight_Fill"); record(key, "dirlight")
 
-    fog = eas.spawn_actor_from_class(unreal.ExponentialHeightFog, unreal.Vector(0, 1600, -400))
+    fog = eas.spawn_actor_from_class(unreal.ExponentialHeightFog, unreal.Vector(0, 700, -400))
     fc = fog.component
     fc.set_editor_property("fog_density", 0.015)
     fc.set_editor_property("fog_height_falloff", 0.06)
@@ -370,7 +320,7 @@ def build():
     fc.set_editor_property("volumetric_fog_extinction_scale", 1.0)
     finish(fog, ATM, "Fog_Corridor"); record(fog, "fog")
 
-    ppv = eas.spawn_actor_from_class(unreal.PostProcessVolume, unreal.Vector(0, 1600, 0))
+    ppv = eas.spawn_actor_from_class(unreal.PostProcessVolume, unreal.Vector(0, 700, 0))
     ppv.set_editor_property("unbound", True)
     s = ppv.settings
     for k, v in [("auto_exposure_min_brightness", -0.5), ("auto_exposure_max_brightness", 1.0), ("auto_exposure_bias", 0.4),
@@ -383,20 +333,19 @@ def build():
     finish(ppv, ATM, "PPV_Corridor"); record(ppv, "ppv")
 
     L = "Lighting/Practical"
-    # 형광등(차가운 백청색): 뒷벽 위쪽 튜브 + 포인트 라이트. 세이브 쉼터 주변은 비워 따뜻한 빛이 돋보이게.
-    for i, (yy, fz) in enumerate([(0, Z_HI), (550, Z_HI), (1200, Z_LO), (2750, Z_LO), (3250, Z_LO)]):
-        neon(f"Fluo_{i}", WALL_X0 - 10, yy, fz + 300, 120, "MI_Neon_Cyan_12", thick=5)
-        point(f"Fluo_{i}", 40, yy, fz + 290, FLUO, cd=22.0, radius=650.0, shadows=(i % 2 == 0), folder=L)
-    point("C0_HatchGlow", 20, Y_START + 120, Z_HI + 260, CYAN, cd=12.0, radius=500.0, folder=L)
-    point("C1_StairFill", 40, 860, Z_HI + 160, FLUO, cd=15.0, radius=500.0, folder=L)
+    # 형광등(차가운 백청색): 뒷벽 위쪽 튜브 + 포인트 라이트. 세이브 쉼터 가운데는 비워 따뜻한 빛과 단말기가 돋보이게.
+    for i, yy in enumerate((-150, 200, 1150, 1650)):
+        neon(f"Fluo_{i}", WALL_X0 - 10, yy, Z0 + 300, 120, "MI_Neon_Cyan_12", thick=5)
+        point(f"Fluo_{i}", 40, yy, Z0 + 290, FLUO, cd=22.0, radius=650.0, shadows=(i % 2 == 0), folder=L)
+    point("C0_HatchGlow", 20, Y_START + 120, Z0 + 260, CYAN, cd=12.0, radius=500.0, folder=L)
     # 세이브 쉼터: 따뜻한 빛(세이브포인트 자체 상태등과 별도), 캠프 전구, 창문 너머 관리실
-    point("C2_SaveWarm", -10, SAVE_Y, Z_LO + 230, WARM, cd=45.0, radius=800.0, shadows=True, folder=L)
-    point("C2_CampBulb", 70, 2180, Z_LO + 200, BULB, cd=25.0, radius=550.0, shadows=True, folder=L)
-    point("C2_OfficeWindow", 260, 1500, Z_LO + 360, WARM, cd=60.0, radius=700.0, folder=L)
+    point("C1_SaveWarm", -10, SAVE_Y, Z0 + 230, WARM, cd=45.0, radius=800.0, shadows=True, folder=L)
+    point("C1_CampBulb", 70, 900, Z0 + 200, BULB, cd=25.0, radius=550.0, shadows=True, folder=L)
+    point("C1_OfficeWindow", 260, 420, Z0 + 360, WARM, cd=60.0, radius=700.0, folder=L)
     # 출구: 붉은 경고등 + 문 위 청록
-    point("C3_WarnA", 100, 3050, Z_LO + 330, RED, cd=20.0, radius=500.0, folder=L)
-    point("C3_WarnB", 100, 3520, Z_LO + 360, RED, cd=25.0, radius=600.0, folder=L)
-    point("C3_DoorCyan", 0, Y_END - 150, Z_LO + 260, CYAN, cd=30.0, radius=800.0, shadows=True, folder=L)
+    point("C2_WarnA", 100, 1250, Z0 + 330, RED, cd=20.0, radius=500.0, folder=L)
+    point("C2_WarnB", 100, 1720, Z0 + 360, RED, cd=25.0, radius=600.0, folder=L)
+    point("C2_DoorCyan", 0, Y_END - 150, Z0 + 260, CYAN, cd=30.0, radius=800.0, shadows=True, folder=L)
 
     # camera_cull.py는 쓰지 않는다: PIE 실측(2026-11-04) 결과 현재 분할 화면은 캐릭터 깊이에서 가로 약 18m가 보여
     # (카메라 거리 ≈ 2700) camera_cull의 카메라 모델(1289/433)보다 훨씬 넓다 → 컬링하면 뒷벽 윗단이 지워져 빈 하늘이 보였다.
@@ -404,27 +353,30 @@ def build():
 
     # ================================================================ 게임플레이: 시작 지점 2개, 세이브포인트, 출구
     G = "Gameplay"
-    ps1 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-20, 0, Z_HI + 92))
+    ps1 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-20, 0, Z0 + 92))
     finish(ps1, f"{G}/PlayerStarts", "PlayerStart_Brother"); record(ps1, "playerstart")
-    ps2 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-20, -200, Z_HI + 82))
+    ps2 = eas.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-20, -200, Z0 + 82))
     ps2.set_editor_property("player_start_tag", "Sister")
     finish(ps2, f"{G}/PlayerStarts", "PlayerStart_Sister"); record(ps2, "playerstart", {"tag": "Sister"})
 
-    sp = eas.spawn_actor_from_class(unreal.CXSavePoint, unreal.Vector(40, SAVE_Y, Z_LO))
+    sp = eas.spawn_actor_from_class(unreal.CXSavePoint, unreal.Vector(40, SAVE_Y, Z0))
     sp.set_editor_property("save_point_id", "SP_Corridor_01")
     sp.set_editor_property("zone_name", "SERVICE CORRIDOR")
     sp.set_editor_property("zone_extent", unreal.Vector(135.0, 170.0, 160.0))   # X = 레인 반폭(중심 X 40 → -95 ~ 175)
     sp.set_editor_property("spawn_depth", -40.0)                                  # 스폰 X = 0
-    finish(sp, f"{G}/Flow", "CXSavePoint_Corridor_01"); record(sp, "savepoint", {"id": "SP_Corridor_01"})
-    # 단말기 기둥(로컬 X 30~80 → 월드 70~120)은 몸이 통과하지 않게
-    col("Prop_SavePointTerminal", 65, 125, SAVE_Y - 40, SAVE_Y + 40, Z_LO, Z_LO + 240, folder=f"Collision/{G}", kind="blocker")
+    # 단말기 비주얼(빛 기둥 SM_glowstick02 x2 + SAVE 간판)과 몸체 충돌(BodyCollision: BlockAll, Camera·Visibility 무시)은
+    # ACXSavePoint C++ 기본값 — 별도 COL 박스를 두지 않는다(몸체 월드 X 50~140, Y SAVE_Y ± 135, 앞쪽 X < 50은 통로).
+    sp.set_editor_property("auto_save_on_enter", False)   # 상호작용 저장(F/X) — 구역 진입만으로는 저장하지 않는다(v1.3)
+    finish(sp, f"{G}/Flow", "CXSavePoint_Corridor_01"); record(sp, "savepoint", {"id": "SP_Corridor_01", "save": "interact"})
 
-    ex = eas.spawn_actor_from_class(unreal.CXLevelExit, unreal.Vector(15, EXIT_Y, Z_LO))
+    ex = eas.spawn_actor_from_class(unreal.CXLevelExit, unreal.Vector(15, EXIT_Y, Z0))
     ex.set_next_map_package(NEXT_MAP)
     ex.set_editor_property("zone_extent", unreal.Vector(135.0, 200.0, 180.0))    # Map2 출구와 같은 레인 폭
     ex.set_editor_property("show_frame", True)
     ex.set_editor_property("frame_depth", 120.0)
     finish(ex, f"{G}/Flow", "CXLevelExit_Corridor_ToMap3Final"); record(ex, "levelexit", {"next": NEXT_MAP})
+
+    # (v1.3: 출구 앞 메모리 패턴 단말기 PIT_GATE_ECHO + 레이저 게이트 + "PIT GATE // LOCKED" 간판 제거 — 출구는 자유 통과)
 
     ws = world.get_world_settings()
     ws.set_editor_property("default_game_mode", unreal.load_asset(GAME_MODE_BP).generated_class())
