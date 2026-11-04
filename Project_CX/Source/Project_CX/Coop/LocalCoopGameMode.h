@@ -9,6 +9,7 @@
 #include "LocalCoopGameMode.generated.h"
 
 class USoundBase;
+class ACXSavePoint;
 
 /**
  *  로컬 2인 협동 게임모드 — 한 대의 PC에서 1P(키보드/마우스, 오빠)와 2P(게임패드, 여동생)가 동시에 플레이한다.
@@ -29,6 +30,11 @@ class USoundBase;
  *  - 한 명 사망 + 파트너 생존 → 10초 부활 대기(월드 타이머 — 일시정지 중 멈춤). 1초 뒤 사망자 카메라는 파트너를 따라간다.
  *  - 부활 대기 중 나머지도 사망 → 게임 오버(슬로우 0.5초 → 월드 정지 + 분할 끔 → UCXGameOverWidget).
  *  - 클리어 후에는 사망 무시, 게임 오버 후에는 클리어 무시.
+ *
+ *  세이브포인트 / 맵 이동(.claude/Plans/세이브포인트·맵 이동 기획.md):
+ *  - ACXSavePoint가 저장하면 NotifyProgressSaved — 이 맵의 마지막 세이브포인트(부활 위치 fallback).
+ *  - 이어하기/RETRY: UCXGameInstance::PendingContinueSave를 InitGame에서 소비 → RestartPlayer가 두 사람을 세이브포인트에 스폰.
+ *  - ACXLevelExit → TravelToMap: 입력·메뉴 차단 + 두 칸 검정 페이드 + BGM 페이드 → OpenLevel(독립 실행) / ServerTravel(리슨 서버).
  */
 UCLASS()
 class ALocalCoopGameMode : public AGameModeBase
@@ -40,6 +46,11 @@ public:
 
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+
+	/** 이어하기/RETRY로 들어왔으면 첫 스폰을 세이브포인트(오빠 -Y / 여동생 +Y)에서. 아니면 기본(태그 PlayerStart). */
+	virtual void RestartPlayer(AController* NewPlayer) override;
 
 	/** 스폰된 플레이어 폰에 공용 상호작용(F/X)·플레이어 소리 컴포넌트를 붙인다(오빠 BP는 C++ 부모가 없어 런타임에 추가). */
 	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
@@ -75,6 +86,80 @@ public:
 	/** 테스트용 콘솔 명령: 플레이어 사망. 인자 0/1(로컬 플레이어) 또는 brother/sister. 예) CXKillPlayer sister */
 	UFUNCTION(Exec)
 	void CXKillPlayer(const FString& Who = TEXT("0"));
+
+	/** 테스트용 콘솔 명령: 플레이어에게 피해(엔진 ApplyDamage 경로 — 무적·사망 중이면 무시). 예) CXDamagePlayer sister 30 */
+	UFUNCTION(Exec)
+	void CXDamagePlayer(const FString& Who = TEXT("0"), float Amount = 30.0f);
+
+	/** 테스트용 콘솔 명령: 플레이어 앞(+Y, 진행 방향) Offset cm 바닥에 거미로봇 스폰(레벨에 저장하지 않음). 예) CXSpawnSpider 0 600 */
+	UFUNCTION(Exec)
+	void CXSpawnSpider(const FString& Who = TEXT("0"), float Offset = 600.0f);
+
+	/** 테스트용: 로컬 플레이어 인덱스(0/1)에 피해. 실제로 들어간 피해량을 반환. */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	float DebugDamagePlayer(int32 LocalPlayerIndex, float Amount);
+
+	/** 테스트용: 로컬 플레이어 인덱스(0/1) 기준으로 거미로봇 스폰. Offset은 진행 방향(+Y) 거리, 음수면 뒤. */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	AActor* DebugSpawnSpider(int32 LocalPlayerIndex, float Offset);
+
+	/** 테스트용 콘솔 명령: 그 플레이어(기본 여동생)에게 가장 가까운 거미로봇을 그로기(해킹 성공과 같은 서버 경로). 예) CXStunSpider sister */
+	UFUNCTION(Exec)
+	void CXStunSpider(const FString& Who = TEXT("sister"));
+
+	/** 테스트용: 로컬 플레이어 인덱스(0/1)에 가장 가까운, 그로기 가능한 거미로봇을 그로기. 그로기한 거미(없으면 nullptr). */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	AActor* DebugStunNearestSpider(int32 LocalPlayerIndex);
+
+	/** 테스트용: 두 플레이어 체력 + 레벨의 거미로봇 상태 문자열. */
+	UFUNCTION(BlueprintPure, Category = "Local Coop|Debug")
+	FString GetCombatDebugState() const;
+
+	// ---------------------------------------------------------------- 세이브포인트 / 맵 이동
+
+	/** 지금 저장해도 되는지(게임 오버·클리어·맵 이동 중이면 false). */
+	bool CanSaveProgress() const { return !bGameOver && !bGameCleared && !bTravelling; }
+
+	/** 서버: 세이브포인트가 CX_Slot0에 저장했다 → 이 맵의 마지막 세이브포인트로 기억(부활 fallback). */
+	void NotifyProgressSaved(ACXSavePoint* SavePoint);
+
+	/**
+	 *  서버: 다음 맵으로 이동 시작(1회). 맵 패키지가 없거나 게임 오버/클리어/이동 중이면 false.
+	 *  입력·ESC 메뉴 차단 → 두 칸 카메라 검정 페이드 + StopMusic(TravelFadeTime) → OpenLevel / ServerTravel.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Local Coop|Flow")
+	bool TravelToMap(const FString& MapPackageName);
+
+	UFUNCTION(BlueprintPure, Category = "Local Coop|Flow")
+	bool IsTravelling() const { return bTravelling; }
+
+	/** 테스트용 콘솔 명령: 1P 발밑에 런타임 세이브포인트를 스폰하고 바로 저장(레벨에 저장 안 함). */
+	UFUNCTION(Exec)
+	void CXSaveHere();
+
+	/** 테스트용 콘솔 명령: 1P 앞(+Y) OffsetY에 런타임 세이브포인트 스폰. 예) CXSpawnSavePoint 400 */
+	UFUNCTION(Exec)
+	void CXSpawnSavePoint(float OffsetY = 400.0f);
+
+	/** 테스트용 콘솔 명령: 레벨의 첫 출구(ACXLevelExit)로 강제 이동(조건 무시, 다음 맵이 없으면 OFFLINE 알림). */
+	UFUNCTION(Exec)
+	void CXGotoNextMap();
+
+	/** 테스트용 콘솔 명령: 세이브(CX_Slot0) 삭제. */
+	UFUNCTION(Exec)
+	void CXDeleteSave();
+
+	/** 테스트용: CXSaveHere와 같음. 저장한 세이브포인트(실패하면 nullptr). */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	AActor* DebugSaveHere();
+
+	/** 테스트용: CXGotoNextMap과 같음. 이동을 시작하면 true. */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	bool DebugGotoNextMap();
+
+	/** 테스트용: 맵 이동/세이브 상태 + 세이브포인트·출구·두 폰 위치 한 줄. */
+	UFUNCTION(BlueprintPure, Category = "Local Coop|Debug")
+	FString GetFlowDebugState() const;
 
 	/** 테스트용 콘솔 명령: 첫 플레이어 근처에 출구 문을 런타임 스폰(레벨에 저장하지 않음). 예) CXSpawnExitDoor 500 150 */
 	UFUNCTION(Exec)
@@ -140,6 +225,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Local Coop|GameOver")
 	TObjectPtr<USoundBase> GameOverSound;
 
+	/** 맵 이동 검정 페이드 + BGM 페이드아웃 시간(시작화면 NEW GAME과 같은 0.5초). */
+	UPROPERTY(EditDefaultsOnly, Category = "Local Coop|Flow")
+	float TravelFadeTime = 0.5f;
+
 private:
 	void PauseForGameClear();
 
@@ -167,6 +256,25 @@ private:
 	FTimerHandle ClearPauseTimer;
 
 	static bool IsSecondLocalPlayer(const AController* Controller);
+
+	// ---------------------------------------------------------------- 세이브포인트 / 맵 이동
+	void ExecuteTravel();
+
+	/** 세이브포인트 기준 스폰 트랜스폼(캡슐 반높이 포함). 쓸 세이브가 없으면 false. */
+	bool GetSaveSpawnTransform(AController* Controller, bool bForRespawn, FTransform& OutTransform) const;
+
+	bool bTravelling = false;
+	FString PendingTravelMap;
+	FTimerHandle TravelTimer;
+
+	/** 이어하기/RETRY로 들어온 맵: 세이브포인트 ID와 저장 위치(액터를 못 찾을 때). */
+	bool bSpawnAtSave = false;
+	FName SpawnSavePointId;
+	FVector SpawnSaveLocation = FVector::ZeroVector;
+	float SpawnSaveYaw = 0.0f;
+
+	/** 이 맵에서 마지막으로 저장한(또는 스폰한) 세이브포인트 — 부활 위치 fallback. */
+	TWeakObjectPtr<ACXSavePoint> ActiveSavePoint;
 
 	/** 이 컨트롤러가 여동생(2P) 폰을 맡는지 — 기본은 2번째 로컬 플레이어, 장치 스왑 조합이면 반대. */
 	static bool IsSisterController(const AController* Controller);

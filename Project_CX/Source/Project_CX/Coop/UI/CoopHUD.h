@@ -12,6 +12,7 @@ class USisterHackComponent;
 class UFont;
 class USoundBase;
 class UCXPlayerLifeComponent;
+class UCXHealthComponent;
 
 /**
  *  로컬 2인 협동용 인게임 HUD(.claude/Plans/HUD 기획.md).
@@ -20,9 +21,14 @@ class UCXPlayerLifeComponent;
  *  위아래 화면 분할에서 각 플레이어 칸에 자기 정보만 그린다. 레이아웃은 분할 한 칸(1920x540)을 기준으로
  *  설계하고 실제 칸 크기에 맞춰 비율 스케일한다.
  *
- *  - 공통: 플레이어 태그(좌상단), 파트너 위치 표시, 구역 배너, 분할 경계선
+ *  - 공통: 플레이어 태그(좌상단) + 체력 바(태그 아래), 파트너 위치 표시(+ 작은 체력 바), 구역 배너, 분할 경계선, 피격 플래시
+ *  - 적: 거미로봇 머리 위 체력 바(피격 후 3초 또는 오빠의 CurrentTarget일 때 — 전투 시스템 기획 9.2)
  *  - 오빠: 레일건 탄약/장전 패널(좌하단), 조준 타겟 마커
  *  - 여동생: 해킹 링크 패널(좌하단) + 근처 해킹 단말기 활성화 표시(월드 마커/프롬프트) + 해킹 중 퍼즐 오버레이
+ *    + 적 해킹 대상(ICXHackTarget — 거미로봇)에도 같은 마름모 마커/`[X] HACK`(쿨타임 중엔 RELINK n초), 적 해킹 중 주파수 동조 패널
+ *  - 공통: 그로기 중인 적 머리 위 SYSTEM DOWN + 남은 시간 바(두 플레이어 칸 모두 — 해킹 시스템 기획 10장)
+ *  - 공통: 세이브포인트 저장 배너 PROGRESS SAVED, 출구 NEXT AREA OFFLINE(두 칸), 출구 안 대기 WAITING FOR PARTNER(자기 칸),
+ *    맵 이동 카메라 페이드를 HUD 위에도 덮음(세이브포인트·맵 이동 기획 5장)
  *    (해킹 UI는 여동생 폰을 가진 HUD에서만 그린다 → 오빠 화면에는 절대 나타나지 않는다)
  */
 UCLASS()
@@ -96,11 +102,57 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Respawn")
 	float RebootedShowTime = 1.5f;
 
+	/** 플레이어 체력 바 칸 수(100 → 1칸 = 10). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	int32 PlayerHealthSegments = 10;
+
+	/** 이 비율 이하면 체력 바가 붉게 펄스(30/100). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	float LowHealthRatio = 0.3f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	FLinearColor DangerColor = FLinearColor(1.0f, 0.12f, 0.08f, 1.0f);
+
+	/** 피격 시 자기 칸 가장자리 붉은 플래시 시간(초). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	float HitFlashTime = 0.25f;
+
+	/** 적 체력 바 1칸 값(총알 1발 = 10 → 거미로봇 50 = 5칸). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	float EnemyHealthSegmentValue = 10.0f;
+
+	/** 적 체력 바를 피격 후 보여 주는 시간(초). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Health")
+	float EnemyHealthShowTime = 3.0f;
+
+	/** 세이브포인트 저장 배너 시간(초). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Flow")
+	float SaveBannerDuration = 2.5f;
+
+	/** 저장 배너 색(세이브포인트 "저장됨" 초록과 같은 색). */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Flow")
+	FLinearColor SaveColor = FLinearColor(0.15f, 1.0f, 0.42f, 1.0f);
+
 private:
 	void DrawPlayerTag(const FLinearColor& Color, const FString& SlotText, const FString& DisplayName, const FString& RoleText);
 	void DrawBrotherWeapon(const UBrotherCombatComponent& Combat);
 	void DrawSisterHackLink();
-	void DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM);
+	/** InactiveText가 비어 있지 않으면 비활성 마커의 거리 대신 그 문구를 쓴다(적 해킹 쿨타임 RELINK 등). */
+	void DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM, float HeightOffset = 40.0f, const FString& InactiveText = FString());
+	/** 여동생 칸: 적 해킹 대상(ICXHackTarget)에 단말기와 같은 마커. 해킹 가능할 때만 `[X] HACK`(그로기·사망·쿨타임이면 아님). */
+	void DrawEnemyHackMarkers();
+	/** 두 칸 공통: 그로기 중인 적 머리 위 SYSTEM DOWN + 남은 시간 바. */
+	void DrawEnemyStunMarkers();
+	/** 여동생 칸: 적 해킹(주파수 동조) 패널 — 단말기 해킹 오버레이와 같은 스타일. */
+	void DrawEnemyHackSession(const USisterHackComponent& Hack);
+	/** 플레이어 태그 아래 체력 바(10칸 + HP 70/100, 30 이하 붉은 펄스). */
+	void DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearColor& Color);
+	/** 피격 직후 자기 칸 가장자리 붉은 플래시. */
+	void DrawHitFlash(const UCXHealthComponent& Health);
+	/** 적 머리 위 체력 바(피격 후 EnemyHealthShowTime초 또는 오빠의 현재 타겟). */
+	void DrawEnemyHealthBars(const UBrotherCombatComponent* Combat);
+	/** 칸 나눈 체력 바(부분 칸은 비율만큼). */
+	void DrawSegmentBar(float X, float Y, float W, float H, int32 Segments, float Fill01, const FLinearColor& Color, float Gap);
 	/** 공용 상호작용(F/X) 대상 안내 — 문 버튼 앞에서 "[F] PRESS"(해킹 단말기 마커와 같은 문법, 자기 색). */
 	void DrawInteractPrompt(const APawn& MyPawn, const FLinearColor& Color);
 	void DrawPistolIcon(float X, float Y, const FLinearColor& Color);
@@ -113,8 +165,12 @@ private:
 	/** 레벨의 해킹 단말기 목록을 1초마다 갱신한다(매 프레임 전체 액터 순회를 피함). */
 	void RefreshHackTerminals();
 	void DrawTargetMarker(const UBrotherCombatComponent& Combat);
-	void DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName);
+	void DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName, const UCXHealthComponent* PartnerHealth = nullptr);
 	void DrawZoneBanner();
+	/** 세이브 배너(두 칸) / NEXT AREA OFFLINE(두 칸) / 출구 대기 안내(자기 칸). */
+	void DrawFlowNotices(const APawn* MyPawn, bool bDead);
+	/** 맵 이동 카메라 페이드는 월드에만 걸리므로 HUD 위에도 같은 검정을 덮는다. */
+	void DrawTravelFade();
 	/** 사망자 칸: 어둡게 + 비네팅 + 노이즈 + SIGNAL LOST / 남은 초 / 진행 바 / REBOOTING IN ns(게임 오버화면 기획 3장). */
 	void DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLinearColor& Color);
 	/** 부활 직후 REBOOTED. */
@@ -135,6 +191,9 @@ private:
 	float Pulse(float Speed) const;
 
 	TArray<TWeakObjectPtr<AActor>> HackTerminals;
+	/** 체력 바를 그릴 적(ICombatDamageable + UCXHealthComponent)과 적 해킹 대상(ICXHackTarget) — 1초마다 갱신. */
+	TArray<TWeakObjectPtr<AActor>> EnemyActors;
+	TArray<TWeakObjectPtr<AActor>> HackEnemyTargets;
 	FTimerHandle HackRefreshTimer;
 
 	float UIScale = 1.0f;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SisterHackComponent.h"
+#include "CXHackTarget.h"
 #include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -12,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 #include "CXSfx.h"
+#include "CXPlayerLifeComponent.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
@@ -27,6 +29,8 @@ namespace HackSfx
 USisterHackComponent::USisterHackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	// 적 해킹 결과를 클라이언트 → 서버로 보내는 RPC(Server_ApplyEnemyHack)를 쓰려면 복제 컴포넌트여야 한다
+	SetIsReplicatedByDefault(true);
 
 	HackLoopSound = HackSfx::Find(TEXT("SW_Hack_Loop"));
 	HackStartSound = HackSfx::Find(TEXT("SW_Hack_Start"));
@@ -61,6 +65,16 @@ void USisterHackComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	if (!bInputBound)
 	{
 		TryBindInput();
+	}
+
+	// 적 해킹 쿨타임 / 주파수 동조 진행 — 월드 Tick 기준이라 일시정지(ESC 메뉴) 중에는 함께 멈춘다
+	if (EnemyCooldownRemaining > 0.0f && !ActiveEnemy)
+	{
+		EnemyCooldownRemaining = FMath::Max(0.0f, EnemyCooldownRemaining - DeltaTime);
+	}
+	if (ActiveEnemy)
+	{
+		TickEnemyHack(DeltaTime);
 	}
 
 	FocusTimer -= DeltaTime;
@@ -133,6 +147,12 @@ void USisterHackComponent::TryBindInput()
 
 void USisterHackComponent::UpdateFocus()
 {
+	if (ActiveEnemy)
+	{
+		// 적 해킹 중에는 단말기 포커스 없음(TERMINAL ONLINE 표시·감지음 억제)
+		FocusTerminal = nullptr;
+		return;
+	}
 	if (ActiveTerminal)
 	{
 		FocusTerminal = ActiveTerminal;
@@ -171,7 +191,7 @@ void USisterHackComponent::UpdateFocus()
 
 bool USisterHackComponent::WantsInteract()
 {
-	if (ActiveTerminal)
+	if (IsHacking())
 	{
 		return true;
 	}
@@ -181,6 +201,12 @@ bool USisterHackComponent::WantsInteract()
 
 void USisterHackComponent::Interact()
 {
+	if (ActiveEnemy)
+	{
+		// 적 해킹 중 F/X = 주파수 고정(확인)
+		ConfirmFreqLock();
+		return;
+	}
 	if (ActiveTerminal)
 	{
 		// 해킹 중 X: 비밀번호 퍼즐에서는 제출
@@ -217,6 +243,16 @@ void USisterHackComponent::Interact()
 
 void USisterHackComponent::CancelHack()
 {
+	if (ActiveEnemy)
+	{
+		// 결과가 이미 났으면(표시만 남은 상태) 조용히 닫고, 진행 중이면 취소음 — 어느 쪽이든 쿨타임 시작
+		if (!bEnemyResolved)
+		{
+			PlayHackSound(HackCancelSound);
+		}
+		EndEnemySession();
+		return;
+	}
 	if (!ActiveTerminal || ActiveTerminal->GetState() == EHackTerminalState::Hacked)
 	{
 		return;
@@ -224,6 +260,278 @@ void USisterHackComponent::CancelHack()
 	ActiveTerminal->SetInProgress(false);
 	PlayHackSound(HackCancelSound);
 	EndSession();
+}
+
+AActor* USisterHackComponent::FindEnemyHackTarget() const
+{
+	const AActor* Owner = GetOwner();
+	if (!Owner || !GetWorld())
+	{
+		return nullptr;
+	}
+	AActor* Best = nullptr;
+	float BestDist = TNumericLimits<float>::Max();
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		const ICXHackTarget* Target = Cast<ICXHackTarget>(*It);
+		if (!Target || !Target->IsHackTargetAvailable())
+		{
+			continue;
+		}
+		const float Dist = FVector::Dist(Owner->GetActorLocation(), It->GetActorLocation());
+		if (Dist <= Target->GetHackInteractRange() && Dist < BestDist)
+		{
+			Best = *It;
+			BestDist = Dist;
+		}
+	}
+	return Best;
+}
+
+bool USisterHackComponent::TryHackEnemy()
+{
+	// 다른 해킹 중이거나 쿨타임이면 없음(HUD 마커가 쿨타임을 보여 준다)
+	if (IsHacking() || EnemyCooldownRemaining > 0.0f)
+	{
+		return false;
+	}
+	AActor* TargetActor = FindEnemyHackTarget();
+	if (!TargetActor)
+	{
+		return false;
+	}
+	StartEnemyHack(TargetActor);
+	return true;
+}
+
+// ---------------------------------------------------------------- 적 해킹: 주파수 동조(해킹 시스템 기획 10장)
+
+void USisterHackComponent::StartEnemyHack(AActor* Target)
+{
+	// 퍼즐은 여동생을 조작하는 머신에서 로컬로(입력 반응성), 결과만 서버가 승인한다
+	ActiveEnemy = Target;
+	bEnemyResolved = false;
+	FreqStep = 0;
+	FreqElapsed = 0.0f;
+	FreqLockoutUntil = 0.0f;
+	FreqCursor = 0.0f;
+	FreqDirection = 1.0f;
+	PlaceFreqZone();
+	FocusTerminal = nullptr;
+
+	// 단말기 해킹과 같은 규칙: 제자리 고정(최대 4초) — 그동안 거미는 계속 공격한다(오빠가 엄호하는 협동 구간)
+	SetMovementLocked(true);
+	SetFeedback(EHackFeedback::None);
+	PlayHackSound(HackStartSound);
+	StartHackLoop();
+	UE_LOG(LogTemp, Log, TEXT("SisterHack: enemy hack start on %s"), *Target->GetName());
+}
+
+void USisterHackComponent::TickEnemyHack(float DeltaTime)
+{
+	if (bEnemyResolved)
+	{
+		return;
+	}
+
+	// 대상이 죽었거나 다른 이유로 그로기/제거되면 세션 실패(그로기 없음)
+	const ICXHackTarget* Target = Cast<ICXHackTarget>(ActiveEnemy);
+	if (!IsValid(ActiveEnemy) || !Target || !Target->IsHackTargetAvailable())
+	{
+		ResolveEnemyHack(false);
+		return;
+	}
+
+	FreqElapsed += DeltaTime;
+	if (FreqElapsed >= FreqTimeLimit)
+	{
+		ResolveEnemyHack(false);
+		return;
+	}
+
+	// 커서 왕복(막대 양 끝에서 반사)
+	FreqCursor += FreqDirection * GetFreqCursorSpeed() * DeltaTime;
+	for (int32 Guard = 0; Guard < 4 && (FreqCursor > 1.0f || FreqCursor < 0.0f); ++Guard)
+	{
+		if (FreqCursor > 1.0f)
+		{
+			FreqCursor = 2.0f - FreqCursor;
+			FreqDirection = -1.0f;
+		}
+		else
+		{
+			FreqCursor = -FreqCursor;
+			FreqDirection = 1.0f;
+		}
+	}
+	FreqCursor = FMath::Clamp(FreqCursor, 0.0f, 1.0f);
+}
+
+void USisterHackComponent::ConfirmFreqLock()
+{
+	if (!ActiveEnemy || bEnemyResolved || FreqElapsed < FreqLockoutUntil)
+	{
+		return;
+	}
+
+	const bool bHit = FMath::Abs(FreqCursor - FreqZoneCenter) <= GetFreqZoneWidth() * 0.5f;
+	if (!bHit)
+	{
+		// 빗나감: 1단계부터 다시(새 구간) + 짧은 입력 무시. 시간 제한은 계속 흐른다 → 벌칙은 "시간 손해"뿐.
+		FreqStep = 0;
+		FreqLockoutUntil = FreqElapsed + FreqMissLockout;
+		PlaceFreqZone();
+		SetFeedback(EHackFeedback::Denied);
+		return;
+	}
+
+	++FreqStep;
+	if (FreqStep >= GetFreqStepCount())
+	{
+		ResolveEnemyHack(true);
+		return;
+	}
+	// 다음 단계: 구간이 좁아지고 커서가 빨라진다
+	PlaceFreqZone();
+	SetFeedback(EHackFeedback::Correct);
+}
+
+void USisterHackComponent::PlaceFreqZone()
+{
+	// 구간이 막대 안에 들어가고, 커서에서 FreqZoneMinCursorGap 이상 떨어진 위치
+	const float Half = GetFreqZoneWidth() * 0.5f;
+	const float Min = Half + 0.02f;
+	const float Max = 1.0f - Half - 0.02f;
+	float Center = FMath::FRandRange(Min, Max);
+	for (int32 Try = 0; Try < 8 && FMath::Abs(Center - FreqCursor) < FreqZoneMinCursorGap; ++Try)
+	{
+		Center = FMath::FRandRange(Min, Max);
+	}
+	if (FMath::Abs(Center - FreqCursor) < FreqZoneMinCursorGap)
+	{
+		// 운 나쁘면 커서 반대편 끝 쪽으로
+		Center = FreqCursor < 0.5f ? Max : Min;
+	}
+	FreqZoneCenter = Center;
+}
+
+float USisterHackComponent::GetFreqZoneWidth() const
+{
+	if (FreqZoneWidths.Num() == 0)
+	{
+		return 0.2f;
+	}
+	return FMath::Clamp(FreqZoneWidths[FMath::Clamp(FreqStep, 0, FreqZoneWidths.Num() - 1)], 0.02f, 1.0f);
+}
+
+float USisterHackComponent::GetFreqCursorSpeed() const
+{
+	if (FreqCursorSpeeds.Num() == 0)
+	{
+		return 1.5f;
+	}
+	return FMath::Max(0.1f, FreqCursorSpeeds[FMath::Clamp(FreqStep, 0, FreqCursorSpeeds.Num() - 1)]);
+}
+
+void USisterHackComponent::ResolveEnemyHack(bool bSuccess)
+{
+	if (!ActiveEnemy || bEnemyResolved)
+	{
+		return;
+	}
+	bEnemyResolved = true;
+	SetFeedback(bSuccess ? EHackFeedback::Granted : EHackFeedback::Failed);
+	// 결과가 나면 바로 움직일 수 있게(패널은 잠깐 더 보여 줌)
+	SetMovementLocked(false);
+	StopHackLoop();
+
+	if (bSuccess)
+	{
+		AActor* Target = ActiveEnemy;
+		if (GetOwner()->HasAuthority())
+		{
+			ApplyEnemyHackOnServer(Target);
+		}
+		else
+		{
+			Server_ApplyEnemyHack(Target);
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("SisterHack: enemy hack %s on %s (t=%.2f, step %d)"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		*GetNameSafe(ActiveEnemy), FreqElapsed, FreqStep);
+
+	GetWorld()->GetTimerManager().SetTimer(EnemyResultTimer, this, &USisterHackComponent::EndEnemySession, FMath::Max(0.05f, EnemyResultHoldTime), false);
+}
+
+void USisterHackComponent::EndEnemySession()
+{
+	GetWorld()->GetTimerManager().ClearTimer(EnemyResultTimer);
+	ActiveEnemy = nullptr;
+	bEnemyResolved = false;
+	FreqStep = 0;
+	EnemyCooldownRemaining = EnemyHackCooldown;
+	SetMovementLocked(false);
+	StopHackLoop();
+}
+
+void USisterHackComponent::Server_ApplyEnemyHack_Implementation(AActor* Target)
+{
+	ApplyEnemyHackOnServer(Target);
+}
+
+bool USisterHackComponent::ApplyEnemyHackOnServer(AActor* Target)
+{
+	// 서버 재검증: 살아 있는 여동생, 해킹 가능한 대상(생존·그로기 아님), 거리(+여유), 서버 기준 쿨타임
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	ICXHackTarget* HackTarget = Cast<ICXHackTarget>(Target);
+	if (!Pawn || !HackTarget || !IsValid(Target) || !UCXPlayerLifeComponent::IsPawnAlive(Pawn) || !HackTarget->IsHackTargetAvailable())
+	{
+		return false;
+	}
+	const float Dist = FVector::Dist(Pawn->GetActorLocation(), Target->GetActorLocation());
+	if (Dist > HackTarget->GetHackInteractRange() + EnemyHackServerRangeSlack)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SisterHack: server rejected enemy hack on %s (dist %.0f)"), *Target->GetName(), Dist);
+		return false;
+	}
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastServerEnemyHackTime < EnemyHackCooldown)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SisterHack: server rejected enemy hack on %s (cooldown)"), *Target->GetName());
+		return false;
+	}
+	LastServerEnemyHackTime = Now;
+	return HackTarget->ApplyHackSuccess(Pawn);
+}
+
+FString USisterHackComponent::DebugFreqLockPress(bool bInsideZone)
+{
+	if (ActiveEnemy && !bEnemyResolved)
+	{
+		// 입력 무시 시간도 테스트에서는 건너뛴다
+		FreqLockoutUntil = 0.0f;
+		const float Half = GetFreqZoneWidth() * 0.5f;
+		if (bInsideZone)
+		{
+			FreqCursor = FreqZoneCenter;
+		}
+		else
+		{
+			// 구간 바깥에서 더 넓은 쪽
+			FreqCursor = FreqZoneCenter > 0.5f ? FMath::Max(0.0f, FreqZoneCenter - Half - 0.1f) : FMath::Min(1.0f, FreqZoneCenter + Half + 0.1f);
+		}
+		ConfirmFreqLock();
+	}
+	return GetEnemyHackDebugState();
+}
+
+FString USisterHackComponent::GetEnemyHackDebugState() const
+{
+	static const TCHAR* FeedbackNames[] = { TEXT("None"), TEXT("Correct"), TEXT("RoundClear"), TEXT("Denied"), TEXT("Granted"), TEXT("Failed") };
+	return FString::Printf(TEXT("enemyHack=%s resolved=%d step=%d/%d cursor=%.2f zone=%.2f+-%.3f elapsed=%.2f/%.1f feedback=%s cooldown=%.2f moveLocked=%d"),
+		*GetNameSafe(ActiveEnemy), bEnemyResolved ? 1 : 0, FreqStep, GetFreqStepCount(), FreqCursor,
+		FreqZoneCenter, GetFreqZoneWidth() * 0.5f, FreqElapsed, FreqTimeLimit,
+		FeedbackNames[FMath::Clamp(static_cast<int32>(Feedback), 0, 5)], EnemyCooldownRemaining, bMovementLocked ? 1 : 0);
 }
 
 void USisterHackComponent::InputDirection(EHackArrow Direction)
@@ -332,10 +640,11 @@ void USisterHackComponent::EndSession()
 void USisterHackComponent::SetMovementLocked(bool bLocked)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
-	if (!Character)
+	if (!Character || bLocked == bMovementLocked)
 	{
 		return;
 	}
+	bMovementLocked = bLocked;
 	UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
 	if (bLocked)
 	{
@@ -358,9 +667,10 @@ void USisterHackComponent::SetFeedback(EHackFeedback NewFeedback)
 	switch (NewFeedback)
 	{
 	case EHackFeedback::Correct:
-		// ArrowIndex는 이미 다음 칸 — 맞힌 순서(1부터)마다 조금씩 높게
-		PlayHackSound(CorrectSound, 1.0f + CorrectPitchStep * FMath::Max(0, ArrowIndex - 1));
+		// ArrowIndex는 이미 다음 칸 — 맞힌 순서(1부터)마다 조금씩 높게. 적 해킹은 단계가 3개뿐이라 두 칸씩 올린다.
+		PlayHackSound(CorrectSound, 1.0f + CorrectPitchStep * FMath::Max(0, (ActiveEnemy ? FreqStep * 2 : ArrowIndex) - 1));
 		break;
+	case EHackFeedback::Failed:		PlayHackSound(DeniedSound, 0.8f); break;
 	case EHackFeedback::RoundClear:	PlayHackSound(RoundClearSound); break;
 	case EHackFeedback::Denied:		PlayHackSound(DeniedSound); break;
 	case EHackFeedback::Granted:	PlayHackSound(GrantedSound); break;
@@ -428,6 +738,10 @@ float USisterHackComponent::GetFeedbackAge() const
 
 float USisterHackComponent::GetProgress() const
 {
+	if (ActiveEnemy)
+	{
+		return static_cast<float>(FreqStep) / GetFreqStepCount();
+	}
 	if (!ActiveTerminal)
 	{
 		return 0.0f;

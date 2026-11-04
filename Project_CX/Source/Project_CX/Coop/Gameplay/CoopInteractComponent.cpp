@@ -217,6 +217,12 @@ void UCoopInteractComponent::Interact()
 	AActor* Target = FocusTarget.Get();
 	if (!Target)
 	{
+		// 4) 적 해킹(거미로봇 — ICXHackTarget): 주파수 동조 세션 시작. 단말기·문 버튼은 자리가 정해진 목표라 우선하고,
+		//    거미는 움직이므로 한 걸음 비켜서면 해킹할 수 있다(해킹 시스템 기획 10.5).
+		if (USisterHackComponent* Hack = Pawn->FindComponentByClass<USisterHackComponent>())
+		{
+			Hack->TryHackEnemy();
+		}
 		return;
 	}
 	if (Pawn->HasAuthority())

@@ -43,6 +43,8 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_Sister",
 			"Project_CX/Variant_Sister/Animation",
 			"Project_CX/Variant_Sister/Hacking",
+			"Project_CX/Variant_SpiderBot",
+			"Project_CX/Variant_SpiderBot/AI",
 			"Project_CX/Coop",
 			"Project_CX/Coop/UI",
 			"Project_CX/Coop/Gameplay",

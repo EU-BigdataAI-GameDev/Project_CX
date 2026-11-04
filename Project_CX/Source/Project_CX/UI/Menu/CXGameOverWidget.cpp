@@ -7,6 +7,7 @@
 #include "CXPauseMenuWidget.h"
 #include "CXGameInstance.h"
 #include "CXAudioSubsystem.h"
+#include "CXSaveGame.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -187,7 +188,7 @@ void UCXGameOverWidget::BuildMenu()
 		S->SetHorizontalAlignment(HAlign_Center);
 	}
 
-	// 재시작 지점 안내(세이브포인트 시스템 없음 → 맵 시작 지점)
+	// 재시작 지점 안내(NativeConstruct에서 세이브 유무로 갱신 — 세이브포인트·맵 이동 기획 4장)
 	InfoText = MakeText(TEXT("RESTART FROM: MAP START"), 14, TEXT("Regular"), 160, CXMenuStyle::TextDim);
 	if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(InfoText))
 	{
@@ -252,6 +253,10 @@ void UCXGameOverWidget::NativeConstruct()
 		FocusPlayer = GI->ResolvePlayerForInput(false, INPUTDEVICEID_NONE);
 	}
 	SetFocusItem(CXGameOver::Retry);
+
+	// 이 맵의 세이브가 있으면 RETRY = 마지막 세이브포인트
+	const bool bHasMapSave = UCXSaveGame::LoadSlotForMap(UCXSaveGame::GetWorldMapPackageName(this)) != nullptr;
+	InfoText->SetText(FText::FromString(bHasMapSave ? TEXT("RESTART FROM: LAST SAVE POINT") : TEXT("RESTART FROM: MAP START")));
 
 	Elapsed = 0.0f;
 	bLeaving = false;
@@ -409,10 +414,13 @@ void UCXGameOverWidget::BeginLeave(bool bToTitle)
 	}
 	else
 	{
-		// 재시작: 세이브포인트 시스템이 없어 현재 맵을 처음부터(기본 PlayerStart — 2P 시작 태그 로직 그대로).
-		// TODO(세이브포인트): UCXSaveGame의 맵·세이브포인트가 있으면 그 맵을 열고 세이브포인트에 스폰.
-		const UWorld* World = GetWorld();
-		LeaveTarget = World ? UWorld::RemovePIEPrefix(World->GetPackage()->GetName()) : FString();
+		// 재시작: 현재 맵을 다시 연다. 세이브(CX_Slot0)의 맵이 현재 맵이면 그 세이브포인트에서 두 사람 스폰
+		// (게임모드 InitGame/RestartPlayer가 PendingContinueSave를 소비), 아니면 맵 시작 지점(2P 시작 태그 로직 그대로).
+		LeaveTarget = UCXSaveGame::GetWorldMapPackageName(this);
+		if (UCXGameInstance* GI = UCXGameInstance::Get(this))
+		{
+			GI->PendingContinueSave = UCXSaveGame::LoadSlotForMap(LeaveTarget);
+		}
 	}
 
 	if (UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(this))
