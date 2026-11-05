@@ -300,6 +300,14 @@ void UBrotherCombatComponent::Fire()
 		return;
 	}
 
+	// 연사 제한: FireInterval 안의 클릭은 무시(탄약도 소모하지 않는다)
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastFireTime < FireInterval)
+	{
+		return;
+	}
+	LastFireTime = Now;
+
 	const FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRotation().RotateVector(MuzzleOffset);
 
 	FVector AimDirection;

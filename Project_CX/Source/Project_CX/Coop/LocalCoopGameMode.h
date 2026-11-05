@@ -172,6 +172,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
 	AActor* DebugSpawnMemoryTerminal(int32 LocalPlayerIndex, float OffsetY, float DepthX);
 
+	/** 테스트용 콘솔 명령: 해킹 강제 성공. 여동생이 해킹 중이면 그 단말기, 아니면 플레이어에게 가장 가까운 잠긴 단말기를 즉시 해킹 완료. */
+	UFUNCTION(Exec)
+	void CXSolveHack();
+
 	/** 테스트용 콘솔 명령: 첫 플레이어 근처에 출구 문을 런타임 스폰(레벨에 저장하지 않음). 예) CXSpawnExitDoor 500 150 */
 	UFUNCTION(Exec)
 	void CXSpawnExitDoor(float OffsetY = 500.0f, float OffsetX = 150.0f);

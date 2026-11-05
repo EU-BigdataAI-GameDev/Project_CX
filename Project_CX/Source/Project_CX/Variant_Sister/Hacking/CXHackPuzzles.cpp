@@ -112,8 +112,7 @@ ECXFreqLockStep FCXFreqLockPuzzle::Confirm()
 	}
 	if (!IsCursorInZone())
 	{
-		// 빗나감: 1단계부터 다시(새 구간) + 짧은 입력 무시. 시간 제한이 있으면 계속 흐른다 → 벌칙은 "시간 손해"뿐.
-		Step = 0;
+		// 빗나감: 단계는 유지하고 같은 단계의 새 구간 + 짧은 입력 무시(1단계로 되돌리지 않음 — 난이도 완화).
 		LockoutUntil = Elapsed + MissLockout;
 		PlaceZone();
 		return ECXFreqLockStep::Miss;

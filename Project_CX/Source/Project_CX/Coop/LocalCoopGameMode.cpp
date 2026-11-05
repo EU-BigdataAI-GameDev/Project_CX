@@ -23,6 +23,7 @@
 #include "CXSavePoint.h"
 #include "CXLevelExit.h"
 #include "HackTerminal.h"
+#include "SisterHackComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
@@ -306,6 +307,64 @@ void ALocalCoopGameMode::NotifyGameCleared()
 void ALocalCoopGameMode::PauseForGameClear()
 {
 	UGameplayStatics::SetGamePaused(this, true);
+}
+
+void ALocalCoopGameMode::CXSolveHack()
+{
+	// 1순위: 지금 해킹 중인(또는 바라보는) 단말기
+	AHackTerminal* Target = nullptr;
+	USisterHackComponent* HackComp = nullptr;
+	TArray<FVector> PlayerLocations;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			continue;
+		}
+		PlayerLocations.Add(Pawn->GetActorLocation());
+		if (USisterHackComponent* Comp = Pawn->FindComponentByClass<USisterHackComponent>())
+		{
+			HackComp = Comp;
+			Target = Comp->GetActiveTerminal() ? Comp->GetActiveTerminal() : Comp->GetFocusTerminal();
+		}
+	}
+
+	// 2순위: 플레이어에게 가장 가까운 잠긴 단말기
+	if (!Target || Target->GetState() == EHackTerminalState::Hacked)
+	{
+		Target = nullptr;
+		float BestDistSq = TNumericLimits<float>::Max();
+		for (TActorIterator<AHackTerminal> It(GetWorld()); It; ++It)
+		{
+			if (It->GetState() == EHackTerminalState::Hacked)
+			{
+				continue;
+			}
+			for (const FVector& Loc : PlayerLocations)
+			{
+				const float DistSq = FVector::DistSquared(Loc, It->GetActorLocation());
+				if (DistSq < BestDistSq)
+				{
+					BestDistSq = DistSq;
+					Target = *It;
+				}
+			}
+		}
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Log, TEXT("CXSolveHack: 잠긴 단말기가 없습니다."));
+		return;
+	}
+	// 진행 중인 세션을 닫고(이동 잠금 해제) 단말기를 해킹 완료 처리 → 연결된 게이트가 열린다
+	if (HackComp && HackComp->IsHacking())
+	{
+		HackComp->CancelHack();
+	}
+	Target->MarkHacked();
+	UE_LOG(LogTemp, Log, TEXT("CXSolveHack: %s 해킹 완료"), *Target->TerminalName);
 }
 
 void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)

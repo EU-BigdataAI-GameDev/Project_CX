@@ -132,6 +132,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	float BulletDamage = 10.0f;
 
+	/** 연사 간격(초). 좌클릭을 빠르게 눌러도 이 간격보다 빨리 쏘지 않는다(2026-11-04 추가 — 발사 속도 완화). */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
+	float FireInterval = 0.3f;
+
+	/** 마지막 발사 시각(월드 시간). FireInterval 판정용. */
+	double LastFireTime = -1000.0;
+
 	/** 무기 메시/소켓이 없으므로 캐릭터 기준 상대 오프셋으로 스폰 지점을 계산한다(자동 조준 사격 구현.md 4.2). */
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	FVector MuzzleOffset = FVector(60.0f, 0.0f, 60.0f);

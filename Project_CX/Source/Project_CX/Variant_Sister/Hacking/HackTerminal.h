@@ -97,11 +97,11 @@ public:
 
 	/** 단계별 목표 구간 폭(막대 대비 0~1). 원소 수 = 필요한 연속 적중 수. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack|Frequency", meta = (EditCondition = "PuzzleType == EHackPuzzleType::FrequencyLock"))
-	TArray<float> FreqZoneWidths = { 0.24f, 0.18f, 0.13f };
+	TArray<float> FreqZoneWidths = { 0.34f, 0.28f, 0.22f };
 
 	/** 단계별 커서 속도(초당 막대 길이). 왕복하므로 한 번 건너는 시간 = 1 / 속도. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack|Frequency", meta = (EditCondition = "PuzzleType == EHackPuzzleType::FrequencyLock"))
-	TArray<float> FreqCursorSpeeds = { 1.5f, 2.0f, 2.6f };
+	TArray<float> FreqCursorSpeeds = { 0.9f, 1.1f, 1.35f };
 
 	/**
 	 *  제한 시간(초). 0이면 없음(기본 — 단말기는 전투 압박이 없다). 0보다 크면 시간이 다 됐을 때 실패가 아니라

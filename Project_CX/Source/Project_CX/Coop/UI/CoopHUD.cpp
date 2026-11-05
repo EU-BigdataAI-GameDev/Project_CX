@@ -1001,16 +1001,18 @@ void ACoopHUD::DrawFreqLockBar(const USisterHackComponent& Hack, float BarX, flo
 	DrawLine(BarX, BarY, BarX + BarW, BarY, Accent.CopyWithNewOpacity(0.5f), 1.0f);
 	DrawLine(BarX, BarY + BarH, BarX + BarW, BarY + BarH, Accent.CopyWithNewOpacity(0.5f), 1.0f);
 
-	// 파형(노이즈 섞인 사인) — 해킹 중인 신호 느낌
+	// 파형(배경 장식) — 성능 최적화: 선분 64 → 20, 두께 1(얇은 선은 Canvas가 단순 라인으로 일괄 처리),
+	// 느린 흐름으로 바꿔 빠른 커서와 겹쳐 보일 때의 끊김(저더)도 줄인다.
 	const float Now = GetWorld()->GetTimeSeconds();
-	const int32 Segs = 64;
-	FVector2D Prev(BarX, Mid);
+	constexpr int32 Segs = 20;
+	const float Amp = BarH * 0.26f;
+	const FLinearColor WaveColor = Accent.CopyWithNewOpacity(0.22f);
+	FVector2D Prev(BarX, Mid + FMath::Sin(-Now * 2.0f) * Amp);
 	for (int32 i = 1; i <= Segs; ++i)
 	{
 		const float T = static_cast<float>(i) / Segs;
-		const float Amp = BarH * 0.32f * (0.55f + 0.45f * FMath::Sin(T * 7.0f + Now * 3.1f));
-		const FVector2D Cur(BarX + BarW * T, Mid + FMath::Sin(T * 38.0f - Now * 11.0f) * Amp);
-		DrawLine(Prev.X, Prev.Y, Cur.X, Cur.Y, Accent.CopyWithNewOpacity(0.28f), 1.5f);
+		const FVector2D Cur(BarX + BarW * T, Mid + FMath::Sin(T * 18.0f - Now * 2.0f) * Amp);
+		DrawLine(Prev.X, Prev.Y, Cur.X, Cur.Y, WaveColor, 1.0f);
 		Prev = Cur;
 	}
 
