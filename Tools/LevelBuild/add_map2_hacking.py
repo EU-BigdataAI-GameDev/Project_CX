@@ -29,6 +29,9 @@ LANE_F, LANE_B = -120.0, 150.0
 PATH_X = -60.0          # 레인 앞쪽 통로(검사용)
 GATE_X0, GATE_X1 = -125.0, 155.0   # 앞/뒤 경계벽(COL_Bound_Front/Back)과 살짝 겹치게
 
+# 2026-11-04: Map2 는 scale_map2_vertical.py 로 세로 1.1배가 됐다(태그 GEN_Map2VScale 표식 액터). 아래 게이트 Z 는 1.1배 전 기준이고,
+# 표식이 있으면 place() 가 VZ = 1.1 을 곱한다(단말기·단서 바닥은 원래도 COL 트레이스로 구하므로 그대로 맞는다. 단서 높이 230 은 유지).
+MAP2_VSCALE_TAG = "GEN_Map2VScale"
 TERMINALS = [
     # label, terminal_name, puzzle, (x, y), gate(label, y, z0, z1, bar_z0)
     ("HackTerminal_M2_Passcode", "SHUTTER_CTRL-5", "PASSCODE", (110.0, 5920.0), ("HackGate_M2_S3Door", 5995.0, 0.0, 262.0, 0.0)),
@@ -38,6 +41,17 @@ TERMINALS = [
 # 비밀번호 단서: label, y, digit_index(자리 순서를 섞어 둠 — 오빠 동선 순서로 #2 → #4 → #1 → #3)
 CLUES = [("HackClue_M2_S1_Canal", 1300.0, 1), ("HackClue_M2_S2_R1", 3250.0, 3), ("HackClue_M2_S2_R2", 4250.0, 0), ("HackClue_M2_S2_R4", 5180.0, 2)]
 CLUE_X, CLUE_H = 155.0, 230.0
+# 2026-11-04: widen_lane_front.py 로 레인 앞(카메라 쪽)이 넓어졌으면(표식 액터 태그 'LaneFrontDelta=<cm>', Map2 1.1배 = 27)
+# 게이트 COL 앞 끝·레일·네온 막대를 그만큼 앞으로 늘린다 → 재실행해도 넓어진 레인 전체를 막는다.
+LANE_FRONT_TAG = "LaneFrontDelta="
+
+
+def lane_front_delta(eas):
+    for a in eas.get_all_level_actors():
+        for t in a.tags:
+            if str(t).startswith(LANE_FRONT_TAG):
+                return float(str(t)[len(LANE_FRONT_TAG):])
+    return 0.0
 
 
 def place():
@@ -90,11 +104,18 @@ def place():
         sm.set_editor_property("cast_shadow", False)
         return c
 
+    ld = lane_front_delta(eas)
+    gx0, lf = GATE_X0 - ld, LANE_F - ld
+    bars_x = [float(x) for x in range(-100, 141, 40)]
+    while bars_x[0] - 40 >= lf + 5:          # 넓어진 앞쪽 폭에도 같은 간격(-140)
+        bars_x.insert(0, bars_x[0] - 40)
+    print("lane front delta:", ld, "gate X", gx0, "..", GATE_X1, "bars", bars_x)
+
     def laser_gate(label, y, z0, z1, bar_z0):
         folder = f"{FOLDER}/Gate_{label.split('_')[-1]}"
         parts = []
-        col = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector((GATE_X0 + GATE_X1) / 2, y, (z0 + z1) / 2))
-        col.set_actor_scale3d(unreal.Vector((GATE_X1 - GATE_X0) / 100, 0.3, (z1 - z0) / 100))
+        col = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector((gx0 + GATE_X1) / 2, y, (z0 + z1) / 2))
+        col.set_actor_scale3d(unreal.Vector((GATE_X1 - gx0) / 100, 0.3, (z1 - z0) / 100))
         c = col.static_mesh_component
         c.set_collision_profile_name("BlockAll")
         c.set_collision_response_to_channel(unreal.CollisionChannel.ECC_CAMERA, unreal.CollisionResponseType.ECR_IGNORE)
@@ -103,10 +124,10 @@ def place():
         parts.append(finish(col, folder, "COL_" + label, "gate_col", {"y": [y - 15, y + 15], "z": [z0, z1]}))
         mi = unreal.load_asset(NEON_RED)
         h = z1 - bar_z0
-        for i, x in enumerate(range(-100, 141, 40)):   # 레인 안쪽만(카메라 앞 X < -120 금지)
+        for i, x in enumerate(bars_x):   # 레인 안쪽만(카메라 앞 X < 레인 앞 경계 금지)
             parts.append(finish(neon_cube(unreal.Vector(x, y, bar_z0 + h / 2), unreal.Vector(0.04, 0.04, h / 100), mi), folder, "NEON_%s_%02d" % (label, i), "neon"))
         for zz in (bar_z0 + 4, z1 - 4):
-            parts.append(finish(neon_cube(unreal.Vector((LANE_F + LANE_B) / 2, y, zz), unreal.Vector((LANE_B - LANE_F) / 100, 0.06, 0.06), mi),
+            parts.append(finish(neon_cube(unreal.Vector((lf + LANE_B) / 2, y, zz), unreal.Vector((LANE_B - lf) / 100, 0.06, 0.06), mi),
                                 folder, "NEON_%s_Rail_%d" % (label, int(zz)), "neon"))
         return parts
 
@@ -128,9 +149,11 @@ def place():
         t.set_editor_property("unlock_actors", gate_parts)
         return finish(t, FOLDER, label, "hackterminal", {"name": name, "puzzle": puzzle, "floor": under, "gate_y": gate_y, "unlocks": len(gate_parts)})
 
+    vz = 1.1 if any(MAP2_VSCALE_TAG in [str(t) for t in a.tags] for a in eas.get_all_level_actors()) else 1.0
+    print("vertical scale marker:", vz)
     terms = {}
     for label, name, puzzle, (x, y), (glabel, gy, gz0, gz1, gbz) in TERMINALS:
-        gate = laser_gate(glabel, gy, gz0, gz1, gbz)
+        gate = laser_gate(glabel, gy, gz0 * vz, gz1 * vz, gbz * vz)
         terms[puzzle] = terminal(label, name, puzzle, x, y, gate, gy)
 
     for label, y, idx in CLUES:
@@ -209,7 +232,7 @@ def validate(world, eas, ignore):
         top = go.z + ge.z
         _, cap = trace(unreal.Vector(PATH_X, (gy0 + gy1) / 2, top + 2), unreal.Vector(PATH_X, (gy0 + gy1) / 2, top + 400), [gcol[0]])
         capped = cap is not None and cap.get_actor_label().startswith("COL_") and cap.get_actor_label() != gcol[0].get_actor_label()
-        check(go.x - ge.x <= LANE_F - 4 and go.x + ge.x >= LANE_B + 4 and ((top - tl.z) >= 300 or capped) and gz <= tl.z + 1,
+        check(go.x - ge.x <= LANE_F - lane_front_delta(eas) - 4 and go.x + ge.x >= LANE_B + 4 and ((top - tl.z) >= 300 or capped) and gz <= tl.z + 1,
               f"  gate COL X {round(go.x - ge.x)}..{round(go.x + ge.x)} Z {round(gz)}..{round(top)} (>= floor+300 above terminal floor {round(tl.z)}, or capped by {cap.get_actor_label() if capped else None})")
         # 단말기 앞 ~ 게이트 사이 레인 앞쪽 통로(X -60)에서 오빠 캡슐이 막히지 않음(30cm 간격)
         blocked = []

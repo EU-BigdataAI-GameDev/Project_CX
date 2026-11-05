@@ -59,18 +59,39 @@ MAP1_V2 = (
 
 # Map2 v2 뒷벽: 판잣집/배경 열(X 166~642) 바로 뒤 X 660~685. S3 공동주택은 실내 뒷벽(X 150~185)이 막지만 지붕(1092) 위와
 # S2/S4에서 비스듬히 보이는 틈 때문에 같은 높이로 이어 간다. S5 동굴은 바위(X 250~1305) 사이 틈 뒤 X 1320~1345에 같은 벽.
-MAP2_V2 = (
-    SPAN("FILL_S1_BackWall_A", "Art/S1_FloodedCanal/WallFill", (660, 685, -800, 1000, -600, 760), (600, 680), 201)
-    + SPAN("FILL_S1_BackWall_B", "Art/S1_FloodedCanal/WallFill", (660, 685, 1000, 2400, -600, 1050), (600, 550), 202)
-    + SPAN("FILL_S2_BackWall_A", "Art/S2_Split/WallFill", (660, 685, 2400, 4600, -400, 1050), (600, 725), 203)
-    + SPAN("FILL_S2_BackWall_B", "Art/S2_Split/WallFill", (660, 685, 4600, 6000, -400, 1400), (600, 600), 204)
-    + SPAN("FILL_S3_BackWall", "Art/S3_Tenement/WallFill", (660, 685, 6000, 9400, -400, 1400), (600, 600), 205)
-    + SPAN("FILL_S4_BackWall", "Art/S4_RooftopMarket/WallFill", (660, 685, 9400, 11400, -400, 1450), (600, 620), 206)
-    # S4 벽 끝(11400) 너머·출구 게이트 너머를 비스듬히 보는 시선까지 막도록 Y 10600~15000(양 끝은 앞 벽 뒤라 평소엔 가려짐)
-    + SPAN("FILL_S5_BackWall", "Art/S5_CaveDescent/WallFill", (1320, 1345, 10600, 15000, -800, 1300), (730, 700), 207)
-    # 시작 끝벽 너머 산업 벽판(FILL_S1_StartBackdrop, 아래 끝 -300) 밑으로 보이는 띠
-    + SPAN("FILL_S0_StartBackdropLow", "Art/S1_FloodedCanal/WallFill", (775, 800, -1700, -780, -700, -250), (460, 450), 208, win_rate=0)
-)
+# 2026-11-04: Map2 는 scale_map2_vertical.py 로 세로 1.1배가 됐다(레벨에 태그 GEN_Map2VScale 표식 액터). 아래 Z 값은 1.1배 전 기준이고,
+#             표식이 있으면 run() 이 vz=1.1 로 Z·타일 높이·Z 스케일을 곱해 지금 레벨과 같은 자리에 다시 만든다(타일 개수·메시 선택은 같음).
+def _map2_v2(vz=1.0):
+    def Z(box):
+        return box[:4] + (box[4] * vz, box[5] * vz)
+    return (
+        SPAN("FILL_S1_BackWall_A", "Art/S1_FloodedCanal/WallFill", Z((660, 685, -800, 1000, -600, 760)), (600, 680 * vz), 201)
+        + SPAN("FILL_S1_BackWall_B", "Art/S1_FloodedCanal/WallFill", Z((660, 685, 1000, 2400, -600, 1050)), (600, 550 * vz), 202)
+        + SPAN("FILL_S2_BackWall_A", "Art/S2_Split/WallFill", Z((660, 685, 2400, 4600, -400, 1050)), (600, 725 * vz), 203)
+        + SPAN("FILL_S2_BackWall_B", "Art/S2_Split/WallFill", Z((660, 685, 4600, 6000, -400, 1400)), (600, 600 * vz), 204)
+        + SPAN("FILL_S3_BackWall", "Art/S3_Tenement/WallFill", Z((660, 685, 6000, 9400, -400, 1400)), (600, 600 * vz), 205)
+        + SPAN("FILL_S4_BackWall", "Art/S4_RooftopMarket/WallFill", Z((660, 685, 9400, 11400, -400, 1450)), (600, 620 * vz), 206)
+        # S4 벽 끝(11400) 너머·출구 게이트 너머를 비스듬히 보는 시선까지 막도록 Y 10600~15000(양 끝은 앞 벽 뒤라 평소엔 가려짐)
+        + SPAN("FILL_S5_BackWall", "Art/S5_CaveDescent/WallFill", Z((1320, 1345, 10600, 15000, -800, 1300)), (730, 700 * vz), 207)
+        # 시작 끝벽 너머 산업 벽판(FILL_S1_StartBackdrop, 아래 끝 -300) 밑으로 보이는 띠
+        + SPAN("FILL_S0_StartBackdropLow", "Art/S1_FloodedCanal/WallFill", Z((775, 800, -1700, -780, -700, -250)), (460, 450 * vz), 208, win_rate=0)
+    )
+
+
+def _map2_fills(vz=1.0):
+    return [
+        # 시작 끝벽(Y -830, X -120~700) 너머 빈 하늘 → 끝벽과 같은 산업 벽판(같은 Z 스케일 1.43)을 끝벽 뒤에 ㄱ자로 붙인다
+        dict(label="FILL_S1_StartBackdrop", ref="SM_Slums_Wall_03a", folder="Art/S1_FloodedCanal/WallFill",
+             center=(740, -1380, 149.75 * vz), yaw=90, scale=(1.0, 0.94, 1.43 * vz)),
+        # 출구 게이트 벽(Y 14232) 너머 빈 하늘 → 같은 방식
+        dict(label="FILL_S5_EndBackdrop", ref="SM_Slums_Wall_03a2", folder="Art/S5_CaveDescent/WallFill",
+             center=(740, 14940, 83.0 * vz), yaw=90, scale=(1.1667, 0.94, 1.6 * vz)),
+    ] + _map2_v2(vz)
+
+
+MAP2_V2 = _map2_v2(1.0)
+MAP2_VSCALE_TAG = "GEN_Map2VScale"   # scale_map2_vertical.py 표식
+
 
 FILLS = {
     "Map1_SoulCity1": [
@@ -99,15 +120,22 @@ FILLS = {
         dict(label="FILL_S5_EndBackdrop", ref="SM_Slums_Wall_03a7", folder="Art/S5_Escape/WallFill",
              center=(560, 13425, 151.75), yaw=90, scale=(1.29, 1.0, 1.5)),
     ] + MAP1_V2,
-    "Map2_SoulCity2": [
-        # 시작 끝벽(Y -830, X -120~700) 너머 빈 하늘 → 끝벽과 같은 산업 벽판(같은 Z 스케일 1.43)을 끝벽 뒤에 ㄱ자로 붙인다
-        dict(label="FILL_S1_StartBackdrop", ref="SM_Slums_Wall_03a", folder="Art/S1_FloodedCanal/WallFill",
-             center=(740, -1380, 149.75), yaw=90, scale=(1.0, 0.94, 1.43)),
-        # 출구 게이트 벽(Y 14232) 너머 빈 하늘 → 같은 방식
-        dict(label="FILL_S5_EndBackdrop", ref="SM_Slums_Wall_03a2", folder="Art/S5_CaveDescent/WallFill",
-             center=(740, 14940, 83.0), yaw=90, scale=(1.1667, 0.94, 1.6)),
-    ] + MAP2_V2,
+    "Map2_SoulCity2": _map2_fills(1.0),
 }
+
+
+def _vz(f, vz):
+    """세로 1.1배(scale_map1_vertical.py) 뒤 레벨에 맞춘 사본: center/fit/box 의 Z × vz, 직접 준 scale 의 Z × vz.
+    scale 을 생략한 항목은 ref 액터의 스케일(이미 1.1배됨)을 쓰므로 곱하지 않는다."""
+    f = dict(f)
+    if "center" in f:
+        c = f["center"]; f["center"] = (c[0], c[1], c[2] * vz)
+    if "scale" in f:
+        sc = f["scale"]; f["scale"] = (sc[0], sc[1], sc[2] * vz)
+    for k in ("fit", "box"):
+        if k in f:
+            b = f[k]; f[k] = tuple(b[:4]) + (b[4] * vz, b[5] * vz)
+    return f
 
 
 def _ues():
@@ -216,6 +244,13 @@ def run():
     world = _ues().get_editor_world()
     name = world.get_name()
     fills = FILLS.get(name)
+    scaled = any(MAP2_VSCALE_TAG in [str(t) for t in a.tags] for a in _eas().get_all_level_actors())
+    if name == "Map2_SoulCity2" and scaled:
+        fills = _map2_fills(1.1)
+        print("fill_wall_holes: Map2 vertical scale x1.1 marker found -> Z x1.1")
+    elif name == "Map1_SoulCity1" and scaled:
+        fills = [_vz(f, 1.1) for f in fills]
+        print("fill_wall_holes: Map1 vertical scale x1.1 marker found (scale_map1_vertical.py) -> Z x1.1")
     if fills is None:
         print("fill_wall_holes: no entry for", name)
         return

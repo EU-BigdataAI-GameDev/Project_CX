@@ -67,11 +67,25 @@ def terminal(label, x, y, name, puzzle, folder):
     return finish(t, folder, label)
 
 
+# 2026-11-04: widen_lane_front.py 로 레인 앞(카메라 쪽)이 넓어졌으면(표식 액터 태그 'LaneFrontDelta=<cm>', Map1 1.1배 = 52)
+# 게이트 COL 앞 끝·레일을 그만큼 앞으로 늘리고, 넓어진 폭에 같은 간격(50)으로 막대를 더한다 → 재실행해도 레인 전체를 막는다.
+LANE_FRONT_TAG = "LaneFrontDelta="
+LD = 0.0
+for _a in eas.get_all_level_actors():
+    for _t in _a.tags:
+        if str(_t).startswith(LANE_FRONT_TAG):
+            LD = float(str(_t)[len(LANE_FRONT_TAG):])
+GX0, GX1 = -250.0 - LD, 250.0          # 게이트 COL·레일 X 범위(바닥 COL 과 같은 앞 끝)
+BARS_X = [float(x) for x in range(-225, 251, 50)]
+while BARS_X[0] - 50 >= -260.0 - LD + 5:   # 새 앞 경계(-260 - LD) 안쪽만
+    BARS_X.insert(0, BARS_X[0] - 50)
+
+
 def laser_gate(label, y, z0, z1, folder):
-    """레인 전체(X -250~250)를 막는 투명 충돌 + 붉은 네온 막대."""
+    """레인 전체(X GX0~250, 원래 -250~250)를 막는 투명 충돌 + 붉은 네온 막대."""
     parts = []
-    col = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector(0, y, (z0 + z1) / 2))
-    col.set_actor_scale3d(unreal.Vector(5.0, 0.3, (z1 - z0) / 100))
+    col = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector((GX0 + GX1) / 2, y, (z0 + z1) / 2))
+    col.set_actor_scale3d(unreal.Vector((GX1 - GX0) / 100, 0.3, (z1 - z0) / 100))
     c = col.static_mesh_component
     c.set_collision_profile_name("BlockAll")
     c.set_collision_response_to_channel(unreal.CollisionChannel.ECC_CAMERA, unreal.CollisionResponseType.ECR_IGNORE)
@@ -80,7 +94,7 @@ def laser_gate(label, y, z0, z1, folder):
     parts.append(finish(col, folder, "COL_" + label))
     mi = unreal.load_asset(NEON_RED)
     i = 0
-    for x in range(-225, 251, 50):
+    for x in BARS_X:
         bar = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector(x, y, (z0 + z1) / 2))
         bar.set_actor_scale3d(unreal.Vector(0.04, 0.04, (z1 - z0) / 100))
         sm = bar.static_mesh_component
@@ -90,8 +104,8 @@ def laser_gate(label, y, z0, z1, folder):
         parts.append(finish(bar, folder, "NEON_%s_%02d" % (label, i)))
         i += 1
     for zz in (z0 + 4, z1 - 4):
-        rail = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector(0, y, zz))
-        rail.set_actor_scale3d(unreal.Vector(5.0, 0.06, 0.06))
+        rail = eas.spawn_actor_from_object(unreal.load_asset(CUBE), unreal.Vector((GX0 + GX1) / 2, y, zz))
+        rail.set_actor_scale3d(unreal.Vector((GX1 - GX0) / 100, 0.06, 0.06))
         rail.static_mesh_component.set_material(0, mi)
         rail.static_mesh_component.set_collision_profile_name("NoCollision")
         parts.append(finish(rail, folder, "NEON_%s_Rail_%d" % (label, int(zz))))
@@ -107,16 +121,21 @@ def clue(label, x, y, height, term, index, folder):
     return finish(c, folder, label)
 
 
+# 2026-11-04: Map1 은 scale_map1_vertical.py 로 세로 1.1배가 됐다(태그 GEN_Map2VScale 표식 액터 — 두 맵 공용 태그).
+# 바닥은 트레이스로 구하므로 그대로 맞고, 게이트 높이 320 만 1.1배(352)로 맞춘다. 단서 높이 230 은 유지(1.1배 스크립트도 바닥 위 높이를 유지했다).
+VZ = 1.1 if any("GEN_Map2VScale" in [str(t) for t in a.tags] for a in eas.get_all_level_actors()) else 1.0
+GATE_H = 320.0 * VZ
+
 # ---------------- 비밀번호 단말기 + S4 입구 게이트
 T1 = terminal("HackTerminal_Passcode", 200, 7150, "TERMINAL_SEC-7", unreal.HackPuzzleType.PASSCODE, "Gameplay/Hacking")
 z_top, _ = floor_at(0, 8300)
-gate1 = laser_gate("HackGate_S4Entry", 8260, z_top, z_top + 320, "Gameplay/Hacking/Gate_S4Entry")
+gate1 = laser_gate("HackGate_S4Entry", 8260, z_top, z_top + GATE_H, "Gameplay/Hacking/Gate_S4Entry")
 T1.set_editor_property("unlock_actors", gate1)
 
 # ---------------- 주파수 동조 단말기(코어) + S5 탈출로 게이트 — 구간 폭·속도·제한 시간은 AHackTerminal 기본값(24/18/13%, 1.5/2.0/2.6, 제한 없음)
 T2 = terminal("HackTerminal_Core", 200, 9770, "CORE_MAINFRAME", unreal.HackPuzzleType.FREQUENCY_LOCK, "Gameplay/Hacking")
 z_core, _ = floor_at(0, 9900)
-gate2 = laser_gate("HackGate_S5Exit", 9985, z_core, z_core + 320, "Gameplay/Hacking/Gate_S5Exit")
+gate2 = laser_gate("HackGate_S5Exit", 9985, z_core, z_core + GATE_H, "Gameplay/Hacking/Gate_S5Exit")
 T2.set_editor_property("unlock_actors", gate2)
 
 # ---------------- 숫자 단서(오빠 화면 전용): 오빠 동선 S1~S3, 자리 순서는 섞어서 배치

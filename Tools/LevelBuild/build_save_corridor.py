@@ -2,7 +2,8 @@
 세이브 복도 빌더 — .claude/Plans/세이브 복도_레벨디자인.md 의 "SERVICE CORRIDOR"(Map2 → 보스맵 사이 쉼터)를 Soul City 에셋으로 만든다.
 
 좌표계 : +Y 진행(화면 오른쪽), 카메라는 -X 쪽에서 +X를 바라봄, Z 위 (Map1/Map2와 같음)
-레인   : X ∈ [-120, 150] (Map2와 같은 폭). 레인 앞(X < -120)에는 발판 높이를 넘는 메시를 두지 않는다.
+레인   : X ∈ [LANE_F, 150]. 2026-11-04(앞쪽 넓히기): 원래 Map2 와 같은 -120 ~ 150(270)을 DEPTH_FACTOR(1.1)배로 카메라 쪽으로만 늘려
+         -147 ~ 150(297) — Map1/Map2 widen_lane_front.py 와 같은 규칙. 레인 앞(X < LANE_F)에는 발판 높이를 넘는 메시를 두지 않는다.
 길이   : Y -400 ~ 1800 (22m, 2026-11-04 단축 — 40m는 Map2와 보스맵 사이 쉼터로 너무 길었다). 바닥 0 평지(계단 없음).
          분할 화면 한 칸이 캐릭터 깊이에서 가로 약 17~18m를 보여, 도착 지점에서 세이브 단말기가, 단말기에서 출구가 보인다.
 충돌   : 투명 COL_ 큐브(BlockAll, Camera 무시, 게임 중 숨김)만. 아트 메시는 전부 NoCollision.
@@ -23,7 +24,9 @@ GAME_MODE_BP = "/Game/Project_CX/Characters/Brother/BP_GameMode"
 CUBE = "/Engine/BasicShapes/Cube.Cube"
 MAT_DIR = "/Game/Project_CX/Environment/Materials"
 
-LANE_F, LANE_B = -120.0, 150.0      # 플레이 레인 앞/뒤
+DEPTH_FACTOR = 1.1                  # 걸을 수 있는 깊이 배율(앞쪽으로만 — widen_lane_front.py 와 같은 값). 1.0 = 원래 -120
+LANE_B = 150.0                      # 플레이 레인 뒤
+LANE_F = round(LANE_B - (LANE_B - (-120.0)) * DEPTH_FACTOR, 1)   # 플레이 레인 앞(1.1 → -147)
 FRONT_X = -320.0                    # 바닥판이 보이는 앞 끝(발판 높이까지만 — 가림 없음)
 WALL_X0, WALL_X1 = 150.0, 172.0     # 뒷벽(레인 바로 뒤)
 Y_START, Y_END = -400.0, 1800.0     # 22m
@@ -277,7 +280,7 @@ def build():
     fit("SM_Slums_Wall_03a", FRONT_X, 450, Y_END, Y_END + 64, -400, WALL_TOP, yaw=0, folder=f"Art/{S}/BlastDoor")
     fit("SM_Slums_Wall_03b", -100, 140, Y_END - 16, Y_END + 4, Z0, Z0 + 330, yaw=0, folder=f"Art/{S}/BlastDoor")
     for i, yy in enumerate(range(1400, 1760, 100)):   # 바닥 경고 줄무늬(레인 앞쪽 가장자리, 바닥 높이)
-        neon(f"C2_Hazard_{i}", -100, yy, Z0 + 1, 40, "MI_Neon_Orange", axis="X", thick=3)
+        neon(f"C2_Hazard_{i}", LANE_F + 20, yy, Z0 + 1, 40, "MI_Neon_Orange", axis="X", thick=3)
 
     # ================================================================ 끝 너머 막힌 덩어리(카메라가 양 끝에서 좌우 ~9m를 보므로 빈 공간 대신 콘크리트 면)
     # 레인 밖(Y 범위 밖)이라 레인을 가리지 않는다. 정면(X = 바닥 앞 끝)만 보이면 된다.
@@ -362,7 +365,8 @@ def build():
     sp = eas.spawn_actor_from_class(unreal.CXSavePoint, unreal.Vector(40, SAVE_Y, Z0))
     sp.set_editor_property("save_point_id", "SP_Corridor_01")
     sp.set_editor_property("zone_name", "SERVICE CORRIDOR")
-    sp.set_editor_property("zone_extent", unreal.Vector(135.0, 170.0, 160.0))   # X = 레인 반폭(중심 X 40 → -95 ~ 175)
+    # X: 레인 앞 가장자리 + 25 까지 덮는다(원래 135 → 1.1배 레인 162: 중심 X 40 → -122 ~ 202, 캡슐 중심 최소 LANE_F + 34 = -113)
+    sp.set_editor_property("zone_extent", unreal.Vector(40.0 - (LANE_F + 25.0), 170.0, 160.0))
     sp.set_editor_property("spawn_depth", -40.0)                                  # 스폰 X = 0
     # 단말기 비주얼(빛 기둥 SM_glowstick02 x2 + SAVE 간판)과 몸체 충돌(BodyCollision: BlockAll, Camera·Visibility 무시)은
     # ACXSavePoint C++ 기본값 — 별도 COL 박스를 두지 않는다(몸체 월드 X 50~140, Y SAVE_Y ± 135, 앞쪽 X < 50은 통로).
@@ -371,7 +375,7 @@ def build():
 
     ex = eas.spawn_actor_from_class(unreal.CXLevelExit, unreal.Vector(15, EXIT_Y, Z0))
     ex.set_next_map_package(NEXT_MAP)
-    ex.set_editor_property("zone_extent", unreal.Vector(135.0, 200.0, 180.0))    # Map2 출구와 같은 레인 폭
+    ex.set_editor_property("zone_extent", unreal.Vector(15.0 - LANE_F, 200.0, 180.0))    # 앞 끝 = LANE_F (Map2 출구와 같은 규칙: 135 + 앞쪽 넓힘)
     ex.set_editor_property("show_frame", True)
     ex.set_editor_property("frame_depth", 120.0)
     finish(ex, f"{G}/Flow", "CXLevelExit_Corridor_ToMap3Final"); record(ex, "levelexit", {"next": NEXT_MAP})

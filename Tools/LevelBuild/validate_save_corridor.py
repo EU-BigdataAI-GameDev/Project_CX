@@ -13,7 +13,10 @@ import unreal, json, math
 
 LEVEL = "/Game/Project_CX/Maps/Map_SaveCorridor"
 TAG = "GEN_SaveCorridor"
-LANE_F, LANE_B = -120.0, 150.0
+# build_save_corridor.py 와 같은 값(2026-11-04 앞쪽 넓히기: -120 ~ 150 을 1.1배로 카메라 쪽만 → -147 ~ 150)
+DEPTH_FACTOR = 1.1
+LANE_B = 150.0
+LANE_F = round(LANE_B - (LANE_B - (-120.0)) * DEPTH_FACTOR, 1)
 Y_START, Y_END = -400.0, 1800.0     # 22m(2026-11-04 단축), 바닥 0 평지
 FLOOR_Z = 0.0
 STEP_MAX = 45.0     # 캐릭터 자동 계단 높이(실측 45)
@@ -82,7 +85,7 @@ def validate():
         p, hit = trace(unreal.Vector(x, y, 2000), unreal.Vector(x, y, -1000))
         return (p.z, hit.get_actor_label()) if p else (None, None)
     profile = {}
-    for x in (-80.0, 0.0, 110.0):
+    for x in (LANE_F + 22.0, LANE_F + 36.0, -80.0, 0.0, 110.0):     # 앞 두 줄 = 새 앞 가장자리(경계 바로 안 / 캡슐 중심)
         prev, gaps, steps = None, [], []
         y = Y_START + 40
         while y <= Y_END - 40:
@@ -113,7 +116,8 @@ def validate():
     for y, z in ((0, 90), (600, 90), (1500, 90)):
         okf, lf = blocked_by(unreal.Vector(0, y, z), unreal.Vector(-600, y, z), "COL_Bound_Front")
         okb, lb = blocked_by(unreal.Vector(-60, y, z), unreal.Vector(800, y, z), "COL_")   # 세이브 단말기 충돌은 Visibility 무시라 뒤 경계까지 간다
-        check(okf and okb, f"lane sides closed at Y={y} (front {lf}, back {lb})")
+        pf, _ = trace(unreal.Vector(0, y, z), unreal.Vector(-600, y, z))
+        check(okf and okb and pf is not None and abs(pf.x - LANE_F) < 1.0, f"lane sides closed at Y={y} (front {lf} at X {None if pf is None else round(pf.x, 1)} = LANE_F {LANE_F}, back {lb})")
 
     # ---------------------------------------------------------------- 카메라 앞 가림(X < -120 에 그 Y의 발판 높이를 넘는 메시 금지, 레인 Y 범위 안만)
     prof0 = profile.get(0.0, [])
@@ -144,13 +148,14 @@ def validate():
         blocked = []
         y = Y_START + 40
         while y <= Y_END - 40:
-            z, lab = floor_at(-60.0, y)
-            if z is not None:
-                h = overlap(-60.0, y, z + 3, hh)
-                if h:
-                    blocked.append((round(y), h[0]))
+            for px in (-60.0, LANE_F + 36.0):      # 통로 + 새 앞 가장자리 줄
+                z, lab = floor_at(px, y)
+                if z is not None:
+                    h = overlap(px, y, z + 3, hh)
+                    if h:
+                        blocked.append((round(px), round(y), h[0]))
             y += 30.0
-        check(not blocked, f"{who} capsule path start->exit at X=-60 clear (exit freely reachable): blocked {blocked[:5]}")
+        check(not blocked, f"{who} capsule path start->exit at X=-60 and X={LANE_F + 36:.0f} (front edge) clear: blocked {blocked[:5]}")
 
     # ---------------------------------------------------------------- 세이브포인트 / 출구
     sps = [a for a in actors if a.get_class().get_name() == "CXSavePoint"]
@@ -162,7 +167,7 @@ def validate():
         l = a.get_actor_location()
         zx = a.get_editor_property("zone_extent")
         z, lab = floor_at(l.x, l.y)
-        path_in_zone = (l.x - zx.x) <= -60.0 <= (l.x + zx.x)
+        path_in_zone = (l.x - zx.x) <= LANE_F + 34.0 and -60.0 <= (l.x + zx.x)   # 새 앞 가장자리 캡슐 중심까지 덮음
         check(z is not None and abs(z - l.z) < 2 and path_in_zone and Y_START < l.y - zx.y and l.y + zx.y < Y_END,
               f"{a.get_actor_label()} at {[round(l.x), round(l.y), round(l.z)]} on floor {z} ({lab}), zone X {round(l.x - zx.x)}..{round(l.x + zx.x)} covers path, "
               f"Y {round(l.y - zx.y)}..{round(l.y + zx.y)}")
