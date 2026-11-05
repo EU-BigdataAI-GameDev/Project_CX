@@ -14,7 +14,7 @@ class UAudioComponent;
 class USoundBase;
 
 /**
- *  오빠 캐릭터의 자동 조준 사격 로직(.claude/Plans/공격 시스템.md).
+ *  오빠 캐릭터의 자동 조준 사격 로직(.claude/Plans/자동 조준 사격 구현.md).
  *
  *  BP_Brother에 컴포넌트로 추가해서 사용한다 — BP_Brother의 부모 클래스(Character)는 건드리지 않는다.
  *  입력 바인딩도 이 컴포넌트가 직접 한다(Blueprint Event Graph 배선 불필요) — FireAction/AimAction에
@@ -75,11 +75,15 @@ protected:
 	void TryBindInput();
 
 	/**
-	 *  Range 이내 + 시야(LOS)를 만족하는 ICombatDamageable 중 가장 가까운 것을 반환한다. 없으면 nullptr.
+	 *  Range 이내 + 시야(LOS)를 만족하는 살아 있는 ICombatDamageable 중 가장 가까운 것을 반환한다. 없으면 nullptr.
+	 *  사망한 적(체력 0, 사망 후 3초 남아 있는 시체)은 후보에서 뺀다(전투 시스템 기획 5장).
 	 *  bApplyForwardCone이 true면 캐릭터 전방 AimConeHalfAngleDeg 원뿔 밖의 후보는 제외한다
 	 *  (근접 자동 조준(5m)은 방향 상관없이 걸려야 하므로 false로 호출).
 	 */
 	AActor* FindNearestTarget(float Range, bool bApplyForwardCone) const;
+
+	/** 조준·자동 조준 대상이 될 수 있는지(유효 + 피해 가능 + 체력 0 아님). */
+	static bool IsTargetAlive(const AActor* Candidate);
 
 	/** CurrentTarget이 있으면 그쪽으로 캐릭터 회전을 보간하고, 이동 방향 자동 정렬(OrientRotationToMovement)을 잠시 끈다. 없으면 원래 값으로 복원한다. */
 	void UpdateFacing(class ACharacter* OwnerCharacter, float DeltaTime);
@@ -91,7 +95,7 @@ protected:
 
 	void SpawnBullet(const FVector& AimDirection);
 
-	/** 원격 클라이언트가 오빠를 조작하는 경우를 위한 발사 RPC — 실제 스폰/데미지는 서버 권위(공격 시스템.md 7장). */
+	/** 원격 클라이언트가 오빠를 조작하는 경우를 위한 발사 RPC — 실제 스폰/데미지는 서버 권위(자동 조준 사격 구현.md 7장). */
 	UFUNCTION(Server, Reliable)
 	void Server_Fire(FVector_NetQuantizeNormal AimDirection);
 
@@ -126,9 +130,16 @@ protected:
 	float ReloadTime = 2.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
-	float BulletDamage = 5.0f;
+	float BulletDamage = 10.0f;
 
-	/** 무기 메시/소켓이 없으므로 캐릭터 기준 상대 오프셋으로 스폰 지점을 계산한다(공격 시스템.md 4.2). */
+	/** 연사 간격(초). 좌클릭을 빠르게 눌러도 이 간격보다 빨리 쏘지 않는다(2026-11-04 추가 — 발사 속도 완화). */
+	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
+	float FireInterval = 0.3f;
+
+	/** 마지막 발사 시각(월드 시간). FireInterval 판정용. */
+	double LastFireTime = -1000.0;
+
+	/** 무기 메시/소켓이 없으므로 캐릭터 기준 상대 오프셋으로 스폰 지점을 계산한다(자동 조준 사격 구현.md 4.2). */
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	FVector MuzzleOffset = FVector(60.0f, 0.0f, 60.0f);
 

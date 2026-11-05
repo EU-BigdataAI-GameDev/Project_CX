@@ -30,7 +30,7 @@ enum class ECXDeathCause : uint8
 	Generic,
 	/** 낙사 — 월드 KillZ 도달. */
 	Fall,
-	/** 체력 0(체력 시스템이 생기면 사용). */
+	/** 체력 0(UCXHealthComponent). */
 	Health,
 	/** 디버그 명령(CXKillPlayer). */
 	Debug
@@ -40,7 +40,7 @@ enum class ECXDeathCause : uint8
  *  플레이어 폰 생존/사망/부활 상태(.claude/Plans/게임 오버화면 기획.md 2장, 9장).
  *
  *  - 판정은 ALocalCoopGameMode(서버 권위) 한 곳 — 이 컴포넌트는 상태 보관·연출·낙사 감지·안전 지면 기록만 한다.
- *    체력 시스템은 Kill(ECXDeathCause::Health) 또는 ALocalCoopGameMode::NotifyPlayerDied를 호출하면 된다.
+ *    체력 시스템(UCXHealthComponent)은 체력 0에서 Kill(ECXDeathCause::Health)를 부른다. 부활 시 체력 최대치 회복.
  *  - 사망: 폰을 파괴하지 않고 숨김 + 충돌 끔 + 이동 정지 + 입력 차단(빙의 유지 → HUD/컨트롤러 그대로). 부활 시 순간이동 후 복구.
  *  - 낙사: 서버에서 매 틱 KillZ + FallDeathMargin 아래로 내려가면 사망 처리. 이동 컴포넌트보다 먼저 틱해서
  *    엔진의 KillZ 처리(FellOutOfWorld → 폰 Destroy)보다 앞서 잡는다. 그래도 폰이 파괴되면 EndPlay에서 사망으로 넘긴다.

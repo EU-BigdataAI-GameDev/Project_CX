@@ -7,8 +7,15 @@
 #include "HackTerminal.h"
 #include "CoopInteractComponent.h"
 #include "CXPlayerLifeComponent.h"
+#include "CXHealthComponent.h"
+#include "CXHackTarget.h"
+#include "CombatDamageable.h"
 #include "Sound/SoundBase.h"
 #include "CXGameInstance.h"
+#include "CXSavePoint.h"
+#include "CXLevelExit.h"
+#include "CXSfx.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
@@ -39,7 +46,12 @@ ACoopHUD::ACoopHUD()
 	ZoneTitles.Add(TEXT("Map2"), TEXT("SQUATTER STACKS"));
 	ZoneTitles.Add(TEXT("Map2_SoulCity2"), TEXT("SQUATTER STACKS"));
 	ZoneTitles.Add(TEXT("Map3"), TEXT("WASTE PLANT"));
+	// MVP 흐름(세이브포인트·맵 이동 기획 1장): 세이브 복도 → 마지막 방
+	ZoneTitles.Add(TEXT("Map_SaveCorridor"), TEXT("SERVICE CORRIDOR"));
+	ZoneTitles.Add(TEXT("Map3_Final"), TEXT("THE PIT"));
 	ZoneTitles.Add(TEXT("Map5"), TEXT("THE PIT"));
+
+	MemoryFlashSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Sister/SW_Hack_DigitTick.SW_Hack_DigitTick"));
 }
 
 void ACoopHUD::BeginPlay()
@@ -58,6 +70,8 @@ void ACoopHUD::BeginPlay()
 void ACoopHUD::RefreshHackTerminals()
 {
 	HackTerminals.Reset();
+	EnemyActors.Reset();
+	HackEnemyTargets.Reset();
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
 		AActor* Actor = *It;
@@ -77,6 +91,15 @@ void ACoopHUD::RefreshHackTerminals()
 		if (bHackable)
 		{
 			HackTerminals.Add(Actor);
+		}
+		// 적(체력 바) / 적 해킹 대상(여동생 마커) — 플레이어는 ICombatDamageable이 아니라 빠진다
+		if (Actor->Implements<UCombatDamageable>() && UCXHealthComponent::FindOn(Actor))
+		{
+			EnemyActors.Add(Actor);
+		}
+		if (Actor->Implements<UCXHackTarget>())
+		{
+			HackEnemyTargets.Add(Actor);
 		}
 	}
 }
@@ -111,25 +134,45 @@ void ACoopHUD::DrawHUD()
 
 	DrawSplitEdge(MyColor);
 
+	const UCXHealthComponent* MyHealth = UCXHealthComponent::FindOn(MyPawn);
+	const UBrotherCombatComponent* MyCombat = MyPawn ? MyPawn->FindComponentByClass<UBrotherCombatComponent>() : nullptr;
+
+	// 적 체력 바는 월드 마커라 패널보다 먼저(아래에) 그린다
+	if (!bDead)
+	{
+		DrawEnemyHealthBars(bIsSister ? nullptr : MyCombat);
+		// 그로기 중인 적: 두 칸 모두(여동생이 건 그로기를 오빠가 보고 마무리)
+		DrawEnemyStunMarkers();
+	}
+
 	if (bIsSister)
 	{
 		DrawPlayerTag(MyColor, TEXT("P2"), TEXT("SISTER"), TEXT("INFILTRATION  //  HACK"));
 		if (!bDead)
 		{
+			DrawEnemyHackMarkers();
 			DrawSisterHackLink();
 		}
 	}
 	else
 	{
 		DrawPlayerTag(MyColor, TEXT("P1"), TEXT("BROTHER"), TEXT("COMBAT  //  RAILGUN"));
+		if (MyCombat && !bDead)
+		{
+			DrawTargetMarker(*MyCombat);
+			DrawBrotherWeapon(*MyCombat);
+		}
+		// 메모리 패턴 중계(해킹 시스템 기획 11장): 패턴 점멸은 오빠 칸에만. 사망 중이면 그리지 않는다(서버도 재생을 멈춘다).
 		if (MyPawn && !bDead)
 		{
-			if (const UBrotherCombatComponent* Combat = MyPawn->FindComponentByClass<UBrotherCombatComponent>())
-			{
-				DrawTargetMarker(*Combat);
-				DrawBrotherWeapon(*Combat);
-			}
+			DrawMemoryRelay(*MyPawn);
 		}
+	}
+
+	// 체력 바: 플레이어 태그 바로 아래(HUD 기획 — 체력 연결 지점)
+	if (MyHealth)
+	{
+		DrawPlayerHealth(*MyHealth, MyColor);
 	}
 
 	if (MyPawn && !bDead)
@@ -152,7 +195,8 @@ void ACoopHUD::DrawHUD()
 				: FString::Printf(TEXT("%s  SIGNAL LOST"), *PartnerName);
 			PartnerColor = PartnerColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(6.0f));
 		}
-		DrawPartnerIndicator(*Partner, PartnerColor, PartnerName);
+		const bool bPartnerAlive = !PartnerLife || PartnerLife->IsAlive();
+		DrawPartnerIndicator(*Partner, PartnerColor, PartnerName, bPartnerAlive ? UCXHealthComponent::FindOn(Partner) : nullptr);
 	}
 
 	if (MyLife && MyLife->IsAlive())
@@ -160,7 +204,15 @@ void ACoopHUD::DrawHUD()
 		DrawRebooted(*MyLife, MyColor);
 	}
 
+	// 피격 플래시(자기 칸만 — 위아래 분할에서 맞은 사람 화면만 붉어진다)
+	if (MyHealth && !bDead)
+	{
+		DrawHitFlash(*MyHealth);
+	}
+
+	DrawFlowNotices(MyPawn, bDead);
 	DrawZoneBanner();
+	DrawTravelFade();
 }
 
 // ---------------------------------------------------------------- 부활 대기(게임 오버화면 기획 3장)
@@ -337,7 +389,8 @@ void ACoopHUD::DrawSisterHackLink()
 	}
 	const bool bInSignal = Nearest && NearestDist <= HackSignalRange;
 	const USisterHackComponent* Hack = MyPawn ? MyPawn->FindComponentByClass<USisterHackComponent>() : nullptr;
-	const bool bActive = Hack ? (Hack->GetFocusTerminal() != nullptr) : (Nearest && NearestDist <= HackActivateRange);
+	const bool bEnemyLink = Hack && Hack->IsEnemyHacking();
+	const bool bActive = !bEnemyLink && (Hack ? (Hack->GetFocusTerminal() != nullptr) : (Nearest && NearestDist <= HackActivateRange));
 
 	// 신호 범위 안 단말기에는 월드 마커(가장 가까운 것만 활성)
 	if (MyPawn)
@@ -366,7 +419,15 @@ void ACoopHUD::DrawSisterHackLink()
 	const float Pad = 16.0f * S();
 	Label(TEXT("HACK LINK"), X + Pad, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
 
-	if (bActive)
+	if (bEnemyLink)
+	{
+		// 적 해킹 중: 패널은 상태만(퍼즐은 칸 위쪽 가운데 패널)
+		const ICXHackTarget* EnemyTarget = Cast<ICXHackTarget>(Hack->GetActiveEnemy());
+		Label(TEXT("OVERRIDE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.1f);
+		Label(FString::Printf(TEXT("BYPASS SEQUENCE  //  %s"), EnemyTarget ? *EnemyTarget->GetHackTargetName() : TEXT("TARGET")),
+			X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	}
+	else if (bActive)
 	{
 		// 단말기 활성화: 큰 상태 문구 + 입력 안내, 패널 전체가 맥박처럼 밝아져 시선을 끈다
 		const float Blink = 0.5f + 0.5f * Pulse(7.0f);
@@ -397,13 +458,29 @@ void ACoopHUD::DrawSisterHackLink()
 		DrawRect(SisterColor.CopyWithNewOpacity(Alpha), X + W - Pad - (Bars - i) * 14.0f * S(), BarBase - BarH, 9.0f * S(), BarH);
 	}
 
-	if (Hack && Hack->IsHacking())
+	// 적 해킹 쿨타임: 패널 윗줄 오른쪽 RELINK n초 + 아랫변 게이지(HUD 기획 — 해킹 쿨타임 연결 지점)
+	if (Hack && !bEnemyLink && Hack->GetEnemyHackCooldownRemaining() > 0.0f)
+	{
+		const float Remain = Hack->GetEnemyHackCooldownRemaining();
+		const FString Text = FString::Printf(TEXT("ENEMY RELINK  %.1fs"), Remain);
+		float TW = 0.0f, TH = 0.0f;
+		GetTextSize(Text, TW, TH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
+		Label(Text, X + W - Pad - TW, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.7f), GEngine->GetTinyFont(), 1.0f);
+		const float Frac = Hack->GetEnemyHackCooldown() > 0.0f ? FMath::Clamp(Remain / Hack->GetEnemyHackCooldown(), 0.0f, 1.0f) : 0.0f;
+		DrawRect(SisterColor.CopyWithNewOpacity(0.6f), X, Y + H - 3.0f * S(), W * Frac, 3.0f * S());
+	}
+
+	if (bEnemyLink)
+	{
+		DrawEnemyHackSession(*Hack);
+	}
+	else if (Hack && Hack->IsHacking())
 	{
 		DrawHackSession(*Hack);
 	}
 }
 
-void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM)
+void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, float DistM, float HeightOffset, const FString& InactiveText)
 {
 	if (!PlayerOwner)
 	{
@@ -419,7 +496,7 @@ void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, floa
 	{
 		return;
 	}
-	const FVector P = Project(Origin + FVector(0.0f, 0.0f, Extent.Z + 40.0f), false);
+	const FVector P = Project(Origin + FVector(0.0f, 0.0f, Extent.Z + HeightOffset), false);
 	if (P.X < 0.0f || P.X > Canvas->ClipX || P.Y < 0.0f || P.Y > Canvas->ClipY)
 	{
 		return;
@@ -440,7 +517,7 @@ void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, floa
 	}
 	else
 	{
-		Label(FString::Printf(TEXT("%.0fm"), DistM), P.X, P.Y - R - 16.0f * S(), C, GEngine->GetTinyFont(), 1.0f, true);
+		Label(InactiveText.IsEmpty() ? FString::Printf(TEXT("%.0fm"), DistM) : InactiveText, P.X, P.Y - R - 16.0f * S(), C, GEngine->GetTinyFont(), 1.0f, true);
 	}
 }
 
@@ -517,7 +594,7 @@ void ACoopHUD::DrawTargetMarker(const UBrotherCombatComponent& Combat)
 	      Screen.X + HalfSize + 6.0f * S(), Screen.Y - HalfSize, Color, GEngine->GetTinyFont(), 1.0f);
 }
 
-void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName)
+void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName, const UCXHealthComponent* PartnerHealth)
 {
 	if (!PlayerOwner)
 	{
@@ -552,6 +629,14 @@ void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Co
 		DrawLine(P.X - Size, P.Y - Size, P.X, P.Y, Color, 2.0f);
 		DrawLine(P.X + Size, P.Y - Size, P.X, P.Y, Color, 2.0f);
 		Label(PartnerName, P.X, P.Y - Size - 18.0f * S(), Color, GEngine->GetTinyFont(), 1.0f, true);
+		if (PartnerHealth)
+		{
+			// 이름 위 작은 체력 바(분할 화면에서 서로 상태 파악 — 전투 시스템 기획 9.2)
+			const float BarW = 56.0f * S();
+			const float Pct = PartnerHealth->GetHealthPercent();
+			const FLinearColor BarColor = Pct <= LowHealthRatio ? DangerColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Color;
+			DrawSegmentBar(P.X - BarW * 0.5f, P.Y - Size - 26.0f * S(), BarW, 4.0f * S(), PlayerHealthSegments, Pct, BarColor, 1.0f * S());
+		}
 		return;
 	}
 
@@ -585,6 +670,372 @@ void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Co
 	// 글자는 화살표 안쪽(화면 중심 쪽)에 둔다
 	const FVector2D TextPos = Base - Dir * (26.0f * S());
 	Label(Text, TextPos.X, TextPos.Y - 8.0f * S(), Color, GEngine->GetTinyFont(), 1.0f, true);
+	if (PartnerHealth)
+	{
+		const float BarW = 56.0f * S();
+		const float Pct = PartnerHealth->GetHealthPercent();
+		const FLinearColor BarColor = Pct <= LowHealthRatio ? DangerColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Color;
+		DrawSegmentBar(TextPos.X - BarW * 0.5f, TextPos.Y + 12.0f * S(), BarW, 4.0f * S(), PlayerHealthSegments, Pct, BarColor, 1.0f * S());
+	}
+}
+
+// ---------------------------------------------------------------- 체력(전투 시스템 기획 9.2)
+
+void ACoopHUD::DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearColor& Color)
+{
+	// 플레이어 태그(Y 28~94) 바로 아래, 태그 글자와 같은 들여쓰기
+	const float X = CoopHUDLayout::Margin * S() + 14.0f * S();
+	const float Y = CoopHUDLayout::Margin * S() + 76.0f * S();
+	const float BarW = 240.0f * S();
+	const float BarH = 10.0f * S();
+
+	const float Pct = Health.GetHealthPercent();
+	const bool bLow = Pct <= LowHealthRatio;
+	const FLinearColor BarColor = bLow ? DangerColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(8.0f)) : Color;
+
+	// 어두운 받침 + 칸 바(1칸 = 10)
+	DrawRect(PanelColor, X - 4.0f * S(), Y - 4.0f * S(), BarW + 8.0f * S(), BarH + 8.0f * S());
+	DrawSegmentBar(X, Y, BarW, BarH, PlayerHealthSegments, Pct, BarColor, 3.0f * S());
+
+	const FString Text = FString::Printf(TEXT("HP %d/%d"), FMath::CeilToInt(Health.GetHealth()), FMath::RoundToInt(Health.GetMaxHealth()));
+	Label(Text, X + BarW + 12.0f * S(), Y - 5.0f * S(), bLow ? BarColor : FLinearColor::White, GEngine->GetSmallFont(), 1.0f);
+}
+
+void ACoopHUD::DrawSegmentBar(float X, float Y, float W, float H, int32 Segments, float Fill01, const FLinearColor& Color, float Gap)
+{
+	Segments = FMath::Max(1, Segments);
+	const float SegW = (W - Gap * (Segments - 1)) / Segments;
+	const float Filled = FMath::Clamp(Fill01, 0.0f, 1.0f) * Segments;
+	for (int32 i = 0; i < Segments; ++i)
+	{
+		const float SX = X + i * (SegW + Gap);
+		DrawRect(Color.CopyWithNewOpacity(Color.A * 0.15f), SX, Y, SegW, H);
+		const float Part = FMath::Clamp(Filled - i, 0.0f, 1.0f);
+		if (Part > 0.0f)
+		{
+			DrawRect(Color, SX, Y, SegW * Part, H);
+		}
+	}
+}
+
+void ACoopHUD::DrawHitFlash(const UCXHealthComponent& Health)
+{
+	const float Since = Health.GetTimeSinceLastDamage();
+	if (Since < 0.0f || Since > HitFlashTime)
+	{
+		return;
+	}
+	// 가장자리만 붉게(중앙 시야는 가리지 않는다), 빠르게 사라짐
+	const float Alpha = 1.0f - Since / FMath::Max(0.01f, HitFlashTime);
+	const float W = Canvas->ClipX;
+	const float H = Canvas->ClipY;
+	for (int32 i = 1; i <= 6; ++i)
+	{
+		const float T = i * 10.0f * S();
+		const FLinearColor C = DangerColor.CopyWithNewOpacity(0.09f * Alpha);
+		DrawRect(C, 0.0f, 0.0f, W, T);
+		DrawRect(C, 0.0f, H - T, W, T);
+		DrawRect(C, 0.0f, T, T, H - 2.0f * T);
+		DrawRect(C, W - T, T, T, H - 2.0f * T);
+	}
+}
+
+void ACoopHUD::DrawEnemyHealthBars(const UBrotherCombatComponent* Combat)
+{
+	if (!PlayerOwner)
+	{
+		return;
+	}
+	FVector ViewLoc;
+	FRotator ViewRot;
+	PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+	const AActor* LockedTarget = Combat ? Combat->CurrentTarget.Get() : nullptr;
+
+	for (const TWeakObjectPtr<AActor>& Weak : EnemyActors)
+	{
+		const AActor* Enemy = Weak.Get();
+		const UCXHealthComponent* Health = UCXHealthComponent::FindOn(Enemy);
+		if (!Enemy || !Health || Health->IsDead())
+		{
+			continue;
+		}
+		// 피격 후 3초, 오빠가 조준 중인 대상, 그로기 중인 대상만(화면이 체력 바로 덮이지 않게)
+		const ICXHackTarget* HackTarget = Cast<ICXHackTarget>(Enemy);
+		const bool bStunned = HackTarget && HackTarget->GetHackStunRemaining() > 0.0f;
+		if (Health->GetTimeSinceLastDamage() > EnemyHealthShowTime && Enemy != LockedTarget && !bStunned)
+		{
+			continue;
+		}
+		FVector Origin, Extent;
+		Enemy->GetActorBounds(true, Origin, Extent);
+		const FVector Head = Origin + FVector(0.0f, 0.0f, Extent.Z + 15.0f);
+		if (FVector::DotProduct(Head - ViewLoc, ViewRot.Vector()) <= 0.0f)
+		{
+			continue;
+		}
+		const FVector P = Project(Head, false);
+		if (P.X < 0.0f || P.X > Canvas->ClipX || P.Y < 0.0f || P.Y > Canvas->ClipY)
+		{
+			continue;
+		}
+		// 1칸 = 총알 1발(10) → 거미로봇 50 = 5칸
+		const int32 Segments = FMath::Clamp(FMath::RoundToInt(Health->GetMaxHealth() / FMath::Max(1.0f, EnemyHealthSegmentValue)), 1, 20);
+		const float BarW = 74.0f * S();
+		const float BarH = 7.0f * S();
+		const float Fade = (Enemy == LockedTarget || bStunned) ? 1.0f : FMath::Clamp((EnemyHealthShowTime - Health->GetTimeSinceLastDamage()) / 0.5f, 0.0f, 1.0f);
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f * Fade), P.X - BarW * 0.5f - 3.0f * S(), P.Y - 3.0f * S(), BarW + 6.0f * S(), BarH + 6.0f * S());
+		DrawSegmentBar(P.X - BarW * 0.5f, P.Y, BarW, BarH, Segments, Health->GetHealthPercent(), DangerColor.CopyWithNewOpacity(Fade), 2.0f * S());
+	}
+}
+
+void ACoopHUD::DrawEnemyHackMarkers()
+{
+	const APawn* MyPawn = GetOwningPawn();
+	if (!MyPawn)
+	{
+		return;
+	}
+	const USisterHackComponent* Hack = MyPawn->FindComponentByClass<USisterHackComponent>();
+	const float Cooldown = Hack ? Hack->GetEnemyHackCooldownRemaining() : 0.0f;
+	const bool bBusy = Hack && Hack->IsHacking();
+	for (const TWeakObjectPtr<AActor>& Weak : HackEnemyTargets)
+	{
+		const AActor* Actor = Weak.Get();
+		const ICXHackTarget* Target = Cast<ICXHackTarget>(Actor);
+		// 사망·그로기(→ SYSTEM DOWN 마커가 대신 뜸)·지금 해킹 중인 대상은 표시 안 함
+		if (!Target || !Target->IsHackTargetAvailable() || (Hack && Hack->GetActiveEnemy() == Actor))
+		{
+			continue;
+		}
+		const float D = FVector::Dist(MyPawn->GetActorLocation(), Actor->GetActorLocation());
+		if (D <= HackSignalRange)
+		{
+			// 단말기와 같은 마커 문법. 적 체력 바(머리 위 15cm)와 겹치지 않게 조금 더 위에.
+			// `[X] HACK`은 실제로 해킹할 수 있을 때만(범위 안 + 쿨타임 아님 + 다른 해킹 중 아님). 쿨타임이면 RELINK 남은 초.
+			const bool bInRange = D <= Target->GetHackInteractRange();
+			const bool bHackable = bInRange && Cooldown <= 0.0f && !bBusy;
+			const FString Inactive = (bInRange && Cooldown > 0.0f) ? FString::Printf(TEXT("RELINK %.1fs"), Cooldown) : FString();
+			DrawHackTerminalMarker(*Actor, bHackable, D / 100.0f, 75.0f, Inactive);
+		}
+	}
+}
+
+void ACoopHUD::DrawEnemyStunMarkers()
+{
+	if (!PlayerOwner)
+	{
+		return;
+	}
+	FVector ViewLoc;
+	FRotator ViewRot;
+	PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+
+	// 청록/자홍 글리치(0.07초마다 색·흔들림이 바뀜) — 해킹으로 전원이 끊긴 느낌
+	const int32 Seed = static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.07f);
+	for (const TWeakObjectPtr<AActor>& Weak : HackEnemyTargets)
+	{
+		const AActor* Actor = Weak.Get();
+		const ICXHackTarget* Target = Cast<ICXHackTarget>(Actor);
+		const float Remaining = Target ? Target->GetHackStunRemaining() : 0.0f;
+		if (Remaining <= 0.0f)
+		{
+			continue;
+		}
+		FVector Origin, Extent;
+		Actor->GetActorBounds(true, Origin, Extent);
+		const FVector Head = Origin + FVector(0.0f, 0.0f, Extent.Z + 75.0f);
+		if (FVector::DotProduct(Head - ViewLoc, ViewRot.Vector()) <= 0.0f)
+		{
+			continue;
+		}
+		const FVector P = Project(Head, false);
+		if (P.X < 0.0f || P.X > Canvas->ClipX || P.Y < 0.0f || P.Y > Canvas->ClipY)
+		{
+			continue;
+		}
+
+		FRandomStream Glitch(Seed + Actor->GetUniqueID());
+		const FLinearColor C = Glitch.FRand() < 0.5f ? BrotherColor : SisterColor;
+		const float JX = Glitch.FRand() < 0.25f ? Glitch.FRandRange(-4.0f, 4.0f) * S() : 0.0f;
+		const float CX = P.X + JX;
+
+		// 배경 + 문구 + 남은 시간 바(전체 시간 대비)
+		const float BoxW = 132.0f * S();
+		const float BoxH = 40.0f * S();
+		const float BoxY = P.Y - BoxH * 0.5f;
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.6f), CX - BoxW * 0.5f, BoxY, BoxW, BoxH);
+		DrawRect(C.CopyWithNewOpacity(0.9f), CX - BoxW * 0.5f, BoxY, 3.0f * S(), BoxH);
+		Label(TEXT("SYSTEM DOWN"), CX, BoxY + 3.0f * S(), FLinearColor::White, GEngine->GetSmallFont(), 0.85f, true);
+
+		const float Duration = FMath::Max(0.1f, Target->GetHackStunDuration());
+		const float Frac = FMath::Clamp(Remaining / Duration, 0.0f, 1.0f);
+		const float BarW = BoxW - 46.0f * S();
+		const float BarX = CX - BoxW * 0.5f + 10.0f * S();
+		const float BarY = BoxY + BoxH - 11.0f * S();
+		DrawRect(C.CopyWithNewOpacity(0.2f), BarX, BarY, BarW, 5.0f * S());
+		DrawRect(C, BarX, BarY, BarW * Frac, 5.0f * S());
+		Label(FString::Printf(TEXT("%.1fs"), Remaining), BarX + BarW + 18.0f * S(), BarY - 6.0f * S(), C, GEngine->GetTinyFont(), 0.9f, true);
+
+		// 글리치 띠
+		if (Glitch.FRand() < 0.4f)
+		{
+			DrawRect(C.CopyWithNewOpacity(0.35f), CX - BoxW * 0.5f, BoxY + Glitch.FRandRange(0.0f, BoxH), BoxW, 2.0f * S());
+		}
+	}
+}
+
+void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
+{
+	const AActor* Enemy = Hack.GetActiveEnemy();
+	if (!Enemy)
+	{
+		return;
+	}
+	const ICXHackTarget* Target = Cast<ICXHackTarget>(Enemy);
+	const EHackFeedback Feedback = Hack.GetFeedback();
+	const float FeedbackAge = Hack.GetFeedbackAge();
+	const bool bMiss = Feedback == EHackFeedback::Denied && FeedbackAge < 0.45f;
+	const bool bGranted = Feedback == EHackFeedback::Granted;
+	const bool bFailed = Feedback == EHackFeedback::Failed;
+
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : ((bMiss || bFailed) ? DeniedColor : SisterColor);
+
+	// 빗나가면 좌우 흔들림(단말기 패널과 같은 연출)
+	const float Shake = bMiss ? FMath::Sin(FeedbackAge * 70.0f) * (1.0f - FeedbackAge / 0.45f) * 10.0f * S() : 0.0f;
+
+	const float W = 780.0f * S();
+	const float H = 196.0f * S();
+	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	// 전투 중이라 화면 위쪽 가운데(캐릭터·거미는 칸 아래쪽에 서 있어 하단 패널이면 가려진다 — 단말기 패널과 다른 점)
+	const float Y = CoopHUDLayout::Margin * S() + 12.0f * S();
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+
+	const int32 Seed = static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f);
+	FRandomStream Glitch(Seed);
+	for (int32 i = 0; i < 3; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.09f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 4.0f) * S());
+	}
+
+	// 헤더: OVERRIDE // 대상 + 커서, 오른쪽 BYPASS n/5
+	const float Pad = 20.0f * S();
+	const FString Header = FString::Printf(TEXT("OVERRIDE  //  %s"), Target ? *Target->GetHackTargetName() : TEXT("TARGET"));
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	float HW = 0.0f, HH = 0.0f;
+	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	if (Pulse(9.0f) > 0.5f)
+	{
+		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
+	}
+	// 오른쪽: BYPASS n / 5(맞힌 칸 수)
+	const TArray<EHackArrow>& Sequence = Hack.GetArrowSequence();
+	const int32 Count = Sequence.Num();
+	const int32 Done = bGranted ? Count : Hack.GetArrowIndex();
+	const FString Right = FString::Printf(TEXT("BYPASS  %d / %d"), Done, Count);
+	float RW = 0.0f, RH = 0.0f;
+	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+
+	// 본체: 화살표 칸(단말기 화살표 패널과 같은 문법 — 완료 채움 / 현재 펄스 / 대기 흐림)
+	const float BarW = W - Pad * 2.0f;
+	DrawArrowCells(Sequence, Done, bGranted, X + W * 0.5f, Y + 56.0f * S(), 74.0f * S(), 14.0f * S(), Accent);
+
+	// 하단: 남은 시간 바(4초, 1초 이하 붉게) + 조작 안내
+	const float FootY = Y + H - 34.0f * S();
+	const float TimeLimit = Hack.GetEnemyHackTimeLimit();
+	const float TimeLeft = Hack.GetEnemyHackTimeRemaining();
+	const float TimeFrac = TimeLimit > 0.0f ? FMath::Clamp(TimeLeft / TimeLimit, 0.0f, 1.0f) : 0.0f;
+	const FLinearColor TimeColor = (TimeLeft < 1.0f && !bGranted) ? DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(10.0f)) : Accent;
+	DrawRect(Accent.CopyWithNewOpacity(0.15f), X + Pad, FootY - 10.0f * S(), BarW, 4.0f * S());
+	DrawRect(TimeColor, X + Pad, FootY - 10.0f * S(), BarW * TimeFrac, 4.0f * S());
+	Label(FString::Printf(TEXT("D-PAD  ENTER SEQUENCE        [B]  ABORT        %.1fs"), TimeLeft),
+		X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f, true);
+
+	// 판정 연출(패널 아래) — 칸마다 정답 플래시는 생략(5칸 빠른 입력이라 시끄럽다), 소리만
+	if (bMiss || bGranted || bFailed)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED  //  SYSTEM DOWN") : (bFailed ? TEXT("ACCESS DENIED") : TEXT("SEQUENCE RESET"));
+		const FLinearColor MsgColor = (bMiss || bFailed) ? DeniedColor : GrantedColor;
+		const float Fade = (bGranted || bFailed) ? 1.0f : 1.0f - FeedbackAge / 0.45f;
+		DrawRect(MsgColor.CopyWithNewOpacity(0.16f * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y + H + 10.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), (bGranted || bFailed) ? 1.4f : 1.1f, true);
+	}
+}
+
+void ACoopHUD::DrawArrowCells(const TArray<EHackArrow>& Sequence, int32 DoneCount, bool bAllDone, float CenterX, float Y, float Cell, float Gap, const FLinearColor& Accent)
+{
+	const int32 Count = Sequence.Num();
+	const float RowW = Count * Cell + FMath::Max(0, Count - 1) * Gap;
+	float CX = CenterX - RowW * 0.5f;
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const bool bDone = bAllDone || i < DoneCount;
+		const bool bCurrent = !bAllDone && i == DoneCount;
+		const FLinearColor CellColor = bDone ? Accent : (bCurrent ? Accent.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.25f));
+		if (bDone)
+		{
+			DrawRect(Accent.CopyWithNewOpacity(0.28f), CX, Y, Cell, Cell);
+		}
+		const float T = bCurrent ? 3.0f : 1.5f;
+		DrawLine(CX, Y, CX + Cell, Y, CellColor, T);
+		DrawLine(CX + Cell, Y, CX + Cell, Y + Cell, CellColor, T);
+		DrawLine(CX + Cell, Y + Cell, CX, Y + Cell, CellColor, T);
+		DrawLine(CX, Y + Cell, CX, Y, CellColor, T);
+		DrawArrowGlyph(FVector2D(CX + Cell * 0.5f, Y + Cell * 0.5f), Cell * 0.3f, Sequence[i],
+		               bDone || bCurrent ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.3f));
+		CX += Cell + Gap;
+	}
+}
+
+void ACoopHUD::DrawFreqLockBar(const USisterHackComponent& Hack, float BarX, float BarY, float BarW, float BarH, bool bGranted, bool bMiss)
+{
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bMiss ? DeniedColor : SisterColor);
+	const float Mid = BarY + BarH * 0.5f;
+	DrawRect(Accent.CopyWithNewOpacity(0.07f), BarX, BarY, BarW, BarH);
+	DrawLine(BarX, BarY, BarX + BarW, BarY, Accent.CopyWithNewOpacity(0.5f), 1.0f);
+	DrawLine(BarX, BarY + BarH, BarX + BarW, BarY + BarH, Accent.CopyWithNewOpacity(0.5f), 1.0f);
+
+	// 파형(배경 장식) — 성능 최적화: 선분 64 → 20, 두께 1(얇은 선은 Canvas가 단순 라인으로 일괄 처리),
+	// 느린 흐름으로 바꿔 빠른 커서와 겹쳐 보일 때의 끊김(저더)도 줄인다.
+	const float Now = GetWorld()->GetTimeSeconds();
+	constexpr int32 Segs = 20;
+	const float Amp = BarH * 0.26f;
+	const FLinearColor WaveColor = Accent.CopyWithNewOpacity(0.22f);
+	FVector2D Prev(BarX, Mid + FMath::Sin(-Now * 2.0f) * Amp);
+	for (int32 i = 1; i <= Segs; ++i)
+	{
+		const float T = static_cast<float>(i) / Segs;
+		const FVector2D Cur(BarX + BarW * T, Mid + FMath::Sin(T * 18.0f - Now * 2.0f) * Amp);
+		DrawLine(Prev.X, Prev.Y, Cur.X, Cur.Y, WaveColor, 1.0f);
+		Prev = Cur;
+	}
+
+	// 목표 구간
+	const float ZoneW = Hack.GetFreqZoneWidth() * BarW;
+	const float ZoneX = BarX + Hack.GetFreqZoneCenter() * BarW - ZoneW * 0.5f;
+	const float Cursor = Hack.GetFreqCursor();
+	const bool bInside = FMath::Abs(Cursor - Hack.GetFreqZoneCenter()) <= Hack.GetFreqZoneWidth() * 0.5f;
+	const FLinearColor ZoneColor = bGranted ? GrantedColor : SisterColor;
+	DrawRect(ZoneColor.CopyWithNewOpacity(bInside ? 0.45f : 0.24f), ZoneX, BarY, ZoneW, BarH);
+	DrawLine(ZoneX, BarY - 6.0f * S(), ZoneX, BarY + BarH + 6.0f * S(), ZoneColor, 2.5f);
+	DrawLine(ZoneX + ZoneW, BarY - 6.0f * S(), ZoneX + ZoneW, BarY + BarH + 6.0f * S(), ZoneColor, 2.5f);
+	Label(TEXT("LOCK"), ZoneX + ZoneW * 0.5f, BarY - 22.0f * S(), ZoneColor, GEngine->GetTinyFont(), 1.0f, true);
+
+	// 커서(흰 세로선 + 위아래 삼각) — 구간 안이면 굵게
+	const float CursorX = BarX + Cursor * BarW;
+	const FLinearColor CursorColor = bMiss ? DeniedColor : FLinearColor::White;
+	DrawLine(CursorX, BarY - 8.0f * S(), CursorX, BarY + BarH + 8.0f * S(), CursorColor, bInside ? 4.0f : 2.5f);
+	const float Tri = 7.0f * S();
+	DrawLine(CursorX - Tri, BarY - 8.0f * S() - Tri, CursorX, BarY - 8.0f * S(), CursorColor, 2.0f);
+	DrawLine(CursorX + Tri, BarY - 8.0f * S() - Tri, CursorX, BarY - 8.0f * S(), CursorColor, 2.0f);
+	DrawLine(CursorX - Tri, BarY + BarH + 8.0f * S() + Tri, CursorX, BarY + BarH + 8.0f * S(), CursorColor, 2.0f);
+	DrawLine(CursorX + Tri, BarY + BarH + 8.0f * S() + Tri, CursorX, BarY + BarH + 8.0f * S(), CursorColor, 2.0f);
 }
 
 void ACoopHUD::DrawZoneBanner()
@@ -610,6 +1061,95 @@ void ACoopHUD::DrawZoneBanner()
 	const FLinearColor LineColor = FLinearColor(0.7f, 0.8f, 1.0f, 0.6f * Alpha);
 	DrawLine(CX - TW * 0.5f - 16.0f * S() - LineLen, LineY, CX - TW * 0.5f - 16.0f * S(), LineY, LineColor, 1.5f);
 	DrawLine(CX + TW * 0.5f + 16.0f * S(), LineY, CX + TW * 0.5f + 16.0f * S() + LineLen, LineY, LineColor, 1.5f);
+}
+
+// ---------------------------------------------------------------- 세이브포인트 / 맵 이동(세이브포인트·맵 이동 기획 5장)
+
+void ACoopHUD::DrawFlowNotices(const APawn* MyPawn, bool bDead)
+{
+	const float CX = Canvas->ClipX * 0.5f;
+
+	// 1) PROGRESS SAVED — 가장 최근에 저장한 세이브포인트 하나(두 칸 모두, 구역 배너 아래)
+	const ACXSavePoint* Latest = nullptr;
+	float LatestAge = -1.0f;
+	for (TActorIterator<ACXSavePoint> It(GetWorld()); It; ++It)
+	{
+		const float Age = It->GetTimeSinceSaved();
+		if (Age >= 0.0f && Age < SaveBannerDuration && (!Latest || Age < LatestAge))
+		{
+			Latest = *It;
+			LatestAge = Age;
+		}
+	}
+	if (Latest)
+	{
+		const float Alpha = FMath::Clamp(FMath::Min(LatestAge / 0.3f, (SaveBannerDuration - LatestAge) / 0.6f), 0.0f, 1.0f);
+		const float W = 470.0f * S();
+		const float H = 70.0f * S();
+		const float X = CX - W * 0.5f;
+		const float Y = 112.0f * S();
+		DrawRect(PanelColor.CopyWithNewOpacity(PanelColor.A * Alpha), X, Y, W, H);
+		DrawRect(SaveColor.CopyWithNewOpacity(0.9f * Alpha), X, Y, W, 2.0f * S());
+		DrawRect(SaveColor.CopyWithNewOpacity(0.9f * Alpha), X, Y + H - 2.0f * S(), W, 2.0f * S());
+		// 저장 직후 0.4초 밝은 띠가 패널을 훑는다
+		if (LatestAge < 0.4f)
+		{
+			const float SweepX = X + W * (LatestAge / 0.4f);
+			DrawRect(SaveColor.CopyWithNewOpacity(0.35f * Alpha), SweepX, Y, 18.0f * S(), H);
+		}
+		Label(FString::Printf(TEXT("SAVE POINT  //  %s"), *Latest->ResolveZoneName()), CX, Y + 6.0f * S(), SaveColor.CopyWithNewOpacity(0.85f * Alpha), GEngine->GetSmallFont(), 1.0f, true);
+		Label(TEXT("PROGRESS SAVED"), CX, Y + 24.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, Alpha), GEngine->GetLargeFont(), 1.15f, true);
+	}
+
+	// 2) NEXT AREA OFFLINE — 다음 맵이 아직 없는 출구에 전원이 들어왔을 때(두 칸 모두)
+	for (TActorIterator<ACXLevelExit> It(GetWorld()); It; ++It)
+	{
+		const float Age = It->GetOfflineNoticeAge();
+		const float Duration = 3.0f;
+		if (Age < 0.0f || Age >= Duration)
+		{
+			continue;
+		}
+		const float Alpha = FMath::Clamp(FMath::Min(Age / 0.2f, (Duration - Age) / 0.5f), 0.0f, 1.0f);
+		const float Y = Canvas->ClipY * 0.20f;	// 출구 표지(화면 중앙 위)를 가리지 않게
+		const float W = 560.0f * S();
+		DrawRect(PanelColor.CopyWithNewOpacity(PanelColor.A * Alpha), CX - W * 0.5f, Y - 8.0f * S(), W, 74.0f * S());
+		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX - W * 0.5f, Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
+		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX + W * 0.5f - 4.0f * S(), Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
+		const float Blink = 0.7f + 0.3f * Pulse(6.0f);
+		Label(TEXT("NEXT AREA OFFLINE"), CX, Y, DangerColor.CopyWithNewOpacity(Alpha * Blink), GEngine->GetLargeFont(), 1.2f, true);
+		Label(TEXT("ROUTE NOT CONNECTED  //  HOLD POSITION"), CX, Y + 40.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f * Alpha), GEngine->GetTinyFont(), 1.0f, true);
+		break;
+	}
+
+	// 3) WAITING FOR PARTNER — 출구 구역 안에 있는 사람 칸에만
+	if (!bDead && MyPawn)
+	{
+		for (TActorIterator<ACXLevelExit> It(GetWorld()); It; ++It)
+		{
+			const FString Wait = It->GetWaitText(MyPawn);
+			if (Wait.IsEmpty())
+			{
+				continue;
+			}
+			const float Y = Canvas->ClipY - 96.0f * S();
+			float TW = 0.0f, TH = 0.0f;
+			GetTextSize(Wait, TW, TH, GEngine->GetMediumFont(), S() * CoopHUDLayout::TextScale);
+			const float W = TW + 60.0f * S();
+			DrawRect(PanelColor, CX - W * 0.5f, Y - 6.0f * S(), W, TH + 12.0f * S());
+			Label(Wait, CX, Y, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(3.0f)), GEngine->GetMediumFont(), 1.0f, true);
+			break;
+		}
+	}
+}
+
+void ACoopHUD::DrawTravelFade()
+{
+	const APlayerCameraManager* Camera = PlayerOwner ? PlayerOwner->PlayerCameraManager.Get() : nullptr;
+	if (Camera && Camera->bEnableFading && Camera->FadeAmount > 0.001f)
+	{
+		DrawRect(Camera->FadeColor.CopyWithNewOpacity(FMath::Clamp(Camera->FadeAmount, 0.0f, 1.0f)), 0.0f, 0.0f, Canvas->ClipX, Canvas->ClipY);
+	}
 }
 
 void ACoopHUD::DrawSplitEdge(const FLinearColor& Color)
@@ -650,11 +1190,19 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 		return;
 	}
 
-	const bool bArrow = Terminal->PuzzleType == EHackPuzzleType::ArrowSequence;
+	if (Terminal->PuzzleType == EHackPuzzleType::MemoryPattern)
+	{
+		DrawMemoryHackSession(Hack, *Terminal);
+		return;
+	}
+
+	// 단말기 퍼즐: 비밀번호 / 주파수 동조(메모리 패턴은 위에서 따로). 화살표는 적 해킹 전용(DrawEnemyHackSession).
+	const bool bFreq = Terminal->PuzzleType == EHackPuzzleType::FrequencyLock;
 	const EHackFeedback Feedback = Hack.GetFeedback();
 	const float FeedbackAge = Hack.GetFeedbackAge();
 	const bool bDenied = Feedback == EHackFeedback::Denied && FeedbackAge < 0.6f;
 	const bool bRoundClear = Feedback == EHackFeedback::RoundClear && FeedbackAge < 0.6f;
+	const bool bHitFlash = bFreq && Feedback == EHackFeedback::Correct && FeedbackAge < 0.3f;
 	const bool bGranted = Feedback == EHackFeedback::Granted;
 
 	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
@@ -690,39 +1238,44 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 	{
 		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
 	}
-	const FString Right = bArrow ? FString::Printf(TEXT("ROUND %d / %d"), Hack.GetRoundIndex() + 1, Hack.GetRoundCount()) : FString(TEXT("PASSCODE  4-DIGIT"));
+	const int32 FreqSteps = Hack.GetFreqStepCount();
+	const int32 FreqDone = bGranted ? FreqSteps : Hack.GetFreqStep();
+	const FString Right = bFreq ? FString::Printf(TEXT("FREQ LOCK  %d / %d"), FreqDone, FreqSteps) : FString(TEXT("PASSCODE  4-DIGIT"));
 	float RW = 0.0f, RH = 0.0f;
 	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	float RightX = X + W - Pad - RW;
+	if (bFreq)
+	{
+		// 오른쪽 위 단계 칸(채움 = 고정 완료) + 글자
+		const float Pip = 14.0f * S();
+		const float PipGap = 6.0f * S();
+		float PipX = X + W - Pad - FreqSteps * Pip - (FreqSteps - 1) * PipGap;
+		for (int32 i = 0; i < FreqSteps; ++i)
+		{
+			const FLinearColor PC = Accent.CopyWithNewOpacity(i < FreqDone ? 1.0f : 0.25f);
+			const float PY = Y + 16.0f * S();
+			if (i < FreqDone)
+			{
+				DrawRect(PC, PipX, PY, Pip, Pip);
+			}
+			else
+			{
+				DrawLine(PipX, PY, PipX + Pip, PY, PC, 1.5f);
+				DrawLine(PipX + Pip, PY, PipX + Pip, PY + Pip, PC, 1.5f);
+				DrawLine(PipX + Pip, PY + Pip, PipX, PY + Pip, PC, 1.5f);
+				DrawLine(PipX, PY + Pip, PipX, PY, PC, 1.5f);
+			}
+			PipX += Pip + PipGap;
+		}
+		RightX -= FreqSteps * (Pip + PipGap) + 10.0f * S();
+	}
+	Label(Right, RightX, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
 
 	const float BodyY = Y + 58.0f * S();
-	if (bArrow)
+	if (bFreq)
 	{
-		// 화살표 칸: 완료(채움) / 현재(펄스 테두리) / 대기(흐림)
-		const TArray<EHackArrow>& Sequence = Hack.GetArrowSequence();
-		const int32 Count = Sequence.Num();
-		const float Cell = 78.0f * S();
-		const float Gap = 14.0f * S();
-		const float RowW = Count * Cell + FMath::Max(0, Count - 1) * Gap;
-		float CX = X + (W - RowW) * 0.5f;
-		for (int32 i = 0; i < Count; ++i)
-		{
-			const bool bDone = bGranted || i < Hack.GetArrowIndex();
-			const bool bCurrent = !bGranted && i == Hack.GetArrowIndex();
-			FLinearColor CellColor = bDone ? Accent : (bCurrent ? Accent.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.25f));
-			if (bDone)
-			{
-				DrawRect(Accent.CopyWithNewOpacity(0.28f), CX, BodyY, Cell, Cell);
-			}
-			const float T = bCurrent ? 3.0f : 1.5f;
-			DrawLine(CX, BodyY, CX + Cell, BodyY, CellColor, T);
-			DrawLine(CX + Cell, BodyY, CX + Cell, BodyY + Cell, CellColor, T);
-			DrawLine(CX + Cell, BodyY + Cell, CX, BodyY + Cell, CellColor, T);
-			DrawLine(CX, BodyY + Cell, CX, BodyY, CellColor, T);
-			DrawArrowGlyph(FVector2D(CX + Cell * 0.5f, BodyY + Cell * 0.5f), Cell * 0.3f, Sequence[i],
-			               bDone || bCurrent ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.3f));
-			CX += Cell + Gap;
-		}
+		// 주파수 막대(적 해킹 시절과 같은 그림 — DrawFreqLockBar 공용)
+		DrawFreqLockBar(Hack, X + Pad, BodyY + 22.0f * S(), W - Pad * 2.0f, 64.0f * S(), bGranted, bDenied);
 	}
 	else
 	{
@@ -750,25 +1303,32 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 		}
 	}
 
-	// 하단: 진행 바(화살표) + 조작 안내
+	// 하단: 진행 바(주파수 동조 — 제한 시간이 있으면 남은 시간, 없으면 단계 진행) + 조작 안내
 	const float FootY = Y + H - 34.0f * S();
-	if (bArrow)
+	FString TimeText;
+	if (bFreq)
 	{
 		const float BarW = W - Pad * 2.0f;
+		const float Limit = Hack.GetFreqTimeLimit();
+		const float Frac = Limit > 0.0f ? FMath::Clamp(Hack.GetFreqTimeRemaining() / Limit, 0.0f, 1.0f) : Hack.GetProgress();
 		DrawRect(Accent.CopyWithNewOpacity(0.15f), X + Pad, FootY - 10.0f * S(), BarW, 4.0f * S());
-		DrawRect(Accent, X + Pad, FootY - 10.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
+		DrawRect(Accent, X + Pad, FootY - 10.0f * S(), BarW * Frac, 4.0f * S());
+		if (Limit > 0.0f)
+		{
+			TimeText = FString::Printf(TEXT("        %.1fs"), Hack.GetFreqTimeRemaining());
+		}
 	}
-	const FString Hint = bArrow
-		? FString::Printf(TEXT("D-PAD  ENTER SEQUENCE        [B]  ABORT"))
+	const FString Hint = bFreq
+		? FString::Printf(TEXT("%s  LOCK SIGNAL        [B]  ABORT%s"), *HackKeyHint, *TimeText)
 		: FString::Printf(TEXT("D-PAD UP/DOWN  DIGIT      LEFT/RIGHT  MOVE      %s  SUBMIT      [B]  ABORT"), *HackKeyHint);
 	Label(Hint, X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f, true);
 
 	// 판정 연출
-	if (bDenied || bRoundClear || bGranted)
+	if (bDenied || bRoundClear || bGranted || bHitFlash)
 	{
-		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bDenied ? TEXT("ACCESS DENIED") : TEXT("ROUND CLEAR"));
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bDenied ? (bFreq ? TEXT("DESYNC") : TEXT("ACCESS DENIED")) : (bHitFlash ? TEXT("LOCKED") : TEXT("ROUND CLEAR")));
 		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
-		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / 0.6f;
+		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / (bHitFlash ? 0.3f : 0.6f);
 		DrawRect(MsgColor.CopyWithNewOpacity(0.18f * Fade), X, Y, W, H);
 		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), 1.4f, true);
 	}
@@ -794,6 +1354,344 @@ void ACoopHUD::DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Di
 	const FVector2D B = HeadBase - Side * (Size * 0.75f);
 	DrawLine(Tip.X, Tip.Y, A.X, A.Y, Color, Th);
 	DrawLine(Tip.X, Tip.Y, B.X, B.Y, Color, Th);
+}
+
+// ---------------------------------------------------------------- 메모리 패턴(해킹 시스템 기획 11장)
+
+void ACoopHUD::DrawMemoryNode(float X, float Y, float Cell, int32 Node, const FLinearColor& Accent, float Dim, float Flash, bool bCursor, bool bPressed)
+{
+	// 바탕(어두운 칸) + 테두리 + 숫자(반투명 — 전화 키패드 1~9). 점멸 중이면 칸을 밝게 채우고 숫자는 흰색으로 또렷하게.
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f * Dim), X, Y, Cell, Cell);
+	DrawRect(Accent.CopyWithNewOpacity((bCursor ? 0.2f : 0.07f) * Dim), X, Y, Cell, Cell);
+	if (Flash > 0.0f)
+	{
+		const float Glow = 6.0f * S() * Flash;
+		DrawRect(Accent.CopyWithNewOpacity(0.25f * Flash), X - Glow, Y - Glow, Cell + Glow * 2.0f, Cell + Glow * 2.0f);
+		DrawRect(Accent.CopyWithNewOpacity(0.9f * Flash), X, Y, Cell, Cell);
+	}
+	if (bPressed)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(0.45f), X, Y, Cell, Cell);
+	}
+
+	const FLinearColor Edge = Flash > 0.0f ? FLinearColor::White
+		: (bCursor ? Accent.CopyWithNewOpacity(0.65f + 0.35f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.4f * Dim));
+	const float T = (Flash > 0.0f || bCursor) ? 3.0f : 1.5f;
+	DrawLine(X, Y, X + Cell, Y, Edge, T);
+	DrawLine(X + Cell, Y, X + Cell, Y + Cell, Edge, T);
+	DrawLine(X + Cell, Y + Cell, X, Y + Cell, Edge, T);
+	DrawLine(X, Y + Cell, X, Y, Edge, T);
+	if (bCursor)
+	{
+		Bracket(FVector2D(X + Cell * 0.5f, Y + Cell * 0.5f), Cell * 0.5f + 5.0f * S(), Cell * 0.22f, Accent, 2.0f);
+	}
+
+	// 숫자: 평소 반투명(35%), 커서/점멸이면 또렷하게. 칸 크기에 맞춰 글자 배율 조절(기준 칸 76 → 1.9배).
+	const float NumAlpha = Flash > 0.0f ? 1.0f : ((bCursor || bPressed) ? 0.9f : 0.35f * Dim);
+	const FLinearColor NumColor = Flash > 0.0f ? FLinearColor(0.02f, 0.05f, 0.08f, 1.0f) : FLinearColor(1.0f, 1.0f, 1.0f, NumAlpha);
+	const FString Num = FString::FromInt(Node + 1);
+	const float Scale = FMath::Clamp(Cell / S() / 40.0f, 0.8f, 2.2f);
+	float TW = 0.0f, TH = 0.0f;
+	GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), Scale * S() * CoopHUDLayout::TextScale);
+	if (Flash > 0.0f)
+	{
+		// 밝은 칸 위에서는 그림자 없는 어두운 숫자가 더 잘 읽힌다
+		DrawText(Num, NumColor, X + (Cell - TW) * 0.5f, Y + (Cell - TH) * 0.5f, GEngine->GetLargeFont(), Scale * S() * CoopHUDLayout::TextScale);
+	}
+	else
+	{
+		Label(Num, X + Cell * 0.5f, Y + (Cell - TH) * 0.5f, NumColor, GEngine->GetLargeFont(), Scale, true);
+	}
+}
+
+void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHackTerminal& Terminal)
+{
+	const EHackFeedback Feedback = Hack.GetFeedback();
+	const float FeedbackAge = Hack.GetFeedbackAge();
+	const bool bDenied = Feedback == EHackFeedback::Denied && FeedbackAge < 0.6f;
+	const bool bRoundClear = Feedback == EHackFeedback::RoundClear && FeedbackAge < 0.6f;
+	const bool bGranted = Feedback == EHackFeedback::Granted;
+
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bDenied ? DeniedColor : SisterColor);
+	const float Shake = bDenied ? FMath::Sin(FeedbackAge * 70.0f) * (1.0f - FeedbackAge / 0.6f) * 10.0f * S() : 0.0f;
+
+	const float W = 780.0f * S();
+	const float H = 262.0f * S();
+	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
+	const float Pad = 20.0f * S();
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f));
+	for (int32 i = 0; i < 3; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.09f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 4.0f) * S());
+	}
+
+	// 헤더
+	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal.TerminalName);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	float HW = 0.0f, HH = 0.0f;
+	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	if (Pulse(9.0f) > 0.5f)
+	{
+		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
+	}
+	const FString Right = FString::Printf(TEXT("GHOST ECHO   ROUND %d / %d"), FMath::Min(Terminal.GetMemoryRound() + 1, Terminal.GetMemoryRoundCount()), Terminal.GetMemoryRoundCount());
+	float RW = 0.0f, RH = 0.0f;
+	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+
+	// 3x3 숫자판(점멸 없음 — 패턴은 오빠 칸에만). 커서 칸 강조, 방금 보낸 노드는 짧게 채움.
+	const float Cell = 54.0f * S();
+	const float Gap = 8.0f * S();
+	const float GX = X + Pad + 16.0f * S();
+	const float GY = Y + 50.0f * S();
+	const bool bPressFlash = (Feedback == EHackFeedback::Correct || Feedback == EHackFeedback::RoundClear || bGranted) && FeedbackAge < 0.35f;
+	for (int32 Node = 0; Node < 9; ++Node)
+	{
+		const float CX = GX + (Node % 3) * (Cell + Gap);
+		const float CY = GY + (Node / 3) * (Cell + Gap);
+		DrawMemoryNode(CX, CY, Cell, Node, Accent, 1.0f, 0.0f, !bGranted && Node == Hack.GetMemoryCursor(), bPressFlash && Node == Hack.GetMemoryLastPressed());
+	}
+
+	// 오른쪽: 입력 진행 칸 + 중계 상태
+	const float RX = GX + 3.0f * Cell + 2.0f * Gap + 44.0f * S();
+	const int32 Count = Terminal.GetMemorySequence().Num();
+	const int32 Done = bGranted ? Count : Terminal.GetMemoryInputIndex();
+	Label(TEXT("PATTERN INPUT"), RX, Y + 54.0f * S(), Accent.CopyWithNewOpacity(0.75f), GEngine->GetTinyFont(), 1.0f);
+	const float Slot = 30.0f * S();
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const float SX = RX + i * (Slot + 8.0f * S());
+		const float SY = Y + 78.0f * S();
+		const bool bFilled = i < Done;
+		const bool bNext = !bGranted && i == Done;
+		DrawRect(Accent.CopyWithNewOpacity(bFilled ? 0.85f : 0.1f), SX, SY, Slot, Slot);
+		const FLinearColor E = bNext ? Accent.CopyWithNewOpacity(0.6f + 0.4f * Pulse(8.0f)) : Accent.CopyWithNewOpacity(0.45f);
+		DrawLine(SX, SY + Slot, SX + Slot, SY + Slot, E, bNext ? 3.0f : 1.5f);
+	}
+
+	const APawn* Relay = Terminal.FindRelayPawn();
+	const UCXPlayerLifeComponent* RelayLife = Relay ? Relay->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+	const float StatusY = Y + 128.0f * S();
+	if (bGranted)
+	{
+		Label(TEXT("PATTERN ACCEPTED"), RX, StatusY, GrantedColor, GEngine->GetSmallFont(), 1.0f);
+	}
+	else if (Terminal.IsMemoryRelayActive())
+	{
+		Label(TEXT("PARTNER RELAY  //  LINKED"), RX, StatusY, Accent, GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("BROTHER SEES THE PATTERN - ENTER HIS NUMBERS IN ORDER"), RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+	}
+	else
+	{
+		Label(TEXT("PARTNER RELAY REQUIRED"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(6.0f)), GEngine->GetSmallFont(), 1.0f);
+		FString Sub;
+		if (!Relay)
+		{
+			Sub = TEXT("NO PARTNER SIGNAL");
+		}
+		else if (RelayLife && !RelayLife->IsAlive())
+		{
+			Sub = TEXT("BROTHER SIGNAL LOST - PATTERN ON HOLD");
+		}
+		else
+		{
+			Sub = FString::Printf(TEXT("BROTHER %.1fm  -  RELAY RANGE %.0fm"), FVector::Dist(Relay->GetActorLocation(), Terminal.GetActorLocation()) / 100.0f, Terminal.MemoryRelayRange / 100.0f);
+		}
+		Label(Sub, RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+	}
+
+	// 하단: 진행 바 + 조작 안내
+	const float FootY = Y + H - 34.0f * S();
+	const float BarX = RX;
+	const float BarW = X + W - Pad - RX;
+	DrawRect(Accent.CopyWithNewOpacity(0.15f), BarX, FootY - 14.0f * S(), BarW, 4.0f * S());
+	DrawRect(Accent, BarX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
+	Label(FString::Printf(TEXT("D-PAD  MOVE      %s  SELECT NODE      [B]  ABORT"), *HackKeyHint), BarX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f);
+
+	if (bDenied || bRoundClear || bGranted)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bDenied ? TEXT("ACCESS DENIED") : TEXT("ROUND CLEAR"));
+		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
+		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / 0.6f;
+		DrawRect(MsgColor.CopyWithNewOpacity(0.18f * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), 1.4f, true);
+	}
+}
+
+void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
+{
+	// 진행 중인 메모리 패턴 단말기(또는 방금 성공해 결과만 보여 주는 단말기) 중 가장 가까운 것
+	const AHackTerminal* Terminal = nullptr;
+	float BestDist = TNumericLimits<float>::Max();
+	for (const TWeakObjectPtr<AActor>& Weak : HackTerminals)
+	{
+		const AHackTerminal* T = Cast<AHackTerminal>(Weak.Get());
+		if (!T || !T->IsMemoryPattern())
+		{
+			continue;
+		}
+		const bool bShowResult = T->GetState() == EHackTerminalState::Hacked && T->GetMemoryLastEvent() == EHackFeedback::Granted && T->GetMemoryEventAge() < 1.5f;
+		if (!T->IsMemorySessionActive() && !bShowResult)
+		{
+			continue;
+		}
+		const float D = FVector::Dist(MyPawn.GetActorLocation(), T->GetActorLocation());
+		if (D < BestDist)
+		{
+			Terminal = T;
+			BestDist = D;
+		}
+	}
+	if (!Terminal)
+	{
+		LastMemoryFlashKey = -1;
+		return;
+	}
+
+	const EHackFeedback Event = Terminal->GetMemoryLastEvent();
+	const float EventAge = Terminal->GetMemoryEventAge();
+	const bool bGranted = Event == EHackFeedback::Granted;
+	const bool bDenied = Event == EHackFeedback::Denied && EventAge < 1.0f;
+	const bool bRoundClear = Event == EHackFeedback::RoundClear && EventAge < 1.0f;
+	const bool bLinked = Terminal->IsMemoryRelayActive();
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bDenied ? DeniedColor : (bLinked ? BrotherColor : WarningColor));
+	const float Shake = bDenied ? FMath::Sin(EventAge * 70.0f) * FMath::Max(0.0f, 1.0f - EventAge / 0.6f) * 8.0f * S() : 0.0f;
+
+	// 패널: 오빠 칸 오른쪽(캐릭터는 칸 가운데 아래에 서 있고, 왼쪽 아래는 탄약 패널).
+	// 오른쪽 가장자리에서 70 띄운다 — 파트너가 화면 밖이면 가장자리에 파트너 표시(SISTER ▶)가 붙는다.
+	const float Cell = 76.0f * S();
+	const float Gap = 10.0f * S();
+	const float Grid = 3.0f * Cell + 2.0f * Gap;
+	const float W = 330.0f * S();
+	const float H = 392.0f * S();
+	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 70.0f) * S() - W + Shake;
+	const float Y = FMath::Max(CoopHUDLayout::Margin * S(), (Canvas->ClipY - H) * 0.5f);
+	const float Pad = 18.0f * S();
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f) + 17);
+	for (int32 i = 0; i < 2; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.08f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 3.0f) * S());
+	}
+
+	Label(TEXT("PATTERN RELAY"), X + Pad, Y + 10.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	const FString Round = FString::Printf(TEXT("R %d/%d"), FMath::Min(Terminal->GetMemoryRound() + 1, Terminal->GetMemoryRoundCount()), Terminal->GetMemoryRoundCount());
+	float RW = 0.0f, RH = 0.0f;
+	GetTextSize(Round, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Round, X + W - Pad - RW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	Label(FString::Printf(TEXT("GHOST ECHO  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f);
+
+	// 점멸(서버 시각 기준 — 여동생 칸에는 그리지 않는다)
+	int32 Step = INDEX_NONE;
+	float FlashAlpha = 0.0f, Wait = 0.0f;
+	const int32 FlashNode = Terminal->GetMemoryFlashNode(Step, FlashAlpha, Wait);
+	if (FlashNode != INDEX_NONE)
+	{
+		if (Step != LastMemoryFlashKey && MemoryFlashSound && MyPawn.IsLocallyControlled())
+		{
+			// 노드가 켜지는 순간 같은 피치의 짧은 틱(박자 안내만 — 노드별 음 없음)
+			UGameplayStatics::PlaySound2D(this, MemoryFlashSound, 0.6f, 1.25f);
+		}
+		LastMemoryFlashKey = Step;
+	}
+	else
+	{
+		LastMemoryFlashKey = -1;
+	}
+
+	const float GX = X + (W - Grid) * 0.5f;
+	const float GY = Y + 66.0f * S();
+	const float Dim = (bLinked || bGranted) ? 1.0f : 0.3f;
+	const FLinearColor GridAccent = bGranted ? GrantedColor : MemoryFlashColor;
+	for (int32 Node = 0; Node < 9; ++Node)
+	{
+		const float CX = GX + (Node % 3) * (Cell + Gap);
+		const float CY = GY + (Node / 3) * (Cell + Gap);
+		DrawMemoryNode(CX, CY, Cell, Node, GridAccent, Dim, Node == FlashNode ? FlashAlpha : 0.0f, false, false);
+	}
+
+	const float FootY = GY + Grid + 14.0f * S();
+	if (!bLinked && !bGranted)
+	{
+		// 중계 거리 밖: 패턴은 기다린다(가까이 오면 처음부터 재생)
+		const float Blink = 0.55f + 0.45f * Pulse(6.0f);
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), GX, GY + Grid * 0.5f - 44.0f * S(), Grid, 88.0f * S());
+		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + Grid * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetLargeFont(), 1.1f, true);
+		Label(TEXT("SIGNAL WEAK"), X + W * 0.5f, GY + Grid * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f, true);
+		const float DistM = FVector::Dist(MyPawn.GetActorLocation(), Terminal->GetActorLocation()) / 100.0f;
+		Label(FString::Printf(TEXT("TERMINAL %.1fm  -  RELAY RANGE %.0fm"), DistM, Terminal->MemoryRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(TEXT("SISTER IS WAITING FOR YOUR RELAY"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f, true);
+
+		// 월드 마커: 단말기 위 괄호 + 거리(어디로 가야 하는지)
+		FVector Origin, Extent;
+		Terminal->GetActorBounds(true, Origin, Extent);
+		FVector ViewLoc;
+		FRotator ViewRot;
+		if (PlayerOwner)
+		{
+			PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+			if (FVector::DotProduct(Origin - ViewLoc, ViewRot.Vector()) > 0.0f)
+			{
+				const FVector P = Project(Origin + FVector(0.0f, 0.0f, Extent.Z + 50.0f), false);
+				if (P.X >= 0.0f && P.X <= Canvas->ClipX && P.Y >= 0.0f && P.Y <= Canvas->ClipY)
+				{
+					Bracket(FVector2D(P.X, P.Y), 14.0f * S(), 6.0f * S(), WarningColor.CopyWithNewOpacity(Blink), 2.0f);
+					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetTinyFont(), 1.0f, true);
+				}
+			}
+		}
+	}
+	else
+	{
+		// 재생 순번 칸: 지난 순번 / 지금 순번(밝게) / 남은 순번
+		const int32 Count = Terminal->GetMemorySequence().Num();
+		const float SW = 22.0f * S();
+		const float SG = 6.0f * S();
+		const float RowW = Count * SW + FMath::Max(0, Count - 1) * SG;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const float SX = X + (W - RowW) * 0.5f + i * (SW + SG);
+			const bool bNow = i == Step && FlashNode != INDEX_NONE;
+			const bool bPast = Step != INDEX_NONE && i < Step;
+			const FLinearColor C = bGranted ? GrantedColor : (bNow ? MemoryFlashColor : MemoryFlashColor.CopyWithNewOpacity(bPast ? 0.55f : 0.18f));
+			DrawRect(C, SX, FootY, SW, 8.0f * S());
+		}
+		FString Status;
+		if (bGranted)
+		{
+			Status = TEXT("RELAY COMPLETE");
+		}
+		else if (Step != INDEX_NONE)
+		{
+			Status = FString::Printf(TEXT("STEP %d / %d  -  CALL OUT THE NUMBERS"), Step + 1, Count);
+		}
+		else
+		{
+			Status = Wait > 0.0f ? FString::Printf(TEXT("REPLAY IN %.1fs"), Wait) : FString(TEXT("STAND BY"));
+		}
+		Label(Status, X + W * 0.5f, FootY + 14.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
+		const int32 Input = bGranted ? Count : Terminal->GetMemoryInputIndex();
+		Label(FString::Printf(TEXT("SISTER INPUT  %d / %d"), Input, Count), X + W * 0.5f, FootY + 38.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f, true);
+	}
+
+	if (bDenied || bRoundClear || bGranted)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bDenied ? TEXT("INPUT DENIED // REPLAY") : TEXT("ROUND CLEAR"));
+		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
+		const float Fade = bGranted ? FMath::Clamp(1.5f - EventAge, 0.0f, 1.0f) : FMath::Clamp(1.0f - EventAge, 0.0f, 1.0f);
+		DrawRect(MsgColor.CopyWithNewOpacity(0.14f * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y - 34.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetSmallFont(), 1.1f, true);
+	}
 }
 
 // ---------------------------------------------------------------- 그리기 도우미

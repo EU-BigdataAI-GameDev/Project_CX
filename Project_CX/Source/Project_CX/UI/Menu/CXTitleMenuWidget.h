@@ -21,7 +21,7 @@ class UCXSaveGame;
  *  - 메뉴: CONTINUE(세이브 있을 때만) / NEW GAME / SETTINGS / QUIT GAME, 기본 포커스 = 세이브 있으면 CONTINUE, 없으면 NEW GAME
  *  - 2P 장치 확인: 키보드 슬롯은 처음부터 READY, 게임패드 슬롯은 아무 패드의 Start로 READY(먼저 누른 패드가 앞 슬롯).
  *    준비 안 된 상태로 시작하려 하면 슬롯 펄스 + "CONNECT P2 DEVICE AND PRESS START"
- *  - NEW GAME: 세이브가 있으면 덮어쓰기 확인창 → 0.5초 검정 페이드 → Map1_SoulCity
+ *  - NEW GAME: 세이브가 있으면 덮어쓰기 확인창 → 0.5초 검정 페이드 → Map1_SoulCity1(리디렉터 Map1_SoulCity 대신 실제 맵)
  *  - SETTINGS: 설정 메뉴(조작 장치 변경 가능). 닫으면 슬롯이 바뀐 조작 장치를 따르고, 패드가 부족하면 경고.
  *  - QUIT GAME: 확인창 → 앱 종료. 최상위 ESC/B는 아무 동작 없음.
  *  - 진입 연출(첫 실행만): 배경 페이드인 → 게임명 네온 점등 깜박임 → 메뉴 슬라이드인. 아무 입력이나 누르면 즉시 완료.
@@ -50,7 +50,7 @@ protected:
 
 	/** 새 게임이 여는 첫 맵. */
 	UPROPERTY(EditDefaultsOnly, Category = "Title")
-	FString NewGameMap = TEXT("/Game/Project_CX/Maps/Map1_SoulCity");
+	FString NewGameMap = TEXT("/Game/Project_CX/Maps/Map1_SoulCity1");
 
 	/** 게임 시작 검정 페이드 시간. */
 	UPROPERTY(EditDefaultsOnly, Category = "Title")

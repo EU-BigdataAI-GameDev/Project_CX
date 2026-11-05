@@ -3,6 +3,7 @@
 #include "BrotherCombatComponent.h"
 #include "BrotherBullet.h"
 #include "CombatDamageable.h"
+#include "CXHealthComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
@@ -89,8 +90,8 @@ void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (bIsAiming)
 	{
-		// 엣지 케이스(공격 시스템.md 2.3): 타겟이 죽거나 사거리를 벗어나면 다음으로 가까운 적으로 재탐색.
-		if (!IsValid(CurrentTarget))
+		// 엣지 케이스(자동 조준 사격 구현.md 2.3): 타겟이 죽거나 사거리를 벗어나면 다음으로 가까운 적으로 재탐색.
+		if (!IsTargetAlive(CurrentTarget))
 		{
 			CurrentTarget = FindNearestTarget(AimRange, true);
 			if (!CurrentTarget)
@@ -205,6 +206,12 @@ void UBrotherCombatComponent::TryBindInput()
 	bInputBound = true;
 }
 
+bool UBrotherCombatComponent::IsTargetAlive(const AActor* Candidate)
+{
+	// 사망한 거미로봇은 3초 동안 시체로 남는다 — 그동안 조준되면 안 된다(전투 시스템 기획 5장)
+	return IsValid(Candidate) && Candidate->CanBeDamaged() && !UCXHealthComponent::IsActorDead(Candidate);
+}
+
 AActor* UBrotherCombatComponent::FindNearestTarget(float Range, bool bApplyForwardCone) const
 {
 	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
@@ -225,7 +232,7 @@ AActor* UBrotherCombatComponent::FindNearestTarget(float Range, bool bApplyForwa
 
 	for (AActor* Candidate : Candidates)
 	{
-		if (!IsValid(Candidate) || Candidate == GetOwner())
+		if (Candidate == GetOwner() || !IsTargetAlive(Candidate))
 		{
 			continue;
 		}
@@ -293,6 +300,14 @@ void UBrotherCombatComponent::Fire()
 		return;
 	}
 
+	// 연사 제한: FireInterval 안의 클릭은 무시(탄약도 소모하지 않는다)
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastFireTime < FireInterval)
+	{
+		return;
+	}
+	LastFireTime = Now;
+
 	const FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRotation().RotateVector(MuzzleOffset);
 
 	FVector AimDirection;
@@ -304,7 +319,7 @@ void UBrotherCombatComponent::Fire()
 	}
 	else
 	{
-		// 공격 시스템.md 3.2: 조준 중이 아니고 근접 타겟도 없으면 이번 한 발만 즉시 재탐색한 방향으로 나간다
+		// 자동 조준 사격 구현.md 3.2: 조준 중이 아니고 근접 타겟도 없으면 이번 한 발만 즉시 재탐색한 방향으로 나간다
 		// (CurrentTarget/bIsAiming을 바꾸지는 않는다 — 캐릭터가 계속 그 타겟을 보게 만들지 않기 위함).
 		AActor* OneShotTarget = FindNearestTarget(AimRange, true);
 		AimDirection = OneShotTarget

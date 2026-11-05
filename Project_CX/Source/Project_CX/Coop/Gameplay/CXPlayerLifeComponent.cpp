@@ -2,6 +2,7 @@
 
 #include "CXPlayerLifeComponent.h"
 #include "LocalCoopGameMode.h"
+#include "CXHealthComponent.h"
 #include "SisterHackComponent.h"
 #include "BrotherCombatComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -453,7 +454,11 @@ void UCXPlayerLifeComponent::Revive(const FVector& Location, const FRotator& Rot
 		Move->SetMovementMode(MOVE_Falling);
 	}
 
-	// TODO(체력 시스템): 체력 전체 회복 — 체력 컴포넌트가 생기면 여기서 최대치로
+	// 체력 전체 회복(전투 시스템 기획 9.1 — 부활 체력 100, 세이브포인트 체력 저장 없음)
+	if (UCXHealthComponent* Health = Owner->FindComponentByClass<UCXHealthComponent>())
+	{
+		Health->ResetToMax();
+	}
 	StartInvulnerability(InvulnerableTime);
 	LastReviveLocalTime = GetWorld()->GetTimeSeconds();
 
