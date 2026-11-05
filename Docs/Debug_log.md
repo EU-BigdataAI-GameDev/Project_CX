@@ -21,7 +21,8 @@
   - 결과: Map1 520 → **572cm**(-312), Map2 270 → **297cm**(-147), 세이브 복도 270 → **297cm**(`build_save_corridor.py` `DEPTH_FACTOR` → 재빌드, 세이브·출구 구역 162).
   - `add_map1_hacking.py`, `add_map2_hacking.py`: 레벨 표식의 `LaneFrontDelta` 만큼 게이트 폭을 늘리도록 수정(재실행해도 같은 모양).
 - **확인**: 스크립트 검사 3맵 ALL PASS(기존 경로·구덩이·덕트·게이트 검사 + 새 앞 가장자리 바닥 연속/서기 Map1 1012·Map2 1873 샘플, 앞 경계에서 멈춤, 게이트가 새 앞 줄도 막음, 덕트 분기, 출구 구역). PIE: 41곳에서 카메라 쪽 밀기 → 새 경계에서 멈추고 낙하 없음, 새 앞 가장자리 걷기(Map1 S3→S4 계단·단차 점프, S1 데크·수로, Map2 여동생 덕트 통과·오빠 막힘, S5 계단 → 게이트 막힘). 캡처 `Docs/Screenshots/MapDetail/lane_*_{before,after}.png`.
-- 기록: `Docs/Map1_SoulCity_레벨디자인.md` 9장, `.claude/Plans/맵2_레벨디자인.md` 13장, `.claude/Plans/세이브 복도_레벨디자인.md` 10장.
+- **추가 수정(2026-11-06)**: Map2·세이브 복도를 **1.5배**로 올림 — 1.1배(+27cm)가 체감되지 않아서. Map2는 `widen_lane_front.py` undo(원래 -120) → 1.5배 재적용(맵별 배율 `MAPS[...]["factor"]`, Map1 1.1 그대로), 복도는 `DEPTH_FACTOR` 1.5 재빌드. 결과 Map2·복도 270 → **405cm**(앞 경계 **-255**), 양 끝 경계도 앞으로, 게이트 막대 게이트당 3개(-140/-180/-220), 출구 구역 X 270. 검사 ALL PASS + 앞 가장자리 두 줄 경로 검사, PIE 밀기(X -220.6 정지·낙하 없음), 게이트 3개 해킹 전 막힘 → `CXSolveHack` 후 13조각 숨김·통과, Map2 출구 → 복도, 복도 저장·출구. 캡처 `Docs/Screenshots/MapDetail/lane15_*`.
+- 기록: `Docs/Map1_SoulCity_레벨디자인.md` 9장, `.claude/Plans/맵2_레벨디자인.md` 13장(13.1), `.claude/Plans/세이브 복도_레벨디자인.md` 10장(10.1).
 
 ## #5 여동생 적 해킹 범위가 좁음 — ✅ 완료(에디터 빌드 2026-11-04, 패키지 반영은 재패키징 필요)
 - **수정 날짜**: 2026-11-04

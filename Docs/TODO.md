@@ -37,6 +37,7 @@
 
 - [x] Map2 수로 출구 수정 + Map1·Map2 세로(Z) 1.1배 — 원인: 판자 발판 P4 밑면이 출구 돌계단 2번째 단 위에 걸려 두 캐릭터 머리가 막힘 → P4 40cm 단축 + 계단 5단(≤40) 재배치. 세로 1.1배는 `Tools/LevelBuild/scale_map2_vertical.py` / `scale_map1_vertical.py`(백업 manifest·undo, 두 번 실행 거부). Map2: 처마 통로 170 유지(분기), 걸어 나오던 구덩이 4곳 +5.5. Map1: 깨진 곳 없음. 스크립트 검사 ALL PASS, PIE(수로 탈출·핵심 점프·해킹 게이트·출구 이동) 확인, 캡처 `Docs/Screenshots/MapDetail/m2scale_*`, `m1scale_*`. `맵2_레벨디자인.md` 12장, `Map1_SoulCity_레벨디자인.md` 8장, `Debug_log.md` #2
 - [x] 레인 앞쪽(카메라 쪽) 깊이 1.1배 — "투명벽이 앞으로 못 나오게 막는다" → 앞 경계를 화면 쪽으로. Map1 520 → 572cm(앞 경계 -260 → -312), Map2 270 → 297cm(-120 → -147), 세이브 복도 270 → 297cm(빌더 `DEPTH_FACTOR`). 바닥·발판·계단 COL과 바닥/발판 아트를 같이 늘림, 게이트 COL·레일·막대, 여동생 덕트 천장, 출구·세이브 구역 확장. `Tools/LevelBuild/widen_lane_front.py`(배율 1개, 백업·undo), `add_map{1,2}_hacking.py` 갱신. 스크립트 검사 ALL PASS, PIE 밀기/앞 가장자리 걷기, 캡처 `Docs/Screenshots/MapDetail/lane_*`. 카메라가 캐릭터 X를 따라가서 1.3배도 구도는 같음(원하면 `DEPTH_FACTOR`만 바꿔 undo → 재적용). `Debug_log.md` #6
+- [x] Map2·세이브 복도 레인 깊이 1.5배(2026-11-06) — 1.1배(+27cm)가 체감되지 않아 원래 270 → **405cm**(앞 경계 -120 → **-255**, +135). Map2 undo → 1.5배 재적용(늘림 98·이동 11·양 끝 경계 2·게이트 막대 +9·출구 구역 X 270), 복도 `DEPTH_FACTOR` 1.5 재빌드(세이브 구역 X -230~310, 출구 -255~285). Map1은 1.1배 그대로. 검사 ALL PASS, PIE 밀기 Map2 27곳·복도 6곳 → X -220.6 정지(낙하 없음), 게이트 3개 해킹 전 막힘 / `CXSolveHack` 후 열림, Map2 출구 → 복도, 복도 저장·출구. 캡처 `Docs/Screenshots/MapDetail/lane15_*`
 
 ### 5. 마지막 방 연결 (팀원 맵 도착 후)
 - [ ] `Map3_Final` 받기

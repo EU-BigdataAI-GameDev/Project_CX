@@ -2,8 +2,8 @@
 세이브 복도 빌더 — .claude/Plans/세이브 복도_레벨디자인.md 의 "SERVICE CORRIDOR"(Map2 → 보스맵 사이 쉼터)를 Soul City 에셋으로 만든다.
 
 좌표계 : +Y 진행(화면 오른쪽), 카메라는 -X 쪽에서 +X를 바라봄, Z 위 (Map1/Map2와 같음)
-레인   : X ∈ [LANE_F, 150]. 2026-11-04(앞쪽 넓히기): 원래 Map2 와 같은 -120 ~ 150(270)을 DEPTH_FACTOR(1.1)배로 카메라 쪽으로만 늘려
-         -147 ~ 150(297) — Map1/Map2 widen_lane_front.py 와 같은 규칙. 레인 앞(X < LANE_F)에는 발판 높이를 넘는 메시를 두지 않는다.
+레인   : X ∈ [LANE_F, 150]. 2026-11-04(앞쪽 넓히기): 원래 Map2 와 같은 -120 ~ 150(270)을 DEPTH_FACTOR배로 카메라 쪽으로만 늘림.
+         1.1배(-147 ~ 150, 297) → 2026-11-06 1.5배(-255 ~ 150, 405) — Map2 widen_lane_front.py 와 같은 규칙. 레인 앞(X < LANE_F)에는 발판 높이를 넘는 메시를 두지 않는다.
 길이   : Y -400 ~ 1800 (22m, 2026-11-04 단축 — 40m는 Map2와 보스맵 사이 쉼터로 너무 길었다). 바닥 0 평지(계단 없음).
          분할 화면 한 칸이 캐릭터 깊이에서 가로 약 17~18m를 보여, 도착 지점에서 세이브 단말기가, 단말기에서 출구가 보인다.
 충돌   : 투명 COL_ 큐브(BlockAll, Camera 무시, 게임 중 숨김)만. 아트 메시는 전부 NoCollision.
@@ -24,9 +24,9 @@ GAME_MODE_BP = "/Game/Project_CX/Characters/Brother/BP_GameMode"
 CUBE = "/Engine/BasicShapes/Cube.Cube"
 MAT_DIR = "/Game/Project_CX/Environment/Materials"
 
-DEPTH_FACTOR = 1.1                  # 걸을 수 있는 깊이 배율(앞쪽으로만 — widen_lane_front.py 와 같은 값). 1.0 = 원래 -120
+DEPTH_FACTOR = 1.5                  # 걸을 수 있는 깊이 배율(앞쪽으로만 — Map2 widen_lane_front.py 와 같은 값). 1.0 = 원래 -120, 1.1 → -147(11-04), 1.5 → -255(11-06)
 LANE_B = 150.0                      # 플레이 레인 뒤
-LANE_F = round(LANE_B - (LANE_B - (-120.0)) * DEPTH_FACTOR, 1)   # 플레이 레인 앞(1.1 → -147)
+LANE_F = round(LANE_B - (LANE_B - (-120.0)) * DEPTH_FACTOR, 1)   # 플레이 레인 앞(1.5 → -255)
 FRONT_X = -320.0                    # 바닥판이 보이는 앞 끝(발판 높이까지만 — 가림 없음)
 WALL_X0, WALL_X1 = 150.0, 172.0     # 뒷벽(레인 바로 뒤)
 Y_START, Y_END = -400.0, 1800.0     # 22m
@@ -365,7 +365,7 @@ def build():
     sp = eas.spawn_actor_from_class(unreal.CXSavePoint, unreal.Vector(40, SAVE_Y, Z0))
     sp.set_editor_property("save_point_id", "SP_Corridor_01")
     sp.set_editor_property("zone_name", "SERVICE CORRIDOR")
-    # X: 레인 앞 가장자리 + 25 까지 덮는다(원래 135 → 1.1배 레인 162: 중심 X 40 → -122 ~ 202, 캡슐 중심 최소 LANE_F + 34 = -113)
+    # X: 레인 앞 가장자리 + 25 까지 덮는다(원래 135 → 1.5배 레인 270: 중심 X 40 → -230 ~ 310, 캡슐 중심 최소 LANE_F + 34 = -221)
     sp.set_editor_property("zone_extent", unreal.Vector(40.0 - (LANE_F + 25.0), 170.0, 160.0))
     sp.set_editor_property("spawn_depth", -40.0)                                  # 스폰 X = 0
     # 단말기 비주얼(빛 기둥 SM_glowstick02 x2 + SAVE 간판)과 몸체 충돌(BodyCollision: BlockAll, Camera·Visibility 무시)은

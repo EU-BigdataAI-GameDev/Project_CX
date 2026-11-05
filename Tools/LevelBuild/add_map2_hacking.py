@@ -41,7 +41,7 @@ TERMINALS = [
 # 비밀번호 단서: label, y, digit_index(자리 순서를 섞어 둠 — 오빠 동선 순서로 #2 → #4 → #1 → #3)
 CLUES = [("HackClue_M2_S1_Canal", 1300.0, 1), ("HackClue_M2_S2_R1", 3250.0, 3), ("HackClue_M2_S2_R2", 4250.0, 0), ("HackClue_M2_S2_R4", 5180.0, 2)]
 CLUE_X, CLUE_H = 155.0, 230.0
-# 2026-11-04: widen_lane_front.py 로 레인 앞(카메라 쪽)이 넓어졌으면(표식 액터 태그 'LaneFrontDelta=<cm>', Map2 1.1배 = 27)
+# 2026-11-04: widen_lane_front.py 로 레인 앞(카메라 쪽)이 넓어졌으면(표식 액터 태그 'LaneFrontDelta=<cm>', Map2 1.1배 = 27 → 2026-11-06 1.5배 = 135)
 # 게이트 COL 앞 끝·레일·네온 막대를 그만큼 앞으로 늘린다 → 재실행해도 넓어진 레인 전체를 막는다.
 LANE_FRONT_TAG = "LaneFrontDelta="
 

@@ -3,7 +3,7 @@
 
 1회차: 현재 레벨이 복도가 아니면 불러오고 끝(로드는 자기 호출에서만). 2회차: 검사.
 검사: manifest 일치 / GameMode·KillZ / PlayerStart 2개(하나는 Sister)가 바닥 위 / COL 설정(Pawn 막음·Camera 무시·숨김) /
-      아트 NoCollision / 카메라 앞(X < -120) 가림 / 레인 전 구간 바닥 연속(간격·턱 없음) / 양 끝·앞뒤 막힘 /
+      아트 NoCollision / 카메라 앞(X < LANE_F) 가림 / 레인 전 구간 바닥 연속(간격·턱 없음) / 양 끝·앞뒤 막힘 /
       오빠·여동생 캡슐로 시작 → 세이브포인트 → 출구까지 레인 앞쪽 길이 막히지 않음 / 세이브포인트·출구 설정과 도달 가능 /
       세이브 단말기: 대표 에셋(SM_glowstick02 빛 기둥) 사용·몸체 충돌(Pawn 막음·Camera/Visibility 무시)·이어하기 스폰 자리가 몸체와 안 겹침.
       v1.3(2026-11-04): 해킹 단말기·레이저 게이트 없음(HackTerminal 0개, HackGate 액터 0개) — 시작 → 출구까지 캡슐 통로 막힘 0.
@@ -13,8 +13,8 @@ import unreal, json, math
 
 LEVEL = "/Game/Project_CX/Maps/Map_SaveCorridor"
 TAG = "GEN_SaveCorridor"
-# build_save_corridor.py 와 같은 값(2026-11-04 앞쪽 넓히기: -120 ~ 150 을 1.1배로 카메라 쪽만 → -147 ~ 150)
-DEPTH_FACTOR = 1.1
+# build_save_corridor.py 와 같은 값(앞쪽 넓히기: -120 ~ 150 을 카메라 쪽만 — 2026-11-04 1.1배 -147, 2026-11-06 1.5배 → -255 ~ 150)
+DEPTH_FACTOR = 1.5
 LANE_B = 150.0
 LANE_F = round(LANE_B - (LANE_B - (-120.0)) * DEPTH_FACTOR, 1)
 Y_START, Y_END = -400.0, 1800.0     # 22m(2026-11-04 단축), 바닥 0 평지
@@ -119,7 +119,7 @@ def validate():
         pf, _ = trace(unreal.Vector(0, y, z), unreal.Vector(-600, y, z))
         check(okf and okb and pf is not None and abs(pf.x - LANE_F) < 1.0, f"lane sides closed at Y={y} (front {lf} at X {None if pf is None else round(pf.x, 1)} = LANE_F {LANE_F}, back {lb})")
 
-    # ---------------------------------------------------------------- 카메라 앞 가림(X < -120 에 그 Y의 발판 높이를 넘는 메시 금지, 레인 Y 범위 안만)
+    # ---------------------------------------------------------------- 카메라 앞 가림(X < LANE_F 에 그 Y의 발판 높이를 넘는 메시 금지, 레인 Y 범위 안만)
     prof0 = profile.get(0.0, [])
     def floor_top(y0, y1):
         tops = [z for y, z in prof0 if y0 - 20 <= y <= y1 + 20]

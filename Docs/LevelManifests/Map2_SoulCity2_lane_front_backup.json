@@ -1,7 +1,7 @@
 {
 "level": "Map2_SoulCity2",
-"delta": 27.0,
-"factor": 1.1,
+"delta": 135.0,
+"factor": 1.5,
 "actors": [
 {
 "name": "StaticMeshActor_4",
@@ -2073,13 +2073,57 @@
 25.6,
 0.04
 ]
+},
+{
+"name": "StaticMeshActor_2",
+"label": "COL_Bound_Start",
+"loc": [
+25.0,
+-810.0,
+1210.0
+],
+"rot": [
+0.0,
+0.0,
+0.0
+],
+"scale": [
+4.5,
+0.2,
+33.0
+]
+},
+{
+"name": "StaticMeshActor_3",
+"label": "COL_Bound_End",
+"loc": [
+25.0,
+14210.0,
+1210.0
+],
+"rot": [
+0.0,
+0.0,
+0.0
+],
+"scale": [
+4.5,
+0.2,
+33.0
+]
 }
 ],
 "created": [
-"StaticMeshActor_688",
-"StaticMeshActor_689",
-"StaticMeshActor_690",
-"Note_2"
+"StaticMeshActor_685",
+"StaticMeshActor_686",
+"StaticMeshActor_687",
+"StaticMeshActor_691",
+"StaticMeshActor_692",
+"StaticMeshActor_693",
+"StaticMeshActor_694",
+"StaticMeshActor_695",
+"StaticMeshActor_696",
+"Note_1"
 ],
 "exit_zone": {
 "CXLevelExit_0": [

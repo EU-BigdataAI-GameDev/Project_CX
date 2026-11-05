@@ -5,6 +5,8 @@
   → 걸을 수 있는 깊이(앞 경계 안쪽 면 ~ 뒤 경계 안쪽 면)를 DEPTH_FACTOR 배로, **앞쪽(카메라 쪽)으로만** 늘린다. Z 는 건드리지 않는다.
      Map1: 레인 X -260 ~ 260 (520) → 1.1배 572 → 앞 경계 안쪽 면 -260 → -312 (DELTA 52)
      Map2: 레인 X -120 ~ 150 (270) → 1.1배 297 → 앞 경계 안쪽 면 -120 → -147 (DELTA 27)
+     2026-11-06: Map2 는 1.1배(+27cm)가 체감되지 않아 1.5배 405 → 앞 경계 안쪽 면 -255 (DELTA 135). undo(원래 -120 으로) 후 1.5배로 다시 적용.
+       맵마다 배율이 다르므로 MAPS[...]["factor"] 에 둔다(Map1 1.1, Map2 1.5). LN_DEPTH_FACTOR 를 주면 그 값이 우선.
   카메라 실측(PIE): 스프링암(1601, 피치 -10, FOV 37.5)이 캐릭터 X 를 그대로 따라간다(지연 없음) → 캐릭터가 어느 깊이에 서도
   화면 크기·발 위치가 같다(발 = 화면 높이의 89%). 그래서 깊이 배율은 화면 구도로 제한되지 않는다(1.3 도 구도는 같음).
 
@@ -29,16 +31,16 @@
 """
 import unreal, json, os, math
 
-DEPTH_FACTOR = 1.1          # 걸을 수 있는 깊이 배율(앞쪽으로만). 1.3 도 구도상 문제 없음(카메라가 X 를 따라감) — 아트 늘림이 커질 뿐.
+DEPTH_FACTOR = 1.1          # 기본 깊이 배율(앞쪽으로만) — 맵별 값은 MAPS[...]["factor"]. 1.5 도 구도상 문제 없음(카메라가 X 를 따라감) — 아트 늘림이 커질 뿐.
 TAG = "GEN_LaneFront"
 CUBE = "/Engine/BasicShapes/Cube.Cube"
 WIN_BEHIND, WIN_AHEAD = 12.0, 45.0     # 앞 끝 판정 범위: OLD - 45 ~ OLD + 12 (Map1 바닥 COL 은 경계 안쪽 10cm 에서 시작)
 THIN = 30.0
 
 MAPS = {
-    "/Game/Project_CX/Maps/Map1_SoulCity1": dict(old_front=-260.0, back=260.0, short="Map1_SoulCity1", lib="scale_map1_vertical.py",
+    "/Game/Project_CX/Maps/Map1_SoulCity1": dict(old_front=-260.0, back=260.0, factor=1.1, short="Map1_SoulCity1", lib="scale_map1_vertical.py",
                                                  hack_tag="GEN_Map1Hack", bar_step=50.0),
-    "/Game/Project_CX/Maps/Map2_SoulCity2": dict(old_front=-120.0, back=150.0, short="Map2_SoulCity2", lib="scale_map2_vertical.py",
+    "/Game/Project_CX/Maps/Map2_SoulCity2": dict(old_front=-120.0, back=150.0, factor=1.5, short="Map2_SoulCity2", lib="scale_map2_vertical.py",
                                                  hack_tag="GEN_Map2Hack", bar_step=40.0,
                                                  # 수로 판자 발판 P1~P4(COL + 판자 아트): 원래 앞 경계에서 20cm 안쪽(X -100)에 떠 있다 → 같이 앞으로 늘림(체인은 뒤쪽 X 77~133)
                                                  extra_front=dict(labels=("COL_S1_Pallet_",), folders=("/Pallets",))),
@@ -78,8 +80,12 @@ def _manifest_path(cfg):
     return unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir() + "../Docs/LevelManifests/%s_lane_front_backup.json" % cfg["short"])
 
 
+def _factor(cfg):
+    return globals().get("LN_DEPTH_FACTOR", cfg.get("factor", DEPTH_FACTOR))
+
+
 def _delta(cfg):
-    f = globals().get("LN_DEPTH_FACTOR", DEPTH_FACTOR)
+    f = _factor(cfg)
     return round((cfg["back"] - cfg["old_front"]) * (f - 1.0), 1)
 
 
@@ -167,7 +173,7 @@ def _gate_bar_additions(cfg, d):
 def _spawn_marker(cfg, d):
     cls = unreal.Note if hasattr(unreal, "Note") else unreal.TargetPoint
     m = _eas().spawn_actor_from_class(cls, unreal.Vector(0, -600, 400))
-    m.set_actor_label("INFO_LaneFront_x%.2f" % globals().get("LN_DEPTH_FACTOR", DEPTH_FACTOR))
+    m.set_actor_label("INFO_LaneFront_x%.2f" % _factor(cfg))
     m.set_folder_path("Info")
     m.tags = [TAG, "LaneFrontDelta=%.1f" % d]
     try:
@@ -191,7 +197,7 @@ def apply(cfg, dry=False):
     p = plan(cfg, d)
     adds = _gate_bar_additions(cfg, d)
     print("lane front: old inner X %.0f -> new %.0f (DELTA %.1f, factor %.2f, depth %.0f -> %.0f)"
-          % (cfg["old_front"], cfg["old_front"] - d, d, globals().get("LN_DEPTH_FACTOR", DEPTH_FACTOR), cfg["back"] - cfg["old_front"], cfg["back"] - cfg["old_front"] + d))
+          % (cfg["old_front"], cfg["old_front"] - d, d, _factor(cfg), cfg["back"] - cfg["old_front"], cfg["back"] - cfg["old_front"] + d))
     for k in ("stretch", "move", "bound_ends", "skipped_rot", "excluded"):
         print("  %s %d:" % (k, len(p[k])), sorted(a.get_actor_label() for a in p[k]))
     print("  gate bars to add %d:" % len(adds), [(n, x) for _, n, x in adds])
@@ -200,7 +206,7 @@ def apply(cfg, dry=False):
     if dry:
         return False
 
-    backup = {"level": cfg["short"], "delta": d, "factor": globals().get("LN_DEPTH_FACTOR", DEPTH_FACTOR), "actors": [], "created": [], "exit_zone": {}}
+    backup = {"level": cfg["short"], "delta": d, "factor": _factor(cfg), "actors": [], "created": [], "exit_zone": {}}
     for a in p["stretch"] + p["move"] + p["bound_ends"]:
         r = a.get_actor_rotation()
         backup["actors"].append({"name": a.get_name(), "label": a.get_actor_label(), "loc": _v(a.get_actor_location()),
