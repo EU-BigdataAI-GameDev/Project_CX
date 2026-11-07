@@ -370,6 +370,16 @@ void UCXPlayerLifeComponent::EnterDeath(ECXDeathCause Cause, float RespawnDelay)
 		}
 	}
 
+	// 제미니 효과: 보호막 해제, 오빠 공격력 강화 즉시 해제(부활해도 없음 — 제미니 기능 기획 2-5)
+	if (UCXHealthComponent* Health = GetOwner()->FindComponentByClass<UCXHealthComponent>())
+	{
+		Health->ClearShield();
+	}
+	if (UBrotherCombatComponent* Combat = GetOwner()->FindComponentByClass<UBrotherCombatComponent>())
+	{
+		Combat->ClearDamageBoost();
+	}
+
 	if (RespawnDelay >= 0.0f)
 	{
 		LifeState = ECXLifeState::AwaitingRespawn;

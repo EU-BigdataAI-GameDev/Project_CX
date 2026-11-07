@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CXSavePoint.h"
+#include "CXJeminiDrone.h"
 #include "CXShapeKit.h"
 #include "CXSaveGame.h"
 #include "CXSfx.h"
@@ -447,6 +448,12 @@ bool ACXSavePoint::SaveNow()
 	Save->SaveTime = FDateTime::Now();
 	Save->SpawnLocation = GetActorLocation();
 	Save->SpawnYaw = GetActorRotation().Yaw;
+	// 제미니 배터리: 세이브 복도면 저장 직전에 100으로 충전한 뒤 기록(제미니 AI봇 기획 B2)
+	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+	{
+		Drone->NotifyProgressSaving();
+		Save->JeminiBattery = Drone->GetBattery();
+	}
 
 	if (!UGameplayStatics::SaveGameToSlot(Save, UCXSaveGame::SlotName, UCXSaveGame::UserIndex))
 	{

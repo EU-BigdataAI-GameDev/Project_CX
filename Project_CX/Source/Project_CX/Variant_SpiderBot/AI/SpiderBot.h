@@ -76,6 +76,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SpiderBot|Hack")
 	bool IsStunned() const { return State == ESpiderBotState::Stunned; }
 
+	/**
+	 *  서버: 제미니 미끼(Decoy, 제미니 기능 기획 2-7). Duration초 동안 플레이어 대신 Lure(드론) 아래 바닥 쪽으로 이동하고
+	 *  톱 공격은 하지 않는다. 끝나면 기존 감지 규칙으로 복귀. 그로기 중에 걸면 남은 시간은 그로기 뒤에 이어진다. 사망이면 false.
+	 */
+	bool ApplyDecoy(AActor* Lure, float Duration);
+
+	/** 미끼에 끌려가는 중(서버 판단용). */
+	bool IsDecoyed() const;
+
 	UFUNCTION(BlueprintPure, Category = "SpiderBot")
 	ESpiderBotState GetState() const { return State; }
 
@@ -330,6 +339,12 @@ private:
 	float StunEndTime = 0.0f;
 
 	TWeakObjectPtr<APawn> Target;
+
+	/** 제미니 미끼(서버): 끌려갈 액터와 끝나는 서버 시각. */
+	TWeakObjectPtr<AActor> DecoyLure;
+	float DecoyEndTime = 0.0f;
+	/** 서버: 미끼 이동. 미끼가 끝났으면 false(일반 판단으로). */
+	bool TickDecoy(float DeltaSeconds);
 
 	float SenseTimer = 0.0f;
 	float RetargetTimer = 0.0f;

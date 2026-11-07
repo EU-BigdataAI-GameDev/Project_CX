@@ -74,6 +74,23 @@ public:
 	/** 설정 메뉴 마지막 탭(같은 세션에서 다시 열면 유지 — 설정 메뉴 기획 3장). */
 	int32 SettingsLastTab = 0;
 
+	/**
+	 *  제미니 배터리(0~100) — 맵 이동 사이 유지(제미니 AI봇 기획 B2). 시작화면에서 100으로 초기화,
+	 *  이어하기/RETRY는 세이브 값으로 덮는다. 인게임에서는 ACXJeminiDrone이 바꿀 때마다 맞춘다.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "CX|Jemini")
+	int32 JeminiBattery = 100;
+
+	/**
+	 *  제미니 공격력 강화 남은 시간(초)·배율 — 맵 이동 시 유지(제미니 기능 기획 2-5). ALocalCoopGameMode::ExecuteTravel이 맡기고
+	 *  새 맵의 UBrotherCombatComponent::BeginPlay가 이어받은 뒤 0으로 비운다. 시작화면·이어하기는 0.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "CX|Jemini")
+	float JeminiDamageBoostRemaining = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "CX|Jemini")
+	float JeminiDamageBoostMultiplier = 2.0f;
+
 private:
 	FInputDeviceId SlotGamepads[NumPlayerSlots];
 

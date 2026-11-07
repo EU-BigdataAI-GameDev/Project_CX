@@ -75,6 +75,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Local Coop|Life")
 	bool IsGameOver() const { return bGameOver; }
 
+	/**
+	 *  서버: 제미니 빠른 재부팅(QuickReboot) — 부활 대기 중인 컨트롤러의 RespawnTimers를 지우고 RespawnPlayer를 바로 실행
+	 *  (파트너 근처·체력 100·부활 무적 그대로). 부활 대기 중이 아니거나 게임 오버·클리어면 false.
+	 */
+	bool JeminiRebootNow(AController* Controller);
+
 	/** 테스트용: 로컬 플레이어 인덱스(0/1)로 사망 처리. 성공하면 true. */
 	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
 	bool DebugKillPlayer(int32 LocalPlayerIndex);
@@ -175,6 +181,45 @@ public:
 	/** 테스트용 콘솔 명령: 해킹 강제 성공. 여동생이 해킹 중이면 그 단말기, 아니면 플레이어에게 가장 가까운 잠긴 단말기를 즉시 해킹 완료. */
 	UFUNCTION(Exec)
 	void CXSolveHack();
+
+	/** 테스트용 콘솔 명령: 1P가 제미니에게 채팅한 것처럼 요청(입력창 생략). 예) CXJemini 총알 채워줘 */
+	UFUNCTION(Exec)
+	void CXJemini(const FString& Text);
+
+	/** 테스트용 콘솔 명령: 2P(여동생)가 제미니에게 채팅한 것처럼 요청. 쓰러진 상태에서도 된다. 예) CXJeminiSister 나 지켜줘 */
+	UFUNCTION(Exec)
+	void CXJeminiSister(const FString& Text);
+
+	/**
+	 *  테스트용 콘솔 명령: LLM 서버 없이 ok 응답을 받은 것처럼 명령 실행(배터리는 실제 비용대로 실행 시 차감).
+	 *  예) CXJeminiCmd PulseAttack / CXJeminiCmd Shield sister / CXJeminiCmd QuickReboot brother
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiCmd(const FString& Name, const FString& Target = TEXT(""));
+
+	/**
+	 *  테스트용 콘솔 명령: 제미니 기능 9종을 차례로 실행(LLM 서버 없이 CXJeminiCmd 경로, 단계마다 배터리 100으로 맞춤)하고
+	 *  단계별 결과(배터리 차감·대상 상태)를 로그 "CXJeminiSelfTest"로 남긴다. 거미 2기를 스폰한다(레벨에 저장 안 함).
+	 *  인자 1이면 끝나고 게임 종료(헤드리스 확인용). 예) CXJeminiSelfTest
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiSelfTest(int32 bQuitWhenDone = 0);
+
+	/** 테스트용 콘솔 명령: 제미니 배터리 설정(0~100). 예) CXJeminiBattery 3 */
+	UFUNCTION(Exec)
+	void CXJeminiBattery(int32 Value = 100);
+
+	/** 테스트용 콘솔 명령: 드론 표정 고정(0 기본 / 1 기쁨 / 2 슬픔 / 3 화남), -1이면 고정 해제(자동 표정). 예) CXJeminiEmotion 1 */
+	UFUNCTION(Exec)
+	void CXJeminiEmotion(int32 Value = -1);
+
+	/** 테스트용: 로컬 플레이어(0/1)가 제미니에게 채팅 요청. 보냈으면 true. */
+	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")
+	bool DebugJeminiSay(int32 LocalPlayerIndex, const FString& Text);
+
+	/** 테스트용: 제미니 드론 상태 한 줄. */
+	UFUNCTION(BlueprintPure, Category = "Local Coop|Debug")
+	FString GetJeminiDebugState() const;
 
 	/** 테스트용 콘솔 명령: 첫 플레이어 근처에 출구 문을 런타임 스폰(레벨에 저장하지 않음). 예) CXSpawnExitDoor 500 150 */
 	UFUNCTION(Exec)
@@ -281,6 +326,13 @@ private:
 	bool bTravelling = false;
 	FString PendingTravelMap;
 	FTimerHandle TravelTimer;
+
+	/** CXJeminiSelfTest 진행. */
+	void TickJeminiSelfTest();
+	FTimerHandle JeminiSelfTestTimer;
+	int32 JeminiSelfTestStep = 0;
+	float JeminiSelfTestWait = 0.0f;
+	bool bJeminiSelfTestQuit = false;
 
 	/** 이어하기/RETRY로 들어온 맵: 세이브포인트 ID와 저장 위치(액터를 못 찾을 때). */
 	bool bSpawnAtSave = false;

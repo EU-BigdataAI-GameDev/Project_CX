@@ -82,3 +82,13 @@ Intermediate/
 DerivedDataCache/
 # 사운드 전달용 임시 폴더(언리얼 임포트 후 원본 삭제)
 Sounds/
+
+# Jemini server secrets/logs
+Jemini/.env
+Jemini/**/.env
+Jemini/logs/
+Jemini/**/__pycache__/
+Jemini/.venv/
+Jemini/dist/
+Jemini/build/
+Jemini/*.spec

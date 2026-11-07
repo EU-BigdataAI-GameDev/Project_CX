@@ -61,6 +61,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save")
 	TArray<FName> ProgressFlags;
 
+	/** 저장 시점 제미니 배터리(0~100). 예전 세이브는 기본 100. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save")
+	int32 JeminiBattery = 100;
+
 	static bool DoesSaveExist();
 
 	/** 슬롯을 읽는다. OutSave는 Loaded일 때만 채워진다. */

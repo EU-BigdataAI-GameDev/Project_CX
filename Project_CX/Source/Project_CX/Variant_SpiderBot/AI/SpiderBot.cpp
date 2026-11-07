@@ -188,6 +188,12 @@ void ASpiderBot::ServerThink(float DeltaSeconds)
 {
 	StateTime += DeltaSeconds;
 
+	// 제미니 미끼: 그로기·사망이 아니면 일반 판단 대신 미끼 쪽으로(공격 없음)
+	if (State != ESpiderBotState::Stunned && State != ESpiderBotState::Dead && TickDecoy(DeltaSeconds))
+	{
+		return;
+	}
+
 	switch (State)
 	{
 	case ESpiderBotState::Idle:
@@ -505,6 +511,58 @@ bool ASpiderBot::ApplyHackStun(APawn* Hacker)
 	GetCharacterMovement()->StopMovementImmediately();
 	SetState(ESpiderBotState::Stunned);
 	UE_LOG(LogTemp, Log, TEXT("SpiderBot: %s STUNNED %.1fs by %s at t=%.2f"), *GetName(), StunDuration, *GetNameSafe(Hacker), GetWorld()->GetTimeSeconds());
+	return true;
+}
+
+bool ASpiderBot::ApplyDecoy(AActor* Lure, float Duration)
+{
+	if (!HasAuthority() || IsDead() || !IsValid(Lure) || Duration <= 0.0f)
+	{
+		return false;
+	}
+	DecoyLure = Lure;
+	DecoyEndTime = GetServerTime() + Duration;
+	if (State == ESpiderBotState::Attack || State == ESpiderBotState::Idle)
+	{
+		// 공격 루프를 끊고 걷기 연출(Chase)로
+		SetState(ESpiderBotState::Chase);
+	}
+	UE_LOG(LogTemp, Log, TEXT("SpiderBot: %s DECOY %.1fs -> %s"), *GetName(), Duration, *GetNameSafe(Lure));
+	return true;
+}
+
+bool ASpiderBot::IsDecoyed() const
+{
+	return DecoyLure.IsValid() && GetServerTime() < DecoyEndTime;
+}
+
+bool ASpiderBot::TickDecoy(float DeltaSeconds)
+{
+	if (!DecoyLure.IsValid())
+	{
+		return false;
+	}
+	const AActor* Lure = DecoyLure.Get();
+	if (GetServerTime() >= DecoyEndTime || !IsValid(Lure))
+	{
+		// 미끼 끝 → 기존 감지 규칙으로 즉시 재평가(가장 가까운 생존자, 없으면 Idle)
+		DecoyLure.Reset();
+		RetargetTimer = 0.0f;
+		SetState(ESpiderBotState::Chase);
+		return false;
+	}
+	if (State != ESpiderBotState::Chase)
+	{
+		SetState(ESpiderBotState::Chase);
+	}
+	// 드론 아래 바닥 쪽으로(수평 이동만 — 발판 끝에서 떨어지지 않는 기존 이동 그대로). 가까우면 제자리에서 올려다본다.
+	FVector Dir = Lure->GetActorLocation() - GetActorLocation();
+	Dir.Z = 0.0f;
+	FaceTowards(Lure->GetActorLocation(), DeltaSeconds, false);
+	if (Dir.SizeSquared() > FMath::Square(60.0f))
+	{
+		AddMovementInput(Dir.GetSafeNormal());
+	}
 	return true;
 }
 

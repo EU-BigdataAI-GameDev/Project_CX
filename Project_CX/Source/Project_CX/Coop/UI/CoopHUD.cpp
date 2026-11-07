@@ -12,6 +12,8 @@
 #include "CombatDamageable.h"
 #include "Sound/SoundBase.h"
 #include "CXGameInstance.h"
+#include "CXJeminiDrone.h"
+#include "CXJeminiInputComponent.h"
 #include "CXSavePoint.h"
 #include "CXLevelExit.h"
 #include "CXSfx.h"
@@ -173,6 +175,7 @@ void ACoopHUD::DrawHUD()
 	if (MyHealth)
 	{
 		DrawPlayerHealth(*MyHealth, MyColor);
+		DrawJeminiHealthExtras(*MyHealth, MyLife);
 	}
 
 	if (MyPawn && !bDead)
@@ -210,9 +213,195 @@ void ACoopHUD::DrawHUD()
 		DrawHitFlash(*MyHealth);
 	}
 
+	DrawJemini(MyPawn, bDead, bIsSister, MyCombat);
 	DrawFlowNotices(MyPawn, bDead);
 	DrawZoneBanner();
 	DrawTravelFade();
+}
+
+// ---------------------------------------------------------------- 제미니(제미니 AI봇 기획 B6)
+
+void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const UBrotherCombatComponent* MyCombat)
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone)
+	{
+		return;
+	}
+	const float Now = GetWorld()->GetTimeSeconds();
+	const FLinearColor JeminiColor(0.1f, 0.95f, 1.0f, 1.0f);
+	const int32 Battery = Drone->GetBattery();
+	const bool bLowBattery = Battery <= 20;
+	const FLinearColor Accent = bLowBattery ? WarningColor : JeminiColor;
+	const float Pad = 14.0f * S();
+
+	// 1) 배터리 게이지(우상단)
+	{
+		const float W = 250.0f * S();
+		const float H = 56.0f * S();
+		const float X = Canvas->ClipX - CoopHUDLayout::Margin * S() - W;
+		const float Y = CoopHUDLayout::Margin * S();
+		Panel(X, Y, W, H, Accent);
+		Label(TEXT("JEMINI  //  DRONE"), X + Pad, Y + 6.0f * S(), JeminiColor.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
+		// 서버가 LLM 대신 mock 키워드 판별로 처리 중(한도 초과 등) — 제목 옆에 작게
+		if (Drone->IsServerMock())
+		{
+			float HW = 0.0f, HH = 0.0f;
+			GetTextSize(TEXT("JEMINI  //  DRONE"), HW, HH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
+			Label(TEXT("[MOCK]"), X + Pad + HW + 6.0f * S(), Y + 6.0f * S(), WarningColor.CopyWithNewOpacity(0.7f), GEngine->GetTinyFont(), 1.0f);
+		}
+		const FString Percent = FString::Printf(TEXT("%3d%%"), Battery);
+		float TW = 0.0f, TH = 0.0f;
+		GetTextSize(Percent, TW, TH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+		Label(Percent, X + W - Pad - TW, Y + 4.0f * S(), bLowBattery ? WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(4.0f)) : FLinearColor::White,
+			GEngine->GetSmallFont(), 1.0f);
+		DrawSegmentBar(X + Pad, Y + 30.0f * S(), W - 2.0f * Pad, 12.0f * S(), 10, Battery / 100.0f, Accent, 2.0f * S());
+
+		// 상태 한 줄(패널 아래)
+		FString Status;
+		if (Drone->IsRequestPending())
+		{
+			Status = TEXT("PROCESSING...");
+		}
+		else
+		{
+			switch (Drone->GetAction())
+			{
+			case ECXJeminiAction::FlyToReload: Status = TEXT("RELOAD SUPPORT >>"); break;
+			case ECXJeminiAction::HackAssist: Status = TEXT("HACK ASSIST >>"); break;
+			case ECXJeminiAction::TerminalHack: Status = TEXT("TERMINAL HACK >>"); break;
+			case ECXJeminiAction::TerminalHacking: Status = TEXT("TERMINAL HACK  //  BREACHING"); break;
+			case ECXJeminiAction::EnemyHack: Status = TEXT("ENEMY HACK >>"); break;
+			case ECXJeminiAction::PulseAttack: Status = TEXT("PULSE >>"); break;
+			case ECXJeminiAction::BoostFly: Status = TEXT("DAMAGE BOOST >>"); break;
+			case ECXJeminiAction::Heal: Status = TEXT("HEAL SUPPORT"); break;
+			case ECXJeminiAction::Decoy: Status = TEXT("DECOY >>"); break;
+			case ECXJeminiAction::DecoyActive: Status = FString::Printf(TEXT("DECOY  %ds"), FMath::CeilToInt(Drone->GetDecoyRemaining())); break;
+			case ECXJeminiAction::Reboot:
+			case ECXJeminiAction::RebootBeam: Status = TEXT("QUICK REBOOT >>"); break;
+			case ECXJeminiAction::ShieldFly: Status = TEXT("SHIELD >>"); break;
+			case ECXJeminiAction::Returning: Status = TEXT("RETURNING <<"); break;
+			default: break;
+			}
+		}
+		float StatusY = Y + H + 4.0f * S();
+		if (!Status.IsEmpty())
+		{
+			Label(Status, X + Pad, StatusY, JeminiColor.CopyWithNewOpacity(0.5f + 0.5f * Pulse(5.0f)), GEngine->GetTinyFont(), 1.0f);
+		}
+		// 배터리 20% 이하: 게이지 경고색(위) + LOW BATTERY 깜빡임(두 칸 모두 — 제미니 기능 기획 5-6). 상태 줄과 겹치지 않게 오른쪽 정렬.
+		if (bLowBattery)
+		{
+			const FString LowText = Battery <= 0 ? TEXT("BATTERY EMPTY") : TEXT("LOW BATTERY");
+			float LW = 0.0f, LH = 0.0f;
+			GetTextSize(LowText, LW, LH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
+			Label(LowText, X + W - Pad - LW, StatusY, WarningColor.CopyWithNewOpacity(FMath::Fmod(Now * 2.0f, 1.0f) < 0.6f ? 1.0f : 0.25f), GEngine->GetTinyFont(), 1.0f);
+		}
+	}
+
+	// 2) 대사 말풍선(두 칸 공통, 위쪽 가운데) — 대사가 바뀐 순간부터 JeminiDialogueDuration초
+	if (Drone->GetDialogueSeq() != LastJeminiSeq)
+	{
+		LastJeminiSeq = Drone->GetDialogueSeq();
+		JeminiDialogueTime = Now;
+	}
+	const float DialogueAge = Now - JeminiDialogueTime;
+	// 줄바꿈(\n)마다 다음 말풍선: 앞 줄은 JeminiLineDuration초씩, 마지막 줄은 JeminiDialogueDuration초
+	TArray<FString> DialogueLines;
+	Drone->GetDialogue().Replace(TEXT("\r"), TEXT("")).ParseIntoArray(DialogueLines, TEXT("\n"), true);
+	const int32 LineCount = DialogueLines.Num();
+	const float TotalDuration = FMath::Max(0, LineCount - 1) * JeminiLineDuration + JeminiDialogueDuration;
+	const int32 LineIndex = LineCount > 0 ? FMath::Clamp(FMath::FloorToInt(DialogueAge / JeminiLineDuration), 0, LineCount - 1) : 0;
+	const float LineEnd = LineIndex < LineCount - 1 ? (LineIndex + 1) * JeminiLineDuration : TotalDuration;
+	if (LineCount > 0 && DialogueAge >= 0.0f && DialogueAge < TotalDuration)
+	{
+		const float Fade = FMath::Clamp((LineEnd - DialogueAge) / 0.4f, 0.0f, 1.0f);
+		const FString& StatusName = Drone->GetDialogueStatus();
+		const FLinearColor BubbleAccent = StatusName == TEXT("rejected") ? WarningColor
+			: (StatusName == TEXT("fallback") ? FLinearColor(0.6f, 0.6f, 0.65f, 1.0f) : JeminiColor);
+		const FString Text = DialogueLines[LineIndex].TrimStartAndEnd();
+		const float TextScale = 1.0f;
+		float TW = 0.0f, TH = 0.0f;
+		GetTextSize(Text, TW, TH, GEngine->GetMediumFont(), TextScale * S() * CoopHUDLayout::TextScale);
+		const float W = FMath::Clamp(TW + 2.0f * Pad + 90.0f * S(), 360.0f * S(), Canvas->ClipX - 80.0f * S());
+		const float H = 50.0f * S();
+		const float X = (Canvas->ClipX - W) * 0.5f;
+		const float Y = 96.0f * S();
+		Panel(X, Y, W, H, BubbleAccent.CopyWithNewOpacity(Fade));
+		Label(TEXT("JEMINI"), X + Pad, Y + 8.0f * S(), BubbleAccent.CopyWithNewOpacity(0.85f * Fade), GEngine->GetTinyFont(), 1.0f);
+		Label(Text, X + Pad + 70.0f * S(), Y + 12.0f * S(), FLinearColor::White.CopyWithNewOpacity(Fade), GEngine->GetMediumFont(), TextScale);
+		if (!Drone->GetHeard().IsEmpty())
+		{
+			Label(FString::Printf(TEXT("HEARD  \"%s\""), *Drone->GetHeard()), X + Pad, Y + H + 4.0f * S(),
+				JeminiColor.CopyWithNewOpacity(0.6f * Fade), GEngine->GetSmallFont(), 0.9f);
+		}
+	}
+
+	if (!MyPawn)
+	{
+		return;
+	}
+
+	// 3) 자기 입력 상태(우상단 패널 아래쪽) — 녹음 중 / 막힘 / 안내. 쓰러진 칸에서도 보인다(쓰러진 사람도 말할 수 있다).
+	const float InfoX = Canvas->ClipX - CoopHUDLayout::Margin * S() - 250.0f * S();
+	const float InfoY = CoopHUDLayout::Margin * S() + 80.0f * S();
+	if (const UCXJeminiInputComponent* Input = MyPawn->FindComponentByClass<UCXJeminiInputComponent>())
+	{
+		if (Input->IsRecording())
+		{
+			const float Sec = Input->GetRecordSeconds();
+			Label(FString::Printf(TEXT("● REC  %.1fs / %.0fs"), Sec, Input->GetMaxVoiceSeconds()), InfoX, InfoY,
+				DangerColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), GEngine->GetSmallFont(), 1.0f);
+			DrawSegmentBar(InfoX, InfoY + 20.0f * S(), 250.0f * S(), 6.0f * S(), 16, Sec / FMath::Max(0.1f, Input->GetMaxVoiceSeconds()), DangerColor, 1.0f * S());
+		}
+		else if (Now - Input->GetLastBlockedTime() < 1.5f)
+		{
+			Label(TEXT("JEMINI BUSY"), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), GEngine->GetSmallFont(), 1.0f);
+		}
+		else if (!Input->GetNotice().IsEmpty() && Now - Input->GetNoticeTime() < 2.5f)
+		{
+			Label(Input->GetNotice(), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), GEngine->GetSmallFont(), 1.0f);
+		}
+		else if (!Input->IsChatOpen())
+		{
+			// 장치별 안내: 키보드 = Enter 채팅, 게임패드 = Y 누르고 말하기
+			bool bGamepad = bIsSister;
+			const ULocalPlayer* LocalPlayer = PlayerOwner ? PlayerOwner->GetLocalPlayer() : nullptr;
+			if (const UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()); GI && LocalPlayer)
+			{
+				bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
+			}
+			Label(bGamepad ? TEXT("[Y] HOLD TO TALK") : TEXT("[ENTER] TALK TO JEMINI"), InfoX, InfoY,
+				JeminiColor.CopyWithNewOpacity(Input->CanTalkNow() ? 0.55f : 0.25f), GEngine->GetTinyFont(), 1.0f);
+		}
+	}
+
+	if (bDead)
+	{
+		return;
+	}
+
+	// 4) 오빠: 탄약 0 → 제미니에게 재장전 요청(자동 재장전 없음)
+	if (!bIsSister && MyCombat && MyCombat->NeedsJeminiReload())
+	{
+		const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - 96.0f * S() - 30.0f * S();
+		Label(Battery >= 5 ? TEXT("NO AMMO  //  ASK JEMINI TO RELOAD") : TEXT("NO AMMO  //  JEMINI BATTERY LOW"),
+			CoopHUDLayout::Margin * S(), Y, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(4.0f)), GEngine->GetSmallFont(), 1.0f);
+	}
+
+	// 5) 여동생: 해킹 대행 진행도
+	if (bIsSister)
+	{
+		if (const USisterHackComponent* Hack = MyPawn->FindComponentByClass<USisterHackComponent>(); Hack && Hack->IsJeminiAssisting())
+		{
+			const float W = 360.0f * S();
+			const float X = (Canvas->ClipX - W) * 0.5f;
+			const float Y = Canvas->ClipY - 70.0f * S();
+			Label(FString::Printf(TEXT("JEMINI ASSIST  %3d%%"), FMath::RoundToInt(Hack->GetJeminiAssistProgress() * 100.0f)), Canvas->ClipX * 0.5f, Y - 20.0f * S(),
+				JeminiColor, GEngine->GetSmallFont(), 1.0f, true);
+			DrawSegmentBar(X, Y, W, 8.0f * S(), 20, Hack->GetJeminiAssistProgress(), JeminiColor, 1.0f * S());
+		}
+	}
 }
 
 // ---------------------------------------------------------------- 부활 대기(게임 오버화면 기획 3장)
@@ -286,6 +475,16 @@ void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLin
 	DrawRect(Color.CopyWithNewOpacity(0.9f), BarX, BarY, BarW * Progress, BarH);
 
 	Label(FString::Printf(TEXT("REBOOTING IN %ds"), Seconds), CX, BarY + 16.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.8f), GEngine->GetSmallFont(), 1.0f, true);
+
+	// 제미니 빠른 재부팅 중(이 칸의 쓰러진 사람이 대상)
+	if (const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+	{
+		const ECXJeminiAction Action = Drone->GetAction();
+		if ((Action == ECXJeminiAction::Reboot || Action == ECXJeminiAction::RebootBeam) && Drone->GetActionTarget() == Life.GetOwner())
+		{
+			Label(TEXT("JEMINI REBOOTING..."), CX, BarY + 40.0f * S(), FLinearColor(0.1f, 0.95f, 1.0f, 0.6f + 0.4f * Pulse(6.0f)), GEngine->GetMediumFont(), 1.0f, true);
+		}
+	}
 }
 
 void ACoopHUD::DrawRebooted(const UCXPlayerLifeComponent& Life, const FLinearColor& Color)
@@ -330,6 +529,17 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 	DrawPistolIcon(X + W - Pad - 46.0f * S(), Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.9f));
 	Label(TEXT("RAIL PISTOL"), X + Pad, Y + 8.0f * S(), Accent.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
 
+	// 제미니 공격력 강화: 패널 위에 DMG x2 nn s 카운트다운 + 탄 눈금 색 강조
+	const float BoostRemaining = Combat.GetDamageBoostRemaining();
+	const FLinearColor BoostColor(1.0f, 0.45f, 0.05f, 1.0f);
+	if (BoostRemaining > 0.0f)
+	{
+		const float Blink = BoostRemaining <= 5.0f ? 0.45f + 0.55f * Pulse(6.0f) : 1.0f;
+		Label(FString::Printf(TEXT("DMG x%.0f  %ds"), Combat.GetDamageMultiplier(), FMath::CeilToInt(BoostRemaining)), X + Pad, Y - 24.0f * S(),
+			BoostColor.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+	}
+	const FLinearColor PipColor = BoostRemaining > 0.0f && !bLow ? BoostColor : Accent;
+
 	// 큰 탄약 숫자 + 최대치
 	const FString AmmoText = FString::Printf(TEXT("%02d"), Ammo);
 	Label(AmmoText, X + Pad, Y + 22.0f * S(), Combat.bIsReloading ? Accent.CopyWithNewOpacity(0.35f) : FLinearColor::White, GEngine->GetLargeFont(), 1.9f);
@@ -356,7 +566,7 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 		for (int32 i = 0; i < MaxAmmo; ++i)
 		{
 			const bool bFilled = i < Ammo;
-			DrawRect(bFilled ? Accent : Accent.CopyWithNewOpacity(0.12f), BarX + i * (PipW + Gap), BarY, PipW, 22.0f * S());
+			DrawRect(bFilled ? PipColor : PipColor.CopyWithNewOpacity(0.12f), BarX + i * (PipW + Gap), BarY, PipW, 22.0f * S());
 		}
 		if (bLow)
 		{
@@ -699,6 +909,40 @@ void ACoopHUD::DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearC
 
 	const FString Text = FString::Printf(TEXT("HP %d/%d"), FMath::CeilToInt(Health.GetHealth()), FMath::RoundToInt(Health.GetMaxHealth()));
 	Label(Text, X + BarW + 12.0f * S(), Y - 5.0f * S(), bLow ? BarColor : FLinearColor::White, GEngine->GetSmallFont(), 1.0f);
+}
+
+void ACoopHUD::DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UCXPlayerLifeComponent* Life)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	const float X = CoopHUDLayout::Margin * S() + 14.0f * S();
+	const float Y = CoopHUDLayout::Margin * S() + 76.0f * S();
+	const FLinearColor HealColor(0.15f, 1.0f, 0.3f, 1.0f);
+	const FLinearColor ShieldColor(0.35f, 0.85f, 1.0f, 1.0f);
+
+	// 회복 감지: 살아 있는 동안 체력이 오르면(부활 직후 ResetToMax는 제외) +N 초록 숫자 1초
+	const float Current = Health.GetHealth();
+	const bool bAlive = !Life || Life->IsAlive();
+	const bool bJustRevived = Life && Life->GetTimeSinceRevive() < 0.5f;
+	if (LastSeenHealth >= 0.0f && bAlive && !bJustRevived && Current > LastSeenHealth + 0.5f)
+	{
+		HealPopupAmount = FMath::RoundToInt(Current - LastSeenHealth);
+		HealPopupTime = Now;
+	}
+	LastSeenHealth = Current;
+	const float PopupAge = Now - HealPopupTime;
+	if (PopupAge >= 0.0f && PopupAge < 1.0f && HealPopupAmount > 0)
+	{
+		Label(FString::Printf(TEXT("+%d"), HealPopupAmount), X + 120.0f * S(), Y - 26.0f * S() - PopupAge * 14.0f * S(),
+			HealColor.CopyWithNewOpacity(1.0f - PopupAge), GEngine->GetMediumFont(), 1.0f);
+	}
+
+	// 보호막 남은 시간(체력 바 아래)
+	const float Shield = Health.GetShieldRemaining();
+	if (Shield > 0.0f && bAlive)
+	{
+		const float Blink = Shield <= 1.0f ? 0.4f + 0.6f * Pulse(8.0f) : 1.0f;
+		Label(FString::Printf(TEXT("SHIELD %ds"), FMath::CeilToInt(Shield)), X, Y + 16.0f * S(), ShieldColor.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+	}
 }
 
 void ACoopHUD::DrawSegmentBar(float X, float Y, float W, float H, int32 Segments, float Fill01, const FLinearColor& Color, float Gap)

@@ -24,6 +24,9 @@
 #include "CXLevelExit.h"
 #include "HackTerminal.h"
 #include "SisterHackComponent.h"
+#include "BrotherCombatComponent.h"
+#include "CXJeminiDrone.h"
+#include "CXJeminiInputComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
@@ -78,8 +81,12 @@ void ALocalCoopGameMode::InitGame(const FString& MapName, const FString& Options
 			SpawnSaveLocation = Save->SpawnLocation;
 			SpawnSaveYaw = Save->SpawnYaw;
 		}
-		UE_LOG(LogTemp, Log, TEXT("LocalCoopGameMode::InitGame: pending save map=%s point=%s current=%s -> spawnAtSave=%d"),
-			*Save->MapName, *Save->SavePointId.ToString(), *CurrentMap, bSpawnAtSave ? 1 : 0);
+		// 제미니 배터리는 세이브 시점 값으로(드론 BeginPlay가 게임 인스턴스 값을 읽는다)
+		GI->JeminiBattery = FMath::Clamp(Save->JeminiBattery, 0, 100);
+		// 이어하기/RETRY에는 공격력 강화를 가져오지 않는다(맵 이동만 유지)
+		GI->JeminiDamageBoostRemaining = 0.0f;
+		UE_LOG(LogTemp, Log, TEXT("LocalCoopGameMode::InitGame: pending save map=%s point=%s current=%s -> spawnAtSave=%d battery=%d"),
+			*Save->MapName, *Save->SavePointId.ToString(), *CurrentMap, bSpawnAtSave ? 1 : 0, GI->JeminiBattery);
 		GI->PendingContinueSave = nullptr;
 	}
 }
@@ -162,6 +169,9 @@ void ALocalCoopGameMode::BeginPlay()
 		UGameplayStatics::CreatePlayer(this, 1, true);
 	}
 
+	// 드론형 AI 동료 제미니(서버 권위, 한 대) — 제미니 AI봇 기획 B
+	ACXJeminiDrone::EnsureSpawned(GetWorld());
+
 	// 맵 배경음(PIE는 맵 이름에 UEDPIE_ 접두사가 붙으므로 제거하고 찾는다)
 	const FString MapName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (const FCXMusicTrack* Track = MapMusic.Find(MapName))
@@ -238,6 +248,199 @@ void ALocalCoopGameMode::SetPlayerDefaults(APawn* PlayerPawn)
 	UCXPlayerLifeComponent::EnsureOn(PlayerPawn);
 	// 체력 100 — 피해는 엔진 ApplyDamage → OnTakeAnyDamage, 0이면 Kill(Health)(전투 시스템 기획 6.2)
 	UCXHealthComponent::EnsureOn(PlayerPawn);
+	// 제미니에게 말 걸기: 키보드 Enter 채팅 / 게임패드 Y 음성(제미니 AI봇 기획 B5)
+	UCXJeminiInputComponent::EnsureOn(PlayerPawn);
+}
+
+void ALocalCoopGameMode::CXJemini(const FString& Text)
+{
+	DebugJeminiSay(0, Text);
+}
+
+bool ALocalCoopGameMode::DebugJeminiSay(int32 LocalPlayerIndex, const FString& Text)
+{
+	const APlayerController* PC = UGameplayStatics::GetPlayerController(this, LocalPlayerIndex);
+	APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	const bool bSent = Drone && Pawn && Drone->SubmitText(Pawn, Text);
+	UE_LOG(LogTemp, Log, TEXT("CXJemini: \"%s\" from P%d -> %s"), *Text, LocalPlayerIndex + 1, bSent ? TEXT("sent") : TEXT("blocked"));
+	return bSent;
+}
+
+void ALocalCoopGameMode::CXJeminiSister(const FString& Text)
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (PC && PC->GetLocalPlayer() && IsSisterController(PC))
+		{
+			DebugJeminiSay(PC->GetLocalPlayer()->GetLocalPlayerIndex(), Text);
+			return;
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("CXJeminiSister: no sister controller"));
+}
+
+void ALocalCoopGameMode::CXJeminiCmd(const FString& Name, const FString& Target)
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone)
+	{
+		return;
+	}
+	// 말한 사람 = 대상이 sister면 여동생, 아니면 1P
+	APawn* Speaker = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+		const bool bSister = IsSisterController(PC);
+		if (!Speaker || (Target.Equals(TEXT("sister"), ESearchCase::IgnoreCase) == bSister))
+		{
+			Speaker = PC->GetPawn();
+		}
+	}
+	const bool bOk = Drone->DebugExecuteCommand(Speaker, Name, Target.ToLower());
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiCmd: %s %s -> %s | %s"), *Name, *Target, bOk ? TEXT("started") : TEXT("blocked"), *Drone->GetDebugState());
+}
+
+void ALocalCoopGameMode::CXJeminiSelfTest(int32 bQuitWhenDone)
+{
+	JeminiSelfTestStep = 0;
+	JeminiSelfTestWait = 0.0f;
+	bJeminiSelfTestQuit = bQuitWhenDone != 0;
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: start"));
+	GetWorldTimerManager().SetTimer(JeminiSelfTestTimer, this, &ALocalCoopGameMode::TickJeminiSelfTest, 0.25f, true, 0.5f);
+}
+
+void ALocalCoopGameMode::TickJeminiSelfTest()
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone)
+	{
+		GetWorldTimerManager().ClearTimer(JeminiSelfTestTimer);
+		return;
+	}
+	// 드론이 작업 중이면 기다린다(최대 15초)
+	JeminiSelfTestWait += 0.25f;
+	if (Drone->IsBusy() && JeminiSelfTestWait < 15.0f)
+	{
+		return;
+	}
+	APawn* Brother = nullptr;
+	APawn* Sister = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+		(IsSisterController(It->Get()) ? Sister : Brother) = Pawn;
+	}
+	if (JeminiSelfTestStep > 0)
+	{
+		const UBrotherCombatComponent* Combat = Brother ? Brother->FindComponentByClass<UBrotherCombatComponent>() : nullptr;
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: step %d done after %.2fs | ammo=%d boost=%.1f | %s | %s"), JeminiSelfTestStep, JeminiSelfTestWait,
+			Combat ? Combat->CurrentAmmo : -1, Combat ? Combat->GetDamageBoostRemaining() : -1.0f, *Drone->GetDebugState(), *GetCombatDebugState());
+	}
+	JeminiSelfTestWait = 0.0f;
+	const int32 BrotherIndex = 0;
+	Drone->SetBattery(100);
+
+	switch (JeminiSelfTestStep++)
+	{
+	case 0:
+		// 준비: 체력 깎기 + 거미 2기(15m 안)
+		DebugDamagePlayer(0, 30.0f);
+		DebugDamagePlayer(1, 60.0f);
+		DebugSpawnSpider(BrotherIndex, 900.0f);
+		DebugSpawnSpider(BrotherIndex, 1200.0f);
+		Drone->DebugExecuteCommand(Brother, TEXT("HealSupport"), TEXT("both"));
+		break;
+	case 1:
+		if (UBrotherCombatComponent* Combat = Brother ? Brother->FindComponentByClass<UBrotherCombatComponent>() : nullptr)
+		{
+			Combat->CurrentAmmo = 0;
+		}
+		Drone->DebugExecuteCommand(Brother, TEXT("ReloadSupport"), TEXT("brother"));
+		break;
+	case 2:
+		Drone->DebugExecuteCommand(Brother, TEXT("DamageBoost"), TEXT("brother"));
+		break;
+	case 3:
+		Drone->DebugExecuteCommand(Sister, TEXT("Shield"), TEXT(""));
+		break;
+	case 4:
+		// 보호막 확인: 여동생에게 피해 → 0이어야 한다
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: damage on shielded sister applied=%.0f (expect 0)"), DebugDamagePlayer(1, 30.0f));
+		Drone->DebugExecuteCommand(Brother, TEXT("HackEnemy"), TEXT("enemy"));
+		break;
+	case 5:
+		Drone->DebugExecuteCommand(Brother, TEXT("Decoy"), TEXT("enemies"));
+		break;
+	case 6:
+		Drone->DebugExecuteCommand(Brother, TEXT("PulseAttack"), TEXT("enemy"));
+		break;
+	case 7:
+		// 남은 테스트 거미 정리(오빠가 쓰러지면 다음 단계에서 게임 오버가 된다)
+		for (TActorIterator<ASpiderBot> It(GetWorld()); It; ++It)
+		{
+			It->Destroy();
+		}
+		Drone->DebugExecuteCommand(Sister, TEXT("HackTerminal"), TEXT("sister"));
+		break;
+	case 8:
+		// 여동생을 쓰러뜨리고 쓰러진 본인이 요청(오빠가 살아 있을 때만 — 아니면 게임 오버)
+		if (!UCXPlayerLifeComponent::IsPawnAlive(Brother))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CXJeminiSelfTest: brother is down — skipping QuickReboot step"));
+			break;
+		}
+		CXKillPlayer(TEXT("sister"));
+		Drone->DebugExecuteCommand(Sister, TEXT("QuickReboot"), TEXT("sister"));
+		break;
+	case 9:
+		// 강화 중 재요청 → 연장
+		Drone->DebugExecuteCommand(Brother, TEXT("DamageBoost"), TEXT("brother"));
+		break;
+	default:
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: finished | %s"), *GetLifeDebugState());
+		GetWorldTimerManager().ClearTimer(JeminiSelfTestTimer);
+		if (bJeminiSelfTestQuit)
+		{
+			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+			{
+				PC->ConsoleCommand(TEXT("quit"));
+			}
+		}
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: step %d started | %s"), JeminiSelfTestStep, *Drone->GetDebugState());
+}
+
+void ALocalCoopGameMode::CXJeminiBattery(int32 Value)
+{
+	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+	{
+		Drone->SetBattery(Value);
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiBattery: %d"), Drone->GetBattery());
+	}
+}
+
+void ALocalCoopGameMode::CXJeminiEmotion(int32 Value)
+{
+	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+	{
+		const bool bLock = Value >= 0 && Value <= 3;
+		Drone->DebugLockEmotion(static_cast<ECXDroneEmotion>(FMath::Clamp(Value, 0, 3)), bLock);
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiEmotion: %s"), bLock ? *FString::FromInt(Value) : TEXT("auto"));
+	}
+}
+
+FString ALocalCoopGameMode::GetJeminiDebugState() const
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	return Drone ? Drone->GetDebugState() : TEXT("no drone");
 }
 
 // ---------------------------------------------------------------- 게임 클리어
@@ -640,6 +843,23 @@ void ALocalCoopGameMode::RespawnPlayer(TWeakObjectPtr<AController> WeakControlle
 			PC->SetViewTargetWithBlend(NewPawn, DeadViewBlendTime * 0.6f);
 		}
 	}
+}
+
+bool ALocalCoopGameMode::JeminiRebootNow(AController* Controller)
+{
+	const TWeakObjectPtr<AController> Weak(Controller);
+	if (!Controller || bGameOver || bGameCleared || bTravelling || !RespawnTimers.Contains(Weak))
+	{
+		return false;
+	}
+	if (FTimerHandle* Handle = RespawnTimers.Find(Weak))
+	{
+		GetWorldTimerManager().ClearTimer(*Handle);
+	}
+	UE_LOG(LogTemp, Log, TEXT("JeminiRebootNow: %s"), IsSisterController(Controller) ? TEXT("SISTER") : TEXT("BROTHER"));
+	// RespawnTimers에서 지우고 기존 부활 경로 그대로(파트너 근처, 체력 100, 부활 무적)
+	RespawnPlayer(Weak);
+	return IsControllerAlive(Controller);
 }
 
 void ALocalCoopGameMode::ClearLifeTimers()
@@ -1053,6 +1273,28 @@ void ALocalCoopGameMode::ExecuteTravel()
 		return;
 	}
 	const FString Map = PendingTravelMap;
+
+	// 제미니 공격력 강화는 맵 이동 시 유지(제미니 기능 기획 2-5) — 새 맵의 오빠 전투 컴포넌트가 이어받는다
+	if (UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()))
+	{
+		// 맵(방) 이동마다 제미니 배터리 +30 충전(최대 100). 새 맵 드론 BeginPlay가 게임 인스턴스 값을 읽는다.
+		static constexpr int32 JeminiTravelRecharge = 30;
+		const int32 OldBattery = GI->JeminiBattery;
+		GI->JeminiBattery = FMath::Clamp(GI->JeminiBattery + JeminiTravelRecharge, 0, 100);
+		UE_LOG(LogTemp, Log, TEXT("ExecuteTravel: Jemini battery %d -> %d"), OldBattery, GI->JeminiBattery);
+
+		GI->JeminiDamageBoostRemaining = 0.0f;
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			const APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+			if (const UBrotherCombatComponent* Combat = Pawn ? Pawn->FindComponentByClass<UBrotherCombatComponent>() : nullptr)
+			{
+				GI->JeminiDamageBoostRemaining = Combat->GetDamageBoostRemaining();
+				GI->JeminiDamageBoostMultiplier = Combat->GetDamageMultiplier();
+			}
+		}
+	}
+
 	if (GetNetMode() == NM_Standalone)
 	{
 		// 로컬 협동: 2P 로컬 플레이어는 게임 인스턴스에 남아 새 맵에서 컨트롤러가 다시 생긴다(BeginPlay는 없을 때만 생성)

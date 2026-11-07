@@ -21,6 +21,9 @@
 #include "CXSfx.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
+#include "CXGameInstance.h"
+#include "GameFramework/GameStateBase.h"
+#include "Net/UnrealNetwork.h"
 
 UBrotherCombatComponent::UBrotherCombatComponent()
 {
@@ -38,6 +41,66 @@ void UBrotherCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentAmmo = MaxAmmo;
+
+	// 맵 이동으로 넘어온 제미니 공격력 강화(남은 시간을 게임 인스턴스에 맡겨 둔다 — 한 번 쓰고 비운다)
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		if (UCXGameInstance* GI = Cast<UCXGameInstance>(GetOwner()->GetGameInstance()); GI && GI->JeminiDamageBoostRemaining > 0.0f)
+		{
+			ApplyDamageBoost(GI->JeminiDamageBoostRemaining, FMath::Max(1.0f, GI->JeminiDamageBoostMultiplier));
+			GI->JeminiDamageBoostRemaining = 0.0f;
+		}
+	}
+}
+
+void UBrotherCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UBrotherCombatComponent, DamageBoostEndTime);
+	DOREPLIFETIME(UBrotherCombatComponent, DamageBoostMultiplier);
+}
+
+double UBrotherCombatComponent::GetServerTime() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.0;
+	}
+	const AGameStateBase* GameState = World->GetGameState();
+	return GameState ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+}
+
+void UBrotherCombatComponent::ApplyDamageBoost(float Duration, float Multiplier)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || Duration <= 0.0f)
+	{
+		return;
+	}
+	const double Now = GetServerTime();
+	const float Remaining = GetDamageBoostRemaining();
+	DamageBoostMultiplier = FMath::Max(1.0f, Multiplier);
+	DamageBoostEndTime = Now + Remaining + Duration;
+	UE_LOG(LogTemp, Log, TEXT("BrotherCombat: damage boost x%.1f %.0fs (+%.0fs)"), DamageBoostMultiplier, Remaining + Duration, Duration);
+}
+
+void UBrotherCombatComponent::ClearDamageBoost()
+{
+	if (GetOwner() && GetOwner()->HasAuthority() && DamageBoostEndTime > 0.0)
+	{
+		DamageBoostEndTime = 0.0;
+		DamageBoostMultiplier = 1.0f;
+		UE_LOG(LogTemp, Log, TEXT("BrotherCombat: damage boost cleared"));
+	}
+}
+
+float UBrotherCombatComponent::GetDamageBoostRemaining() const
+{
+	if (DamageBoostEndTime <= 0.0)
+	{
+		return 0.0f;
+	}
+	return FMath::Max(0.0f, static_cast<float>(DamageBoostEndTime - GetServerTime()));
 }
 
 void UBrotherCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -284,9 +347,9 @@ void UBrotherCombatComponent::StopAim()
 
 void UBrotherCombatComponent::Fire()
 {
-	if (bIsReloading)
+	if (bIsReloading || CurrentAmmo <= 0)
 	{
-		// 탄약 0(자동 장전 중)에 쏘면 헛방
+		// 탄약 0(제미니 재장전 전/장전 중)에 쏘면 헛방 — 자동 재장전은 없다(제미니 AI봇 기획 B3)
 		if (CurrentAmmo <= 0 && DryFireSound)
 		{
 			UGameplayStatics::PlaySoundAtLocation(this, DryFireSound, GetOwner()->GetActorLocation());
@@ -337,11 +400,6 @@ void UBrotherCombatComponent::Fire()
 		PlayLocal2D(LowAmmoSound);
 	}
 
-	if (CurrentAmmo <= 0)
-	{
-		StartReload();
-	}
-
 	if (OwnerCharacter->HasAuthority())
 	{
 		SpawnBullet(AimDirection);
@@ -354,7 +412,39 @@ void UBrotherCombatComponent::Fire()
 
 void UBrotherCombatComponent::Server_Fire_Implementation(FVector_NetQuantizeNormal AimDirection)
 {
+	// 원격 오빠: 서버 쪽 탄약 사본도 줄여 둔다(제미니 요청 상태 수집용)
+	if (!IsLocallyControlledOwner())
+	{
+		CurrentAmmo = FMath::Max(CurrentAmmo - 1, 0);
+	}
 	SpawnBullet(AimDirection);
+}
+
+bool UBrotherCombatComponent::RequestJeminiReload()
+{
+	if (bIsReloading || CurrentAmmo >= MaxAmmo)
+	{
+		return false;
+	}
+	if (IsLocallyControlledOwner())
+	{
+		StartReload();
+	}
+	else
+	{
+		Client_JeminiReload();
+		// 서버 사본: 장전이 끝난 것으로 본다
+		CurrentAmmo = MaxAmmo;
+	}
+	return true;
+}
+
+void UBrotherCombatComponent::Client_JeminiReload_Implementation()
+{
+	if (!bIsReloading && CurrentAmmo < MaxAmmo)
+	{
+		StartReload();
+	}
 }
 
 void UBrotherCombatComponent::SpawnBullet(const FVector& AimDirection)
@@ -381,7 +471,8 @@ void UBrotherCombatComponent::SpawnBullet(const FVector& AimDirection)
 
 	if (ABrotherBullet* Bullet = GetWorld()->SpawnActor<ABrotherBullet>(BulletClass, SpawnLocation, SpawnRotation, SpawnParams))
 	{
-		Bullet->SetDamage(BulletDamage);
+		// 제미니 공격력 강화(서버에서만 — SpawnBullet은 서버 경로)
+		Bullet->SetDamage(BulletDamage * GetDamageMultiplier());
 	}
 }
 

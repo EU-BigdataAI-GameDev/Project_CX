@@ -3,6 +3,7 @@
 #include "CXMenuInputProcessor.h"
 #include "CXMenuSubsystem.h"
 #include "CXMenuStyle.h"
+#include "CXJeminiInputComponent.h"
 #include "InputCoreTypes.h"
 #include "Input/Events.h"
 
@@ -49,6 +50,12 @@ bool FCXMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, cons
 
 	const FKey Key = InKeyEvent.GetKey();
 	const bool bGamepad = Key.IsGamepadKey();
+
+	// 제미니 채팅 입력창이 열려 있으면 키보드는 입력창 몫(Esc = 입력 취소, 일시정지 메뉴 아님)
+	if (!bGamepad && !Subsystem->HasActiveMenu() && UCXJeminiInputComponent::IsAnyChatOpen())
+	{
+		return false;
+	}
 
 	if (!Subsystem->HasActiveMenu())
 	{

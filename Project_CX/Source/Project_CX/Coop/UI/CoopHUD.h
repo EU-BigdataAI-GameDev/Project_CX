@@ -196,6 +196,25 @@ private:
 	/** 부활 직후 REBOOTED. */
 	void DrawRebooted(const UCXPlayerLifeComponent& Life, const FLinearColor& Color);
 	void DrawSplitEdge(const FLinearColor& Color);
+	/**
+	 *  제미니(제미니 AI봇 기획 B6): 배터리 게이지(우상단) + 상태, 대사 말풍선(두 칸), 자기 입력 상태(녹음/막힘/키 안내),
+	 *  오빠 탄약 0 안내, 여동생 해킹 대행 진행도.
+	 */
+	void DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const UBrotherCombatComponent* MyCombat);
+
+	/** 자기 칸 체력 바 옆: 제미니 보호막 남은 시간 + 회복 +N 팝업(제미니 기능 기획 2-6, 2-9). */
+	void DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UCXPlayerLifeComponent* Life);
+
+	/** 대사 말풍선 표시 시간(초). 대사에 줄바꿈이 있으면 줄마다 다음 말풍선(줄당 JeminiLineDuration, 마지막 줄은 이 시간). */
+	float JeminiDialogueDuration = 5.0f;
+	float JeminiLineDuration = 3.0f;
+	int32 LastJeminiSeq = 0;
+	float JeminiDialogueTime = -100.0f;
+
+	/** 회복 팝업: 마지막으로 본 체력, 팝업 시작 시각과 양. */
+	float LastSeenHealth = -1.0f;
+	float HealPopupTime = -100.0f;
+	int32 HealPopupAmount = 0;
 
 	/** 분할 칸 기준 좌표(1920x540)를 실제 픽셀로 변환하는 배율. */
 	float S() const { return UIScale; }

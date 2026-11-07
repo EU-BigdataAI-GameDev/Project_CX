@@ -72,6 +72,10 @@ void USisterHackComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	{
 		EnemyCooldownRemaining = FMath::Max(0.0f, EnemyCooldownRemaining - DeltaTime);
 	}
+	if (JeminiAssistRemaining > 0.0f)
+	{
+		TickJeminiAssist(DeltaTime);
+	}
 	if (ActiveEnemy)
 	{
 		TickEnemyHack(DeltaTime);
@@ -362,6 +366,12 @@ void USisterHackComponent::TickEnemyHack(float DeltaTime)
 		return;
 	}
 
+	// 제미니가 대행 중이면 제한 시간이 멈춘다(대행이 끝나면 성공 처리)
+	if (JeminiAssistRemaining > 0.0f)
+	{
+		return;
+	}
+
 	// 틀려도 시간은 계속 흐른다(같은 배열 처음부터) → 벌칙은 "시간 손해"뿐, 4초가 자연스러운 상한
 	EnemyElapsed += DeltaTime;
 	if (EnemyElapsed >= EnemyArrowTimeLimit)
@@ -455,6 +465,88 @@ bool USisterHackComponent::ApplyEnemyHackOnServer(AActor* Target)
 	}
 	LastServerEnemyHackTime = Now;
 	return HackTarget->ApplyHackSuccess(Pawn);
+}
+
+// ---------------------------------------------------------------- 제미니 해킹 대행(제미니 AI봇 기획 B4)
+
+bool USisterHackComponent::GetJeminiPuzzleState(FString& OutType, float& OutProgress) const
+{
+	if (ActiveEnemy && !bEnemyResolved)
+	{
+		OutType = TEXT("enemy");
+		OutProgress = GetProgress();
+		return true;
+	}
+	if (ActiveTerminal && ActiveTerminal->GetState() != EHackTerminalState::Hacked)
+	{
+		OutType = TEXT("terminal");
+		OutProgress = GetProgress();
+		return true;
+	}
+	return false;
+}
+
+void USisterHackComponent::BeginJeminiAssist(float Duration)
+{
+	if (IsLocallyControlledOwner())
+	{
+		StartJeminiAssistLocal(Duration);
+	}
+	else
+	{
+		Client_BeginJeminiAssist(Duration);
+		// 서버 사본: 드론이 대행 중임을 알도록 같은 시간을 센다(완료 처리는 여동생 머신)
+		JeminiAssistDuration = JeminiAssistRemaining = FMath::Max(0.1f, Duration);
+	}
+}
+
+void USisterHackComponent::Client_BeginJeminiAssist_Implementation(float Duration)
+{
+	StartJeminiAssistLocal(Duration);
+}
+
+void USisterHackComponent::StartJeminiAssistLocal(float Duration)
+{
+	if (!IsHacking())
+	{
+		return;
+	}
+	JeminiAssistDuration = JeminiAssistRemaining = FMath::Max(0.1f, Duration);
+	UE_LOG(LogTemp, Log, TEXT("SisterHack: Jemini assist start (%.1fs, %s)"), Duration, ActiveEnemy ? TEXT("enemy") : TEXT("terminal"));
+}
+
+void USisterHackComponent::TickJeminiAssist(float DeltaTime)
+{
+	const bool bLocal = IsLocallyControlledOwner();
+	// 여동생이 먼저 풀었거나 취소했으면 대행도 끝(원격 여동생의 서버 사본은 시간만 센다)
+	if (bLocal && (!IsHacking() || bEnemyResolved || (ActiveTerminal && ActiveTerminal->GetState() == EHackTerminalState::Hacked)))
+	{
+		JeminiAssistRemaining = 0.0f;
+		return;
+	}
+	JeminiAssistRemaining = FMath::Max(0.0f, JeminiAssistRemaining - DeltaTime);
+	if (JeminiAssistRemaining <= 0.0f && bLocal)
+	{
+		CompleteJeminiAssist();
+	}
+}
+
+void USisterHackComponent::CompleteJeminiAssist()
+{
+	JeminiAssistRemaining = 0.0f;
+	if (ActiveEnemy)
+	{
+		ResolveEnemyHack(true);
+	}
+	else if (ActiveTerminal && ActiveTerminal->GetState() != EHackTerminalState::Hacked)
+	{
+		if (ActiveTerminal->PuzzleType == EHackPuzzleType::MemoryPattern)
+		{
+			SendMemorySession(false);
+		}
+		FinishSuccess();
+	}
+	UE_LOG(LogTemp, Log, TEXT("SisterHack: Jemini assist complete"));
 }
 
 namespace SisterHackDebug
