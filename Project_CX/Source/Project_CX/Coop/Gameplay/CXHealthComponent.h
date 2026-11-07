@@ -51,6 +51,27 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "CX|Health")
 	void ResetToMax();
 
+	/**
+	 *  서버: 회복(제미니 HealSupport). MaxHealth로 클램프, 사망·부활 대기 중이면 무시. 실제로 오른 양을 반환.
+	 *  OnHealthChanged(+Delta)가 브로드캐스트되고 CurrentHealth 복제로 HUD가 갱신된다.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "CX|Health")
+	float Heal(float Amount);
+
+	/**
+	 *  서버: 보호막(제미니 Shield) — Duration초 동안 모든 피해 무시(피격 무적과 같은 판정, 점멸 없음).
+	 *  이미 보호막 중이면 남은 시간을 Duration으로 다시 채운다(연장 아님). 사망 중이면 false.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "CX|Health")
+	bool GrantShield(float Duration);
+
+	/** 서버: 보호막 즉시 해제(사망 시). */
+	void ClearShield();
+
+	/** 보호막 남은 시간(초, 모든 머신 — 복제된 서버 시각 기준). */
+	UFUNCTION(BlueprintPure, Category = "CX|Health")
+	float GetShieldRemaining() const;
+
 	UFUNCTION(BlueprintPure, Category = "CX|Health")
 	float GetHealth() const { return CurrentHealth; }
 
@@ -124,6 +145,12 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Health)
 	float CurrentHealth = 100.0f;
+
+	/** 보호막이 끝나는 서버 월드 시각(GameState::GetServerWorldTimeSeconds). 0이면 없음. */
+	UPROPERTY(Replicated)
+	double ShieldEndTime = 0.0;
+
+	double GetServerTime() const;
 
 	bool bDepleted = false;
 	bool bDamageBound = false;

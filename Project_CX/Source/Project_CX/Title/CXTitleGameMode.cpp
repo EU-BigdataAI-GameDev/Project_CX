@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/HUD.h"
+#include "CXGameInstance.h"
 
 ACXTitleGameMode::ACXTitleGameMode()
 {
@@ -17,6 +18,13 @@ ACXTitleGameMode::ACXTitleGameMode()
 void ACXTitleGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 새 게임은 제미니 배터리 100에서 시작(이어하기는 인게임 InitGame이 세이브 값으로 덮는다)
+	if (UCXGameInstance* CXGameInstance = Cast<UCXGameInstance>(GetGameInstance()))
+	{
+		CXGameInstance->JeminiBattery = 100;
+		CXGameInstance->JeminiDamageBoostRemaining = 0.0f;
+	}
 
 	// 인게임에서 돌아온 경우: 2P 이후 로컬 플레이어 제거 → 분할 화면 없이 전체 화면 하나
 	if (UGameInstance* GameInstance = GetGameInstance())

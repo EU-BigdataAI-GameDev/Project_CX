@@ -62,10 +62,39 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
 	int32 GetMaxAmmo() const { return MaxAmmo; }
 
+	/**
+	 *  서버: 제미니 재장전 지원(.claude/Plans/제미니 AI봇 기획.md B3) — 오빠는 이것으로만 재장전한다(자동 재장전 없음).
+	 *  오빠를 조작하는 머신에서 장전(ReloadTime초)을 시작한다. 이미 장전 중이거나 탄창이 가득이면 false.
+	 */
+	bool RequestJeminiReload();
+
+	/** HUD: 탄약 0 + 장전 중 아님 → 제미니에게 재장전 요청 안내. */
+	bool NeedsJeminiReload() const { return CurrentAmmo <= 0 && !bIsReloading; }
+
+	// ------------------------------------------------------------ 제미니 공격력 강화(.claude/Plans/Jemini_plans/02_기능별_상세.md 2-5)
+
+	/**
+	 *  서버: 레일건 피해 x Multiplier를 Duration초. 이미 강화 중이면 남은 시간에 Duration을 더한다(연장).
+	 *  피해 배율은 서버 SpawnBullet에서만 적용(클라이언트 위조 불가). 사망 시 ClearDamageBoost(UCXPlayerLifeComponent).
+	 */
+	void ApplyDamageBoost(float Duration, float Multiplier);
+
+	/** 서버: 강화 즉시 해제. */
+	void ClearDamageBoost();
+
+	/** 강화 남은 시간(초, 모든 머신 — 복제된 서버 시각 기준). 0이면 비활성. */
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	float GetDamageBoostRemaining() const;
+
+	/** 지금 적용 중인 피해 배율(강화 아니면 1). */
+	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
+	float GetDamageMultiplier() const { return GetDamageBoostRemaining() > 0.0f ? DamageBoostMultiplier : 1.0f; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/**
 	 *  소유 Pawn의 EnhancedInputComponent에 FireAction/AimAction을 바인딩한다. 최초 플레이어 Pawn은
@@ -98,6 +127,10 @@ protected:
 	/** 원격 클라이언트가 오빠를 조작하는 경우를 위한 발사 RPC — 실제 스폰/데미지는 서버 권위(자동 조준 사격 구현.md 7장). */
 	UFUNCTION(Server, Reliable)
 	void Server_Fire(FVector_NetQuantizeNormal AimDirection);
+
+	/** 원격 클라이언트가 오빠를 조작할 때: 서버가 승인한 제미니 재장전을 그 머신에서 시작. */
+	UFUNCTION(Client, Reliable)
+	void Client_JeminiReload();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
 	TSubclassOf<ABrotherBullet> BulletClass;
@@ -174,7 +207,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat|Sound")
 	TObjectPtr<USoundBase> AimLockSound;
 
+	/** 강화가 끝나는 서버 월드 시각(GameState::GetServerWorldTimeSeconds). 0이면 없음. */
+	UPROPERTY(Replicated)
+	double DamageBoostEndTime = 0.0;
+
+	UPROPERTY(Replicated)
+	float DamageBoostMultiplier = 1.0f;
+
 private:
+	double GetServerTime() const;
 	bool IsLocallyControlledOwner() const;
 	void PlayLocal2D(USoundBase* Sound) const;
 	void UpdateReloadSound();

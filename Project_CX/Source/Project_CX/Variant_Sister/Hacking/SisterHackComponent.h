@@ -213,6 +213,25 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sister|Hack")
 	float GetProgress() const;
 
+	// ------------------------------------------------------------ 제미니 해킹 대행(.claude/Plans/제미니 AI봇 기획.md B4)
+
+	/**
+	 *  제미니 요청 상태: 지금 대행할 수 있는 퍼즐이 진행 중이면 true + "terminal"/"enemy"와 진행도.
+	 *  결과가 이미 났거나(성공 표시 중) 세션이 없으면 false → 서버로 null.
+	 */
+	bool GetJeminiPuzzleState(FString& OutType, float& OutProgress) const;
+
+	/**
+	 *  서버: 제미니가 Duration초 뒤 지금 퍼즐을 대신 성공시킨다. 그동안 적 해킹 제한 시간은 멈춘다.
+	 *  여동생이 먼저 풀거나 취소하면 대행도 끝난다(배터리는 이미 차감됨). 원격 여동생이면 그 머신에서 진행.
+	 */
+	void BeginJeminiAssist(float Duration);
+
+	bool IsJeminiAssisting() const { return JeminiAssistRemaining > 0.0f; }
+
+	/** HUD: 대행 진행도 0~1. */
+	float GetJeminiAssistProgress() const { return JeminiAssistDuration > 0.0f ? FMath::Clamp(1.0f - JeminiAssistRemaining / JeminiAssistDuration, 0.0f, 1.0f) : 0.0f; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -334,6 +353,17 @@ private:
 
 	UFUNCTION(Client, Reliable)
 	void Client_MemoryResult(EHackFeedback Result);
+
+	// 제미니 해킹 대행
+	void StartJeminiAssistLocal(float Duration);
+	void TickJeminiAssist(float DeltaTime);
+	void CompleteJeminiAssist();
+
+	UFUNCTION(Client, Reliable)
+	void Client_BeginJeminiAssist(float Duration);
+
+	float JeminiAssistRemaining = 0.0f;
+	float JeminiAssistDuration = 0.0f;
 
 	void OnInputUp() { InputDirection(EHackArrow::Up); }
 	void OnInputDown() { InputDirection(EHackArrow::Down); }

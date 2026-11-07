@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Sound/SoundBase.h"
@@ -72,6 +73,7 @@ void UCXHealthComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UCXHealthComponent, CurrentHealth);
 	DOREPLIFETIME(UCXHealthComponent, MaxHealth);
+	DOREPLIFETIME(UCXHealthComponent, ShieldEndTime);
 }
 
 void UCXHealthComponent::BeginPlay()
@@ -104,6 +106,11 @@ void UCXHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage,
 	// 사망·부활 대기 중이면 무시(엔진 CanBeDamaged 검사와 이중 안전장치 — 기획 6.2 서버 처리 순서)
 	UCXPlayerLifeComponent* Life = Owner->FindComponentByClass<UCXPlayerLifeComponent>();
 	if (Life && !Life->IsAlive())
+	{
+		return;
+	}
+	// 제미니 보호막 중이면 무시
+	if (GetShieldRemaining() > 0.0f)
 	{
 		return;
 	}
@@ -146,6 +153,75 @@ void UCXHealthComponent::ResetToMax()
 	{
 		NotifyHealthChanged(OldHealth, nullptr);
 	}
+}
+
+// ---------------------------------------------------------------- 제미니 회복 / 보호막(서버)
+
+double UCXHealthComponent::GetServerTime() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.0;
+	}
+	const AGameStateBase* GameState = World->GetGameState();
+	return GameState ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+}
+
+float UCXHealthComponent::Heal(float Amount)
+{
+	AActor* Owner = GetOwner();
+	if (!Owner || !Owner->HasAuthority() || Amount <= 0.0f || bDepleted || CurrentHealth <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const UCXPlayerLifeComponent* Life = Owner->FindComponentByClass<UCXPlayerLifeComponent>();
+	if (Life && !Life->IsAlive())
+	{
+		return 0.0f;
+	}
+	const float OldHealth = CurrentHealth;
+	CurrentHealth = FMath::Clamp(CurrentHealth + Amount, 0.0f, MaxHealth);
+	if (CurrentHealth != OldHealth)
+	{
+		UE_LOG(LogTemp, Log, TEXT("CXHealth: %s healed %.0f -> %.0f/%.0f"), *Owner->GetName(), CurrentHealth - OldHealth, CurrentHealth, MaxHealth);
+		NotifyHealthChanged(OldHealth, nullptr);
+	}
+	return CurrentHealth - OldHealth;
+}
+
+bool UCXHealthComponent::GrantShield(float Duration)
+{
+	AActor* Owner = GetOwner();
+	if (!Owner || !Owner->HasAuthority() || Duration <= 0.0f || CurrentHealth <= 0.0f)
+	{
+		return false;
+	}
+	const UCXPlayerLifeComponent* Life = Owner->FindComponentByClass<UCXPlayerLifeComponent>();
+	if (Life && !Life->IsAlive())
+	{
+		return false;
+	}
+	ShieldEndTime = GetServerTime() + Duration;
+	UE_LOG(LogTemp, Log, TEXT("CXHealth: %s shield %.1fs"), *Owner->GetName(), Duration);
+	return true;
+}
+
+void UCXHealthComponent::ClearShield()
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		ShieldEndTime = 0.0;
+	}
+}
+
+float UCXHealthComponent::GetShieldRemaining() const
+{
+	if (ShieldEndTime <= 0.0)
+	{
+		return 0.0f;
+	}
+	return FMath::Max(0.0f, static_cast<float>(ShieldEndTime - GetServerTime()));
 }
 
 // ---------------------------------------------------------------- 연출(모든 머신)
@@ -249,5 +325,5 @@ float UCXHealthComponent::GetTimeSinceLastDamage() const
 
 FString UCXHealthComponent::GetDebugState() const
 {
-	return FString::Printf(TEXT("hp=%.0f/%.0f dead=%d sinceHit=%.2f"), CurrentHealth, MaxHealth, IsDead() ? 1 : 0, GetTimeSinceLastDamage());
+	return FString::Printf(TEXT("hp=%.0f/%.0f dead=%d sinceHit=%.2f shield=%.1f"), CurrentHealth, MaxHealth, IsDead() ? 1 : 0, GetTimeSinceLastDamage(), GetShieldRemaining());
 }
