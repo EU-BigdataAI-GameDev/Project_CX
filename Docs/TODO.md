@@ -1,6 +1,6 @@
 # Project_CX 진행도 (TODO)
 
-- 마지막 갱신: 2026-11-04(레인 앞쪽 깊이 1.1배, Map2 수로 출구 수정, Map1·Map2 세로 1.1배, 세이브 복도 해킹 단말기 제거·상호작용 저장, Map2 단말기 퍼즐 3종, 거미 톱날 회전 축 수정)
+- 마지막 갱신: 2026-11-06(제미니 AI봇 1~3단계 구현), 2026-11-04(레인 앞쪽 깊이 1.1배, Map2 수로 출구 수정, Map1·Map2 세로 1.1배, 세이브 복도 해킹 단말기 제거·상호작용 저장, Map2 단말기 퍼즐 3종, 거미 톱날 회전 축 수정)
 - MVP 흐름: 방 1(Map1) → 방 2(Map2) → **세이브 복도** → 마지막 방(보스맵 `Map3_Final`, 팀원 제작) → 출구 문 → 클리어
 - 완료하면 `[x]`로 바꾸고, 관련 기획서/커밋을 옆에 적는다.
 
@@ -44,6 +44,19 @@
 - [ ] 보스방 출구에 출구 문(`ACXCoopExitDoor`) 배치
 - [ ] 맵 사이 이동(Map1 → Map2 → 복도 → Map3) 연결 — 부분: 출구 `ACXLevelExit`(두 명 생존·도착 시 이동) 구현, **Map1 → Map2 연결·확인**, **Map2 → 세이브 복도 연결·확인**(PIE), 복도 출구(→ `Map3_Final`) 배치 완료(맵 없으면 `NEXT AREA OFFLINE`). 남은 것: Map3 도착 확인
 
+### 6. 제미니 AI봇 (학교 과제, 제출 2026-12-02) — `.claude/Plans/제미니 AI봇 기획.md`, `Docs/Jemini/`
+- [x] 1단계 A: Python 서버(`Jemini/`) — FastAPI, Gemini 함수 호출 강제, 검증(재장전 5 / 단말기 20 / 적 10 / Chat 0), 모의 모드, 음성 엔드포인트, JSONL 로그, pytest 26개
+- [x] 1단계 B: 언리얼 연동 — 드론 `ACXJeminiDrone`, Enter 채팅 / 패드 Y 음성, 자동 재장전 제거, 해킹 대행, 배터리 유지·복도 충전, HUD. PIE(모의 모드)로 재장전·단말기/적 대행·거절·채팅창 확인
+- [x] 2단계 준비: `Dockerfile` + README Space 머리말·배포 절차
+- [x] 3단계: Streamlit 시연 화면 `Jemini/demo/streamlit_app.py`
+- [x] Gemini API 키 재발급 → 실제 Gemini로 텍스트·음성 확인, 모델 `gemini-3.5-flash-lite`(예비 `gemini-3.1-flash-lite`) 확정 — 시스템 환경변수의 예전 키 문제(`Debug_log.md` #9)
+- [ ] 실제 마이크로 패드 Y 음성, 한글 IME 채팅 입력 확인
+- [ ] 허깅페이스 Space 생성·배포(계정 필요) → UE ini `ServerUrl` 교체
+- [x] 드론 모델 교체 + 표정 시스템 — `SM_SupportDrone`(블렌더) 임포트, 머티리얼 6개, 표정 4종(스크린 아틀라스 A/B 프레임 + 감정 색 발광·추진기), 호버, 응답·상황별 자동 표정. 스크린이 +Y라 코드에서 보정. 캡처 `Docs/Screenshots/Drone/` (`Docs/SupportDrone_UE_Prompt.md`)
+- [x] 제미니 기능 9종 UE 구현(`.claude/Plans/제미니 기능 기획.md` as-built) — 재장전·단말기(A 대행/B 드론 비행)·적 해킹·펄스·공격력 강화·회복·미끼·빠른 재부팅·보호막, 실행 시점 차감·TARGET_LOST, BUSY, LOW BATTERY, 쓰러진 사람 입력, HUD. 헤드리스 `CXJeminiSelfTest`로 8종 확인
+- [ ] 제미니 기능 PIE 확인: 빠른 재부팅, 단말기 A·적 해킹 A(여동생 퍼즐 중), Fx 밝기·크기, 쓰러진 사람 채팅·음성, 맵 이동 강화 유지, 실제 Gemini로 9-2 판별 문장
+- [ ] 발표 PPT(10장 이내)
+
 ---
 
 ## 남은 자잘한 것
@@ -59,6 +72,7 @@
 - [ ] 패키징 빌드 테스트(`Map_Title`로 시작하는지)
 - [ ] 효과음 밸런스·발소리 타이밍 귀로 확인 후 조정
 - [ ] PR 템플릿이 `main`에 없음 → develop을 main에 머지하거나 `.github`만 올리기
+- [ ] 회로 연결 퍼즐 추가하기(피그마 방4 고난도 퍼즐 참고)
 
 ---
 

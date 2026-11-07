@@ -10,6 +10,34 @@
 
 ---
 
+## #10 게임이 띄운 jemini-server.exe가 살아 있는데 응답이 없음 — ✅ 완료
+- **수정 날짜**: 2026-11-06
+- **문제**: 서버 자동 실행(`UCXJeminiServerSubsystem`)을 넣은 뒤 독립 실행(-game)에서 exe 프로세스는 떠 있는데 `/health`가 끝까지 타임아웃.
+- **디버깅**: 셸에서 띄우면 정상, `Start-Process -WindowStyle Hidden`으로 띄우면 같은 증상 재현 → 창 없는 PyInstaller exe(`--noconsole`)는 `sys.stdout`/`stderr`가 `None`이라 uvicorn 로깅에서 예외 → PyInstaller의 오류 대화상자가 숨은 채 떠서 프로세스가 멈춤. 부수: exe 옆에 `.env`가 없으면 시스템 환경변수의 예전 키를 씀.
+- **수정**: `Jemini/run_server.py`가 stdout/stderr가 없으면 exe 옆 `logs/server.log`로 돌림. `app/config.py`는 exe 옆 `.env`가 없으면 `Jemini/.env`(저장소에서 만든 exe)도 찾음.
+- **확인**: 숨김 실행 즉시 `/health` 응답. 독립 실행 게임 → exe 자동 실행 → 실제 Gemini 재장전 응답 → 게임 정상 종료 시 서버도 종료. PIE도 시작 시 파이썬 서버 실행·종료 시 정리 확인.
+
+## #9 새 Gemini 키를 넣어도 401(ACCESS_TOKEN_TYPE_UNSUPPORTED) — ✅ 완료
+- **수정 날짜**: 2026-11-06
+- **문제**: `Jemini/.env`에 키를 새로 발급해 넣어도 `401 API key not valid`가 그대로 남.
+- **디버깅**: 키 값을 출력하지 않고 비교만 함 → Windows 시스템 환경변수에 예전 `GEMINI_API_KEY`가 있었고 `.env`와 값이 다름. `python-dotenv`의 `load_dotenv`는 기본적으로 이미 있는 환경변수를 덮어쓰지 않아 예전 키가 계속 쓰였음. (부수: `tools/list_models.py`가 임시 클라이언트로 목록을 넘기다 "client has been closed" 오류.)
+- **수정**: `app/config.py`, `tools/list_models.py`에서 `load_dotenv(..., override=True)` — 프로젝트 `.env`가 우선. `list_models.py`는 클라이언트를 변수에 잡아 둠.
+- **확인**: 모델 목록 조회 성공(`gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` 사용 가능). 실제 Gemini로 텍스트 5종 + 음성 2종(Windows 한국어 TTS로 만든 WAV) 의도대로 동작, 텍스트 약 0.8~1.2초, 음성 약 1.6초.
+- 같이 고친 것: 텍스트 입력에 `heard`가 채워짐 → 서버가 텍스트 요청이면 비움. 반말 섞임·Chat에서 재장전 약속 → 시스템 지시문에 "해요체 고정", "Chat에서 행동 약속 금지" 추가.
+
+## #8 제미니 거절 대사가 "바로 갈게요"로 나옴 — ✅ 완료
+- **수정 날짜**: 2026-11-06
+- **문제**: 탄약이 가득한데 재장전을 부탁하면 status는 `rejected(AMMO_FULL)`인데 대사는 "맡겨 주세요! 바로 갈게요."라 거절과 말이 안 맞음.
+- **디버깅**: 검증기(`Jemini/app/validator.py`)가 거절 때도 LLM 대사를 우선 사용. LLM(모의 모드 포함)은 함수를 고를 때 실행될 것으로 보고 긍정 대사를 붙인다.
+- **수정**: 거절은 항상 사유별 기본 대사(`DEFAULT_REJECT_LINES`) 사용. 명세서 6절 7번 갱신. pytest 26개 통과.
+
+## #7 제미니 요청이 전부 연결 실패(NO_CONNECTION) — ✅ 완료
+- **수정 날짜**: 2026-11-06
+- **문제**: 서버(`uvicorn`, 127.0.0.1:8000)가 떠 있고 `curl /health`는 되는데, PIE에서 제미니에게 말하면 항상 "신호가 끊겼어요"(fallback, NO_CONNECTION).
+- **디버깅**: `Saved/Logs/Project_CX.log`의 `LogHttp`에서 요청 주소가 `POST http:/command`, libcurl "Could not resolve host: command". `DefaultGame.ini`의 `ServerUrl=http://127.0.0.1:8000`이 따옴표 없이 쓰여 UE 설정 파서가 `//` 뒤를 잘라 `http:`만 남김.
+- **수정**: ini 값을 `ServerUrl="http://127.0.0.1:8000"`로 따옴표 처리 + 주석에 이유 기록. `ACXJeminiDrone::GetEndpoint`가 `://`가 없거나 잘린 주소면 경고 로그 후 기본 로컬 주소로 복구.
+- **확인**: 재빌드 후 PIE에서 잡담·거절·재장전·해킹 대행 응답 정상(모의 모드).
+
 ## #6 앞으로(카메라 쪽) 나오려면 투명벽이 막음 / 레인 깊이 1.1배 — ✅ 완료
 - **수정 날짜**: 2026-11-06
 - **문제**: "깊이가 조금 늘었는데 앞으로 나오려면 투명벽이 막는다. 투명벽을 화면 쪽으로 당겨 달라." — 사용자가 말한 "종 길이 1.1배"는 Z가 아니라 W/S(카메라 쪽 ↔ 뒤) 걸을 수 있는 깊이였음.

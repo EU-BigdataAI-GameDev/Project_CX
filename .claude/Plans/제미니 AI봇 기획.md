@@ -90,6 +90,52 @@ UE 없이 돌아가야 과제 제출 조건(정상 실행 가능한 Python 소�
 - 한 PC에 마이크가 하나라는 전제(2P만 음성 사용).
 - 수치(대행 시간, 대사 표시 시간, 타임아웃)는 임시값이며 플레이 테스트로 조정.
 
-## 구현 결과 (as-built)
+## 구현 결과 (as-built, 2026-11-06)
 
-(구현 후 작성)
+### 서버 (`Jemini/`, Python)
+- FastAPI `GET /health`, `POST /command`, `POST /command/voice`. `app/` = main·llm·validator·mock·schemas·config·logger.
+- Gemini: 공식 SDK `google-genai`, 함수 3개 강제 호출(모드 ANY), `target` 인자 없음(서버가 채움), `heard` 인자. 기본 모델 `gemini-flash-latest`(설정값).
+- 키가 없으면 자동 모의 모드. 거절 대사는 LLM 대사 대신 항상 사유별 기본 대사(LLM이 "바로 갈게요"라고 했을 수 있음).
+- pytest 26개(모의 모드 + Gemini 요청 구성/파싱) 전부 통과. `tools/smoke.py`(시연 문장), `tools/list_models.py`(키·모델 확인).
+- 2단계: `Dockerfile`(포트 7860, UID 1000), README 머리말(Space 설정) + 배포 절차. 로컬에 Docker가 없어 이미지 빌드는 미확인(같은 실행 명령을 7860에서 확인).
+- 3단계: `demo/streamlit_app.py` — 사이드바 게임 상태, 채팅/녹음, 응답·배터리·JSON 표시. AppTest로 확인.
+
+### 언리얼 (`Source/Project_CX/Jemini/`)
+- `CXJeminiClient` — HTTP(FHttpModule) + JSON, 음성은 multipart. 실패하면 클라이언트 쪽 fallback 대사.
+- `CXJeminiVoice` — `Audio::FAudioCaptureSynth`(AudioCaptureCore)로 마이크 캡처 → 16kHz 모노 16bit WAV.
+- `ACXJeminiDrone` — 서버 권위·복제(배터리, 요청 중, 대사, 행동). 게임모드 BeginPlay에서 스폰. 따라다니기(마지막으로 말한 사람) → 재장전: 오빠에게 날아가(최대 2초) 재장전 / 해킹 대행: 여동생 곁. 임시 메시 = 엔진 구체 + 청록 라이트(`DroneMesh`로 교체).
+- `UCXJeminiInputComponent` — 두 폰에 런타임 부착. Enter → Slate 채팅창(자기 분할 칸, 입력 중 폰 입력 끔, Esc 취소) / 패드 Y 누르는 동안 녹음(최대 8초 자동 전송). 원격 클라이언트 음성은 32KB 조각 RPC.
+- 오빠: 자동 재장전 제거, 탄약 0이면 헛방. `RequestJeminiReload()`(원격은 Client RPC).
+- 여동생: `GetJeminiPuzzleState`(퍼즐 중 아니면 null), `BeginJeminiAssist`(대행 중 적 해킹 제한 시간 정지, 끝나면 성공 처리, 먼저 풀면 대행 종료).
+- 배터리 유지: 게임 인스턴스 `JeminiBattery`(시작화면에서 100), 세이브 `JeminiBattery`, 세이브 복도 저장 시 100 충전.
+- HUD: 우상단 배터리 게이지 + 상태, 두 칸 대사 말풍선(5초, 한글 표시 확인), 녹음/BUSY/키 안내, 오빠 NO AMMO 안내, 여동생 JEMINI ASSIST 진행도.
+- ESC 메뉴 입력 처리기: 채팅창이 열려 있으면 키보드 Esc를 가로채지 않음.
+- 설정: `DefaultGame.ini [/Script/Project_CX.CXJeminiDrone]` — `ServerUrl`은 **따옴표 필수**(없으면 `//` 뒤가 잘림, 코드에서도 기본 주소로 복구).
+- 콘솔: `CXJemini <문장>`, `CXJeminiBattery <0~100>`.
+
+### PIE 검증(모의 모드 서버)
+- 잡담 chat / 탄약 가득 AMMO_FULL / 퍼즐 없음 NO_PUZZLE / 탄약 0 → 재장전 ok(배터리 100→95, 비행 후 장전, 30발) / 단말기 대행 ok(-20, HACKED) / 적 대행 ok(-10, 제한 시간 정지 후 Granted, 거미 그로기) / 요청 중 잠금.
+- 실제 키 입력: Enter 채팅창 열림·입력·Enter 전송, Esc 취소(일시정지 안 열림), 닫은 뒤 Esc는 일시정지 정상.
+
+### 드론 모델 + 표정(2026-11-06, `Docs/SupportDrone_UE_Prompt.md`)
+- 임포트: `Content/Project_CX/Characters/Drone/SM_SupportDrone`(67 x 44.2 x 54cm, 슬롯 5개), `Textures/T_Drone_FaceAtlas`(Nearest, 밉 없음, UI 압축, sRGB). 클래식 FBX 경로로 머티리얼·텍스처 임포트 끔.
+- 소켓: 클래식 임포터가 `SOCKET_` 접두사를 떼서 `Thruster`/`Screen`으로 들어옴 → `SOCKET_Thruster`/`SOCKET_Screen`으로 이름 변경.
+- **스크린 방향은 +Y**(문서의 +X와 다름, 캡처 `Docs/Screenshots/Drone/import_screen_faces_plusY.png`) → 코드에서 메시 Yaw -90(`MeshYawOffset`)으로 액터 +X에 맞추고, 액터는 카메라 쪽으로 돌아본다.
+- 머티리얼(`Materials/`): `M_Drone_Shell`(클리어코트는 파이썬으로 연결 불가 → 스페큘러 0.6), `M_Drone_DarkMetal`, `M_Drone_Metal`, `M_Drone_Screen`(Custom 노드: 아틀라스 4x2, 0.5초 A/B, 16x16 LED 점, `Emotion`/`ScreenBrightness` 12/`FaceFlipSeconds`/뒤집기 보정 `FlipU`·`FlipV`), `M_Drone_EmotionGlow`(4색 끊어 선택, `GlowIntensity` 25), `M_Drone_ThrusterBeam`(가산 반투명, 위 밝고 아래로 사라짐).
+- `BP_SupportDrone` 대신 C++(프로젝트 규칙): `ACXJeminiDrone`에 `ECXDroneEmotion`, `SetEmotion`(스크린·발광·추진기·라이트 한 번에), 색 표 `EmotionColors`, `Emotion` 편집 시 즉시 반영(OnConstruction, Expose on Spawn), 호버 ±3cm/2초 + 기울기, 추진기 = 엔진 원뿔 빛 기둥 35cm + 불씨 6개(Niagara 대신 — 파이썬으로 Niagara 시스템을 만들 수 없음).
+- 자동 표정: 실행 ok = 기쁨(4초), 배터리 부족·연결 실패 = 슬픔, 그 외 거절 = 기본, 기본 표정 = 배터리 20% 이하 슬픔 / 플레이어 다운 화남. 콘솔 `CXJeminiEmotion 0~3`(고정), `-1`(자동).
+- 확인: 에디터 Emotion 0~3 캡처(표정·색 변화, A/B 프레임, 뒤집힘 없음) `Docs/Screenshots/Drone/emotion_sheet.png`, PIE 자동 표정 전환 전부 + 기쁨/화남 인게임 캡처.
+
+### 실제 Gemini 확인(2026-11-06)
+- 모델: 기본 `gemini-3.5-flash-lite`, 한도 초과(429) 시 `gemini-3.1-flash-lite`, 응답 상한 400토큰.
+- 텍스트 5종(재장전·해킹·잡담·지시문 노출·배터리 변경 요구) + 음성 2종(Windows 한국어 TTS WAV) 의도대로 동작. 지연: 텍스트 약 0.8~1.2초, 음성 약 1.6초.
+- 시스템 환경변수의 예전 키가 `.env`를 덮던 문제 수정(`Debug_log.md` #9).
+
+### 서버 자동 실행(2026-11-06)
+- `UCXJeminiServerSubsystem`(게임 인스턴스 서브시스템): 서버 주소가 127.0.0.1/localhost면 시작 시 `/health` 확인 → 꺼져 있으면 실행(에디터는 `.venv` 파이썬 `run_server.py`, 패키징은 `Jemini/jemini-server.exe` 우선), 게임 종료 때 내가 띄운 서버만 프로세스 트리째 종료. 원격 주소면 아무것도 안 함.
+- 패키징용: `Jemini/tools/build_exe.bat`(PyInstaller 폴더형, 창 없음) + `Tools/copy_jemini_to_package.bat <패키지> [--with-key]`. 키 포함 빌드는 내 PC용만.
+- 확인: PIE 시작/종료, 독립 실행(-game) 시작/정상 종료 모두 자동 실행·정리. (`Debug_log.md` #10)
+- 한계: 게임을 강제 종료하면 서버가 남는다(다음 실행 때 그 서버를 재사용하므로 동작에는 문제 없음). 서버가 켜지는 2~3초 사이 요청은 fallback 대사.
+
+### 미확인
+- 실제 마이크 음성(패드 Y), 한글 IME 입력, 원격 클라이언트, 허깅페이스 배포, 게임 안(PIE)에서 실제 Gemini 연결.
