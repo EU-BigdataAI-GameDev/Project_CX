@@ -27,6 +27,7 @@ python -m venv .venv
 .venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 copy .env.example .env            # GEMINI_API_KEY 입력. 키가 없으면 모의 모드로 동작
+python tools/download_stt_model.py  # 실시간 자막 모델(faster-whisper small, 약 460MB, 한 번만)
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -42,8 +43,19 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 | `GET /health` | `{"status":"ok","mock":bool,"model":str}` |
 | `POST /command` | JSON `{text, state}` |
 | `POST /command/voice` | multipart: `audio`(WAV, 최대 8초), `state`(JSON 문자열), `mock_text`(모의 모드용, 선택) |
+| `POST /stt/partial` | multipart: `audio`(지금까지 녹음된 WAV) → `{"text": str 또는 null, "ms": int, "state": str}`. 실시간 자막용, 명령 실행 없음 |
 
 응답: `status`(ok / rejected / chat / fallback), `dialogue`, `command`(`name`, `target`), `battery_after`, `reason`, `heard`.
+
+## 실시간 자막 (POST /stt/partial)
+
+패드 Y를 누르고 말하는 동안 머리 위 말풍선에 받아 적은 글자가 바로 보이게 하는 기능(내 목소리가 들어가는지 확인용). 실제 명령은 지금처럼 뗀 뒤 전체 WAV를 Gemini로 보낸다.
+
+- 로컬 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) `small` int8 CPU, 한국어, beam 1, 게임 단어 프롬프트. 전용 스레드 1개라 `/command`를 막지 않는다.
+- 모델: `models/faster-whisper-small/`(464MB, gitignore). `python tools/download_stt_model.py`(`--test my.wav`로 확인). 없으면 서버 첫 실행 때 자동으로 받는다(`STT_AUTO_DOWNLOAD`).
+- 서버 시작 후 백그라운드로 모델을 읽는다(약 1.5초). 읽는 중·꺼짐·실패·무음이면 `text: null` → 게임은 무시(기존처럼 최종 말풍선만).
+- 속도(12코어, 4스레드): 음성 1~4초 모두 요청당 약 0.85초(Whisper가 30초 창을 처리해 길이와 거의 무관).
+- 끄기: `.env` `STT_ENABLED=false`. 허깅페이스 Space(무료 CPU)에서는 끄는 것을 권장.
 
 ## 규칙 요약
 
@@ -62,7 +74,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 | 패키징한 게임 | 게임 폴더의 `Jemini/jemini-server.exe` |
 
 패키징한 게임에 서버 넣기:
-1. `Jemini\tools\build_exe.bat` → `Jemini/dist/jemini-server/jemini-server.exe`(파이썬 없이 실행되는 폴더형 exe)
+1. `Jemini\tools\build_exe.bat` → `Jemini/dist/jemini-server/jemini-server.exe`(파이썬 없이 실행되는 폴더형 exe). 실시간 자막 모델을 받아 exe 옆 `models/`에 넣는다(폴더 약 680MB: 실행 파일 205MB + 모델 464MB).
 2. `Tools\copy_jemini_to_package.bat <Project_CX.exe가 있는 폴더> --with-key`
    - `--with-key`는 `.env`(API 키)까지 복사한다. **내 PC·발표 노트북용만.** 남에게 주는 빌드에는 키를 넣지 말고 허깅페이스 Space 주소를 쓴다(아래 2단계).
 3. 서버 로그: `Jemini/logs/jemini.jsonl`(요청), 창 없이 실행될 때 출력은 `Jemini/logs/server.log`.
@@ -98,7 +110,7 @@ streamlit run demo/streamlit_app.py      # 서버 주소는 사이드바에서 �
 ## 구조
 
 ```
-app/  main.py(API)  llm.py(Gemini)  validator.py(검증)  mock.py  schemas.py  config.py  logger.py
+app/  main.py(API)  llm.py(Gemini)  validator.py(검증)  stt.py(실시간 자막)  mock.py  schemas.py  config.py  logger.py
 prompts/system_instruction.txt   tests/   tools/   demo/(Streamlit)   Dockerfile
 ```
 

@@ -92,3 +92,6 @@ Jemini/.venv/
 Jemini/dist/
 Jemini/build/
 Jemini/*.spec
+
+# Jemini live-caption STT model (tools/download_stt_model.py)
+Jemini/models/

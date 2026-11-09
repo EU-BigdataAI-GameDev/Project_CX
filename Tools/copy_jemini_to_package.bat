@@ -18,7 +18,11 @@ if not exist "%REPO%\Jemini\dist\jemini-server\jemini-server.exe" (
     echo [copy_jemini] Build the server first: Jemini\tools\build_exe.bat
     exit /b 1
 )
-robocopy "%REPO%\Jemini\dist\jemini-server" "%PKG%\Jemini" /E /NFL /NDL /NJH /NJS /NP >nul
+rem Includes models\ (live-caption STT model, ~460MB) - build_exe.bat puts it next to the exe. logs\ is not copied.
+robocopy "%REPO%\Jemini\dist\jemini-server" "%PKG%\Jemini" /E /XD logs .cache /NFL /NDL /NJH /NJS /NP >nul
+if not exist "%PKG%\Jemini\models\faster-whisper-small\model.bin" (
+    echo [copy_jemini] WARNING: STT model missing - live captions off. Run Jemini\tools\download_stt_model.py then build_exe.bat again.
+)
 if "%~2"=="--with-key" (
     copy /Y "%REPO%\Jemini\.env" "%PKG%\Jemini\.env" >nul && echo [copy_jemini] .env copied ^(contains the API key^)
 )
