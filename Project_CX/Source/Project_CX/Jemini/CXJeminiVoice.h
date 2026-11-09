@@ -28,11 +28,20 @@ public:
 	/** 녹음 종료 → WAV 바이트. 너무 짧거나(MinSeconds 미만) 실패하면 빈 배열. */
 	TArray<uint8> Stop(float MinSeconds = 0.3f);
 
-	/** 취소(데이터 버림). */
+	/** 취소(데이터 버림, 스트림 닫기). 녹음 중이 아니어도 안전. */
 	void Cancel();
+
+	/**
+	 *  완전 종료: 취소 + 캡처 스트림 닫기 + 캡처 객체 파괴. 소유자 EndPlay/OnUnregister에서 부른다(여러 번 불러도 안전).
+	 *  열린 스트림을 GC 소멸자에서 파괴하면 크래시하므로(Docs/Debug_log.md 2026-11-07) 소멸자에 맡기지 않는다.
+	 */
+	void Shutdown();
 
 	bool IsRecording() const { return bRecording; }
 	float GetRecordedSeconds() const;
+
+	/** 녹음을 멈추지 않고 지금까지(처음부터, 최대 MaxSeconds초)를 WAV로 — 실시간 자막(/stt/partial)용. */
+	TArray<uint8> EncodeSnapshot(float MaxSeconds) const;
 
 	/** 지금 어느 녹음기든 녹음 중인지(마이크 하나). */
 	static bool IsAnyRecording() { return ActiveRecorders > 0; }
@@ -43,6 +52,9 @@ public:
 	static constexpr int32 TargetSampleRate = 16000;
 
 private:
+	/** 열린 캡처 스트림을 중단·닫기(캡처 스레드 종료). 닫혀 있으면 아무것도 안 함. */
+	void CloseStream();
+
 	TUniquePtr<Audio::FAudioCaptureSynth> Capture;
 	TArray<float> Samples;
 	int32 NumChannels = 1;

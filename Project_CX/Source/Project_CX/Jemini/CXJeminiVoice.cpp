@@ -11,7 +11,37 @@ FCXJeminiVoiceRecorder::FCXJeminiVoiceRecorder() = default;
 
 FCXJeminiVoiceRecorder::~FCXJeminiVoiceRecorder()
 {
-	Cancel();
+	// 정상 경로는 소유자 EndPlay/OnUnregister에서 Shutdown()이 이미 불려 Capture가 비어 있다.
+	// 혹시 남아 있으면(예: EndPlay 없이 GC) 스트림을 먼저 닫은 뒤 파괴한다 — 열린 채 파괴하면 엔진 FAudioCaptureSynth의
+	// 멤버 파괴 순서(AudioCapture보다 버퍼·락이 먼저 사라짐) 때문에 WASAPI 캡처 스레드가 해제된 메모리를 만진다(2026-11-07 PIE 종료 크래시).
+	if (Capture.IsValid())
+	{
+		UE_LOG(LogCXJeminiVoice, Warning, TEXT("JeminiVoice: recorder destroyed without Shutdown() - closing capture stream now"));
+		Shutdown();
+	}
+}
+
+void FCXJeminiVoiceRecorder::CloseStream()
+{
+	// AbortCapturing = AbortStream + CloseStream(엔진 쪽에서 열린 경우에만 동작) → 캡처 스레드 종료·마이크 해제.
+	// 닫힌 뒤 다시 불러도 안전(IsStreamOpen 확인).
+	if (Capture.IsValid() && Capture->IsStreamOpen())
+	{
+		Capture->AbortCapturing();
+	}
+}
+
+void FCXJeminiVoiceRecorder::Shutdown()
+{
+	if (bRecording)
+	{
+		bRecording = false;
+		ActiveRecorders = FMath::Max(0, ActiveRecorders - 1);
+	}
+	Samples.Reset();
+	CloseStream();
+	// 스트림이 닫혀 캡처 스레드가 없을 때만 파괴한다
+	Capture.Reset();
 }
 
 bool FCXJeminiVoiceRecorder::Start()
@@ -37,14 +67,14 @@ bool FCXJeminiVoiceRecorder::Start()
 	if (!Capture->IsStreamOpen() && !Capture->OpenDefaultStream())
 	{
 		UE_LOG(LogCXJeminiVoice, Warning, TEXT("JeminiVoice: failed to open capture stream (%s)"), *Info.DeviceName);
+		CloseStream();
 		return false;
 	}
 	Samples.Reset();
-	// 열려 있던 스트림에 남은 이전 데이터는 버린다
-	TArray<float> Discard;
-	Capture->GetAudioData(Discard);
+	// StartCapturing이 캡처 버퍼를 비운다(열기~시작 사이에 들어온 데이터 버림)
 	if (!Capture->StartCapturing())
 	{
+		CloseStream();
 		return false;
 	}
 	bRecording = true;
@@ -66,6 +96,21 @@ float FCXJeminiVoiceRecorder::GetRecordedSeconds() const
 	return SampleRate > 0 ? static_cast<float>(Samples.Num()) / (NumChannels * SampleRate) : 0.0f;
 }
 
+TArray<uint8> FCXJeminiVoiceRecorder::EncodeSnapshot(float MaxSeconds) const
+{
+	if (!bRecording || Samples.Num() == 0)
+	{
+		return {};
+	}
+	const int32 MaxSamples = FMath::Max(1, FMath::FloorToInt(MaxSeconds * SampleRate)) * NumChannels;
+	if (Samples.Num() <= MaxSamples)
+	{
+		return EncodeWav16kMono(Samples, NumChannels, SampleRate);
+	}
+	const TArray<float> Prefix(Samples.GetData(), MaxSamples);
+	return EncodeWav16kMono(Prefix, NumChannels, SampleRate);
+}
+
 TArray<uint8> FCXJeminiVoiceRecorder::Stop(float MinSeconds)
 {
 	if (!bRecording)
@@ -73,9 +118,11 @@ TArray<uint8> FCXJeminiVoiceRecorder::Stop(float MinSeconds)
 		return {};
 	}
 	Poll();
-	Capture->StopCapturing();
 	bRecording = false;
-	--ActiveRecorders;
+	ActiveRecorders = FMath::Max(0, ActiveRecorders - 1);
+	// 녹음이 끝나면 스트림을 바로 닫는다(캡처 스레드 종료 + 마이크 해제). 열어 둔 채 두면 PIE 종료 GC에서
+	// 실행 중인 스트림째 파괴돼 크래시(Debug_log 2026-11-07). 다음 Start()가 다시 연다(수 ms).
+	CloseStream();
 
 	const float Seconds = GetRecordedSeconds();
 	if (Seconds < MinSeconds)
@@ -94,13 +141,11 @@ void FCXJeminiVoiceRecorder::Cancel()
 {
 	if (bRecording)
 	{
-		if (Capture)
-		{
-			Capture->AbortCapturing();
-		}
 		bRecording = false;
-		--ActiveRecorders;
+		ActiveRecorders = FMath::Max(0, ActiveRecorders - 1);
 	}
+	// 녹음 중이 아니어도 열린 스트림이 남아 있으면 닫는다(예전에는 녹음 중일 때만 닫아 짧은 녹음 뒤 스트림이 남았다)
+	CloseStream();
 	Samples.Reset();
 }
 

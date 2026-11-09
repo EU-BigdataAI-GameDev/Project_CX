@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HttpFwd.h"
 
 /**
  *  제미니 LLM 서버(Jemini/ FastAPI) HTTP 클라이언트 — .claude/Plans/제미니 AI봇 기획.md 1단계 B1.
@@ -74,6 +75,9 @@ struct FCXJeminiResponse
 
 DECLARE_DELEGATE_OneParam(FOnCXJeminiResponse, const FCXJeminiResponse& /*Response*/);
 
+/** 실시간 자막 응답. bOk = 받아 적은 글자가 있음(서버 text가 null·실패·연결 끊김이면 false). */
+DECLARE_DELEGATE_TwoParams(FOnCXJeminiPartial, bool /*bOk*/, const FString& /*Text*/);
+
 namespace CXJemini
 {
 	struct FEndpoint
@@ -88,6 +92,13 @@ namespace CXJemini
 
 	/** POST /command/voice (multipart: audio WAV + state JSON) */
 	void SendVoice(const FEndpoint& Endpoint, const TArray<uint8>& Wav, const FCXJeminiState& State, FOnCXJeminiResponse OnDone);
+
+	/**
+	 *  POST /stt/partial (multipart: audio WAV) — 말하는 도중 실시간 자막(서버 로컬 faster-whisper). 명령은 실행하지 않는다.
+	 *  응답 {"text": str|null, "ms": int}. 실패는 조용히 bOk=false(로그는 Verbose).
+	 *  반환값으로 요청을 취소할 수 있다(소유자 EndPlay — 취소해도 콜백은 bOk=false로 한 번 온다).
+	 */
+	FHttpRequestPtr SendSttPartial(const FEndpoint& Endpoint, const TArray<uint8>& Wav, FOnCXJeminiPartial OnDone);
 
 	/** state 객체 JSON 문자열. */
 	FString StateToJson(const FCXJeminiState& State);

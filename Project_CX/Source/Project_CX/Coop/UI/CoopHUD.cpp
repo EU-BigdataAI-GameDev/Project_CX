@@ -168,6 +168,8 @@ void ACoopHUD::DrawHUD()
 		if (MyPawn && !bDead)
 		{
 			DrawMemoryRelay(*MyPawn);
+			// 회로 연결 중계(맵2 개선 기획 3장): 짝 정보(색·번호)는 오빠 칸에만
+			DrawCircuitRelay(*MyPawn);
 		}
 	}
 
@@ -330,12 +332,10 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		Panel(X, Y, W, H, BubbleAccent.CopyWithNewOpacity(Fade));
 		Label(TEXT("JEMINI"), X + Pad, Y + 8.0f * S(), BubbleAccent.CopyWithNewOpacity(0.85f * Fade), GEngine->GetTinyFont(), 1.0f);
 		Label(Text, X + Pad + 70.0f * S(), Y + 12.0f * S(), FLinearColor::White.CopyWithNewOpacity(Fade), GEngine->GetMediumFont(), TextScale);
-		if (!Drone->GetHeard().IsEmpty())
-		{
-			Label(FString::Printf(TEXT("HEARD  \"%s\""), *Drone->GetHeard()), X + Pad, Y + H + 4.0f * S(),
-				JeminiColor.CopyWithNewOpacity(0.6f * Fade), GEngine->GetSmallFont(), 0.9f);
-		}
 	}
+
+	// 3) 음성 STT 말풍선: 말한 플레이어 머리 위에 알아들은 문장(Heard)을 띄운다(두 칸 모두, 월드 위치를 각 칸 화면으로 투영)
+	DrawHeardBubble(*Drone, Now - JeminiDialogueTime);
 
 	if (!MyPawn)
 	{
@@ -911,6 +911,111 @@ void ACoopHUD::DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearC
 	Label(Text, X + BarW + 12.0f * S(), Y - 5.0f * S(), bLow ? BarColor : FLinearColor::White, GEngine->GetSmallFont(), 1.0f);
 }
 
+void ACoopHUD::DrawHeardBubble(const ACXJeminiDrone& Drone, float Age)
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	// 1) 실시간 자막: 이 PC의 로컬 플레이어(로컬 협동이면 두 명 다)가 말하는 중이거나 최종 응답을 기다리는 중.
+	//    두 분할 칸의 HUD가 같은 PC에 있으니 입력 컴포넌트 값을 그대로 읽는다(복제 없음).
+	TArray<const APawn*, TInlineAllocator<2>> LiveSpeakers;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		const APawn* Pawn = PC && PC->IsLocalController() ? PC->GetPawn() : nullptr;
+		const UCXJeminiInputComponent* Input = Pawn ? Pawn->FindComponentByClass<UCXJeminiInputComponent>() : nullptr;
+		if (Input && Input->HasLiveCaption())
+		{
+			const bool bPending = Input->GetLiveCaptionState() == ECXLiveCaptionState::Pending;
+			DrawSpeakerBubble(Pawn, Input->GetLiveCaption(), 1.0f, bPending ? ECXSpeakerBubble::Pending : ECXSpeakerBubble::Listening);
+			LiveSpeakers.Add(Pawn);
+		}
+	}
+
+	// 2) 최종 Heard(서버 응답) — 같은 사람이 새로 말하는 중이면 이전 문장은 숨긴다
+	const APawn* Speaker = Drone.GetHeardSpeaker();
+	const FString& Heard = Drone.GetHeard();
+	if (!Speaker || Heard.IsEmpty() || Age < 0.0f || Age >= HeardBubbleDuration || LiveSpeakers.Contains(Speaker))
+	{
+		return;
+	}
+	// 실시간 자막(대기)에서 바로 이어지므로 페이드인은 짧게
+	const float Fade = FMath::Clamp((HeardBubbleDuration - Age) / 0.4f, 0.0f, 1.0f) * FMath::Clamp(Age / 0.15f, 0.0f, 1.0f);
+	DrawSpeakerBubble(Speaker, Heard, Fade, ECXSpeakerBubble::Final);
+}
+
+void ACoopHUD::DrawSpeakerBubble(const APawn* Speaker, const FString& InText, float Fade, ECXSpeakerBubble Style)
+{
+	if (!Speaker || !Canvas || Fade <= 0.0f)
+	{
+		return;
+	}
+
+	// 머리 위 월드 위치 → 이 칸(분할 화면)의 화면 좌표. 카메라 뒤면 그리지 않는다.
+	float HalfHeight = 90.0f;
+	if (const ACharacter* Char = Cast<ACharacter>(Speaker))
+	{
+		HalfHeight = Char->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	}
+	const FVector Head = Speaker->GetActorLocation() + FVector(0.0f, 0.0f, HalfHeight + 35.0f);
+	const FVector Screen = Canvas->Project(Head, false);
+	if (Screen.Z <= 0.0f)
+	{
+		return;
+	}
+
+	const bool bSister = Speaker->IsA<ASisterCharacter>();
+	const FLinearColor Accent = bSister ? FLinearColor(1.0f, 0.45f, 0.8f, 1.0f) : FLinearColor(1.0f, 0.6f, 0.15f, 1.0f);
+
+	// 길면 앞을 자른다 — 말하는 중에는 최근에 말한 끝부분이 중요하다(최종은 뒤를 자른다)
+	FString Text = InText.TrimStartAndEnd();
+	if (Text.Len() > 40)
+	{
+		Text = Style == ECXSpeakerBubble::Final ? Text.Left(39) + TEXT("…") : TEXT("…") + Text.Right(39);
+	}
+	const FString Body = Style == ECXSpeakerBubble::Final ? FString::Printf(TEXT("\"%s\""), *Text) : Text;
+
+	// 듣는 중 / 대기: 끝에 점 애니메이션(폭은 점 3개 기준으로 고정해 말풍선이 떨리지 않게)
+	const float Now = GetWorld()->GetTimeSeconds();
+	const bool bDots = Style != ECXSpeakerBubble::Final;
+	const int32 DotCount = Style == ECXSpeakerBubble::Listening ? 1 + FMath::FloorToInt(Now * 4.0f) % 3 : 1 + FMath::FloorToInt(Now * 2.0f) % 3;
+	const FString Dots = bDots ? FString::ChrN(DotCount, TEXT('.')) : FString();
+
+	UFont* Font = GEngine->GetMediumFont();
+	const float Scale = S() * CoopHUDLayout::TextScale;
+	float TW = 0.0f, TH = 0.0f, DW = 0.0f, DH = 0.0f;
+	GetTextSize(Body, TW, TH, Font, Scale);
+	if (bDots)
+	{
+		GetTextSize(TEXT(" ..."), DW, DH, Font, Scale);
+	}
+	const float Pad = 12.0f * S();
+	const float W = TW + DW + 2.0f * Pad;
+	const float H = TH + 2.0f * Pad * 0.75f;
+	const float Tail = 10.0f * S();
+	const float X = FMath::Clamp(Screen.X - W * 0.5f, 8.0f * S(), Canvas->ClipX - W - 8.0f * S());
+	const float Y = FMath::Clamp(Screen.Y - H - Tail, 8.0f * S(), Canvas->ClipY - H - Tail - 8.0f * S());
+
+	// 듣는 중은 테두리가 숨 쉬듯 깜빡(마이크가 들어가는 중), 대기는 흐리게
+	const float BorderAlpha = Style == ECXSpeakerBubble::Listening ? 0.55f + 0.45f * Pulse(3.0f) : (Style == ECXSpeakerBubble::Pending ? 0.6f : 1.0f);
+	const float TextAlpha = Style == ECXSpeakerBubble::Pending ? 0.7f : 1.0f;
+	Panel(X, Y, W, H, Accent.CopyWithNewOpacity(BorderAlpha * Fade));
+	Label(Body, X + Pad, Y + Pad * 0.75f, FLinearColor::White.CopyWithNewOpacity(TextAlpha * Fade), Font, 1.0f);
+	if (bDots)
+	{
+		Label(TEXT(" ") + Dots, X + Pad + TW, Y + Pad * 0.75f, Accent.CopyWithNewOpacity(Fade), Font, 1.0f);
+	}
+	// 꼬리: 머리 쪽으로 좁아지는 사각형 3단
+	const float TailX = FMath::Clamp(Screen.X, X + Pad, X + W - Pad);
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const float Half = (3 - i) * 2.5f * S();
+		DrawRect(Accent.CopyWithNewOpacity(0.85f * BorderAlpha * Fade), TailX - Half, Y + H + i * Tail / 3.0f, Half * 2.0f, Tail / 3.0f);
+	}
+}
+
 void ACoopHUD::DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UCXPlayerLifeComponent* Life)
 {
 	const float Now = GetWorld()->GetTimeSeconds();
@@ -1437,6 +1542,11 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 	if (Terminal->PuzzleType == EHackPuzzleType::MemoryPattern)
 	{
 		DrawMemoryHackSession(Hack, *Terminal);
+		return;
+	}
+	if (Terminal->PuzzleType == EHackPuzzleType::CircuitLink)
+	{
+		DrawCircuitHackSession(Hack, *Terminal);
 		return;
 	}
 
@@ -2009,4 +2119,478 @@ APawn* ACoopHUD::FindPartnerPawn() const
 float ACoopHUD::Pulse(float Speed) const
 {
 	return 0.5f + 0.5f * FMath::Sin(GetWorld()->GetTimeSeconds() * Speed);
+}
+
+// ---------------------------------------------------------------- 회로 연결(맵2 개선 기획 3장)
+
+FLinearColor ACoopHUD::CircuitPairColor(int32 Pair)
+{
+	static const FLinearColor Colors[] = {
+		FLinearColor(1.0f, 0.86f, 0.1f, 1.0f),		// 1 노랑
+		FLinearColor(0.72f, 0.32f, 1.0f, 1.0f),		// 2 보라
+		FLinearColor(1.0f, 0.48f, 0.08f, 1.0f),		// 3 주황
+		FLinearColor(0.1f, 0.92f, 1.0f, 1.0f),		// 4 청록
+		FLinearColor(0.6f, 1.0f, 0.2f, 1.0f),		// 5 연두
+		FLinearColor(1.0f, 0.35f, 0.75f, 1.0f),		// 6 분홍
+	};
+	return Colors[FMath::Abs(Pair) % UE_ARRAY_COUNT(Colors)];
+}
+
+void ACoopHUD::DrawCircuitDot(const FVector2D& Center, float Radius, const FLinearColor& Color)
+{
+	// 가로로 긴 사각형 + 세로로 긴 사각형 → 모서리가 깎인 둥근 점
+	DrawRect(Color, Center.X - Radius, Center.Y - Radius * 0.6f, Radius * 2.0f, Radius * 1.2f);
+	DrawRect(Color, Center.X - Radius * 0.6f, Center.Y - Radius, Radius * 1.2f, Radius * 2.0f);
+}
+
+void ACoopHUD::DrawCircuitGrid(const AHackTerminal& Terminal, float GX, float GY, float Cell, bool bPairView, bool bShowCursor, float Dim)
+{
+	const int32 W = Terminal.GetCircuitWidth();
+	const int32 H = Terminal.GetCircuitHeight();
+	if (W <= 0 || H <= 0)
+	{
+		return;
+	}
+	const float GW = W * Cell;
+	const float GH = H * Cell;
+	const float U = S();
+	const FLinearColor GridNeon(0.18f, 0.55f, 1.0f, 1.0f);
+	const FLinearColor SourceColor(0.18f, 0.5f, 1.0f, 1.0f);
+	const FLinearColor SinkColor(0.2f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor DrawColor(1.0f, 0.42f, 0.78f, 1.0f);
+	const FLinearColor LinkedColor(0.35f, 1.0f, 0.85f, 1.0f);
+	const bool bBlinkOn = FMath::Fmod(GetWorld()->GetTimeSeconds(), 0.5f) < 0.3f;
+	auto CenterOf = [&](int32 C) { return FVector2D(GX + (C % W + 0.5f) * Cell, GY + (C / W + 0.5f) * Cell); };
+
+	// 바탕: 어두운 기판 + 칸마다 살짝 밝은 패드 + 네온 테두리 + 교차점 눈금
+	DrawRect(FLinearColor(0.004f, 0.01f, 0.025f, 0.94f), GX - 6.0f * U, GY - 6.0f * U, GW + 12.0f * U, GH + 12.0f * U);
+	for (int32 C = 0; C < W * H; ++C)
+	{
+		const float CX = GX + (C % W) * Cell;
+		const float CY = GY + (C / W) * Cell;
+		DrawRect(FLinearColor(0.03f, 0.07f, 0.14f, 0.6f * Dim), CX + 2.0f * U, CY + 2.0f * U, Cell - 4.0f * U, Cell - 4.0f * U);
+	}
+	for (int32 X = 0; X <= W; ++X)
+	{
+		for (int32 Y = 0; Y <= H; ++Y)
+		{
+			DrawRect(GridNeon.CopyWithNewOpacity(0.35f * Dim), GX + X * Cell - 1.0f * U, GY + Y * Cell - 1.0f * U, 2.0f * U, 2.0f * U);
+		}
+	}
+	const FLinearColor Edge = GridNeon.CopyWithNewOpacity(0.55f * Dim);
+	DrawLine(GX - 6.0f * U, GY - 6.0f * U, GX + GW + 6.0f * U, GY - 6.0f * U, Edge, 1.5f);
+	DrawLine(GX + GW + 6.0f * U, GY - 6.0f * U, GX + GW + 6.0f * U, GY + GH + 6.0f * U, Edge, 1.5f);
+	DrawLine(GX + GW + 6.0f * U, GY + GH + 6.0f * U, GX - 6.0f * U, GY + GH + 6.0f * U, Edge, 1.5f);
+	DrawLine(GX - 6.0f * U, GY + GH + 6.0f * U, GX - 6.0f * U, GY - 6.0f * U, Edge, 1.5f);
+
+	// 회로: 넓은 글로우 → 굵은 선 → 가는 흰 하이라이트, 칸마다 둥근 연결점
+	const TArray<FCXCircuitPathRep>& Paths = Terminal.GetCircuitPaths();
+	for (int32 i = 0; i < Paths.Num(); ++i)
+	{
+		const FCXCircuitPathRep& Path = Paths[i];
+		if (Path.Cells.Num() == 0)
+		{
+			continue;
+		}
+		FLinearColor Col;
+		if (Path.IsMismatch())
+		{
+			Col = DeniedColor.CopyWithNewOpacity(bBlinkOn ? 1.0f : 0.35f);
+		}
+		else if (bPairView)
+		{
+			Col = CircuitPairColor(Path.Origin / 2);
+		}
+		else
+		{
+			Col = Path.IsLinked() ? LinkedColor : DrawColor;
+		}
+		Col.A *= Dim;
+		for (int32 k = 1; k < Path.Cells.Num(); ++k)
+		{
+			const FVector2D A = CenterOf(Path.Cells[k - 1]);
+			const FVector2D B = CenterOf(Path.Cells[k]);
+			DrawLine(A.X, A.Y, B.X, B.Y, Col.CopyWithNewOpacity(0.2f * Col.A), Cell * 0.46f);
+			DrawLine(A.X, A.Y, B.X, B.Y, Col, Cell * 0.2f);
+			DrawLine(A.X, A.Y, B.X, B.Y, FLinearColor(1.0f, 1.0f, 1.0f, 0.45f * Col.A), FMath::Max(1.0f, Cell * 0.05f));
+		}
+		for (int32 k = 0; k < Path.Cells.Num(); ++k)
+		{
+			DrawCircuitDot(CenterOf(Path.Cells[k]), Cell * 0.15f, Col);
+		}
+		// 그리는 중인 회로의 머리: 맥동하는 큰 점
+		if (i == Terminal.GetCircuitActivePath())
+		{
+			const float R = Cell * (0.17f + 0.06f * Pulse(10.0f));
+			DrawCircuitDot(CenterOf(Path.Cells.Last()), R + 3.0f * U, Col.CopyWithNewOpacity(0.3f * Col.A));
+			DrawCircuitDot(CenterOf(Path.Cells.Last()), R, FLinearColor(1.0f, 1.0f, 1.0f, Col.A));
+		}
+	}
+
+	// 끝점: 사각 노드. 여동생 = 시작점 파랑(속 사각) / 도착점 초록(속 링), 오빠 = 짝 색 + 번호(시작점 채움 / 도착점 테두리)
+	const TArray<uint8>& Eps = Terminal.GetCircuitEndpoints();
+	for (int32 e = 0; e < Eps.Num(); ++e)
+	{
+		const int32 C = Eps[e];
+		const FVector2D Ctr = CenterOf(C);
+		const float N = Cell * 0.62f;
+		const float NX = Ctr.X - N * 0.5f;
+		const float NY = Ctr.Y - N * 0.5f;
+		const bool bStart = e % 2 == 0;
+		const int32 OnPath = Terminal.GetCircuitPathAt(C);
+		const bool bLinked = Paths.IsValidIndex(OnPath) && Paths[OnPath].IsLinked();
+		const bool bMismatch = Paths.IsValidIndex(OnPath) && Paths[OnPath].IsMismatch();
+		const FLinearColor Base = bPairView ? CircuitPairColor(e / 2) : (bStart ? SourceColor : SinkColor);
+		const FLinearColor BaseD = Base.CopyWithNewOpacity(Dim);
+		if (bLinked)
+		{
+			DrawRect(Base.CopyWithNewOpacity(0.28f * Dim), NX - 5.0f * U, NY - 5.0f * U, N + 10.0f * U, N + 10.0f * U);
+		}
+		const bool bFilled = !bPairView || bStart;
+		if (bFilled)
+		{
+			DrawRect(BaseD, NX, NY, N, N);
+		}
+		else
+		{
+			DrawRect(FLinearColor(0.01f, 0.02f, 0.04f, 0.95f * Dim), NX, NY, N, N);
+		}
+		const FLinearColor Border = bMismatch ? DeniedColor.CopyWithNewOpacity((bBlinkOn ? 1.0f : 0.4f) * Dim) : (bFilled ? FLinearColor(1.0f, 1.0f, 1.0f, 0.55f * Dim) : BaseD);
+		const float BT = bFilled ? 1.5f : 3.0f;
+		DrawLine(NX, NY, NX + N, NY, Border, BT);
+		DrawLine(NX + N, NY, NX + N, NY + N, Border, BT);
+		DrawLine(NX + N, NY + N, NX, NY + N, Border, BT);
+		DrawLine(NX, NY + N, NX, NY, Border, BT);
+
+		if (bPairView)
+		{
+			// 번호(1~): 채운 시작점은 어두운 글자, 도착점은 짝 색 글자
+			const FString Num = FString::FromInt(e / 2 + 1);
+			const float Scale = FMath::Clamp(Cell / U / 34.0f, 0.7f, 1.6f) * U * CoopHUDLayout::TextScale;
+			float TW = 0.0f, TH = 0.0f;
+			GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), Scale);
+			DrawText(Num, bStart ? FLinearColor(0.02f, 0.03f, 0.06f, Dim) : BaseD, Ctr.X - TW * 0.5f, Ctr.Y - TH * 0.5f, GEngine->GetLargeFont(), Scale);
+		}
+		else if (bStart)
+		{
+			// 시작점: 속 사각(전원 단자)
+			const float In = N * 0.36f;
+			DrawRect(FLinearColor(0.02f, 0.04f, 0.1f, 0.9f * Dim), Ctr.X - In * 0.5f, Ctr.Y - In * 0.5f, In, In);
+		}
+		else
+		{
+			// 도착점: 속 링(수신 단자)
+			const float In = N * 0.42f;
+			const FLinearColor Ring(0.02f, 0.08f, 0.04f, 0.9f * Dim);
+			DrawLine(Ctr.X - In * 0.5f, Ctr.Y - In * 0.5f, Ctr.X + In * 0.5f, Ctr.Y - In * 0.5f, Ring, 2.5f);
+			DrawLine(Ctr.X + In * 0.5f, Ctr.Y - In * 0.5f, Ctr.X + In * 0.5f, Ctr.Y + In * 0.5f, Ring, 2.5f);
+			DrawLine(Ctr.X + In * 0.5f, Ctr.Y + In * 0.5f, Ctr.X - In * 0.5f, Ctr.Y + In * 0.5f, Ring, 2.5f);
+			DrawLine(Ctr.X - In * 0.5f, Ctr.Y + In * 0.5f, Ctr.X - In * 0.5f, Ctr.Y - In * 0.5f, Ring, 2.5f);
+		}
+	}
+
+	// 커서(여동생 위치 — 오빠 칸에도 흐리게 보여 "네 커서 오른쪽 위 노랑" 같은 말이 통하게)
+	if (bShowCursor && Terminal.GetState() != EHackTerminalState::Hacked)
+	{
+		const FVector2D Ctr = CenterOf(Terminal.GetCircuitCursor());
+		const bool bDrawing = Terminal.GetCircuitActivePath() != INDEX_NONE;
+		const FLinearColor CursorColor = (bPairView ? SisterColor.CopyWithNewOpacity(0.7f) : SisterColor.CopyWithNewOpacity(0.65f + 0.35f * Pulse(8.0f))) * FLinearColor(1.0f, 1.0f, 1.0f, Dim);
+		Bracket(Ctr, Cell * 0.5f + (bDrawing ? 1.0f : 3.0f) * U, Cell * 0.22f, CursorColor, bPairView ? 1.5f : 2.5f);
+	}
+}
+
+void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AHackTerminal& Terminal)
+{
+	const EHackFeedback Feedback = Hack.GetFeedback();
+	const float FeedbackAge = Hack.GetFeedbackAge();
+	const bool bMismatch = Feedback == EHackFeedback::Denied && FeedbackAge < 0.8f;
+	const bool bLinkFlash = Feedback == EHackFeedback::Correct && FeedbackAge < 0.6f;
+	const bool bGranted = Feedback == EHackFeedback::Granted;
+	const bool bBlocked = Hack.GetCircuitLastStep() == ECXCircuitStep::Blocked && Hack.GetCircuitStepAge() < 0.45f;
+
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bMismatch ? DeniedColor : SisterColor);
+	const float Shake = bMismatch ? FMath::Sin(FeedbackAge * 70.0f) * FMath::Max(0.0f, 1.0f - FeedbackAge / 0.6f) * 10.0f * S() : 0.0f;
+
+	const float W = 780.0f * S();
+	const float H = 300.0f * S();
+	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
+	const float Pad = 20.0f * S();
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f));
+	for (int32 i = 0; i < 3; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.08f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 4.0f) * S());
+	}
+
+	// 헤더: BREACHING // 이름 + 깜빡이는 커서, 오른쪽 CIRCUIT LINK n / m + 짝 칸
+	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal.TerminalName);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	float HW = 0.0f, HH = 0.0f;
+	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	if (Pulse(9.0f) > 0.5f)
+	{
+		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
+	}
+	const int32 Pairs = FMath::Max(1, Terminal.GetCircuitPairCount());
+	const int32 Linked = bGranted ? Pairs : Terminal.GetCircuitLinkedCount();
+	const float Pip = 14.0f * S();
+	const float PipGap = 6.0f * S();
+	float PipX = X + W - Pad - Pairs * Pip - (Pairs - 1) * PipGap;
+	const float PipStart = PipX;
+	for (int32 i = 0; i < Pairs; ++i)
+	{
+		const float PY = Y + 16.0f * S();
+		const FLinearColor PC = Accent.CopyWithNewOpacity(i < Linked ? 1.0f : 0.3f);
+		if (i < Linked)
+		{
+			DrawRect(PC, PipX, PY, Pip, Pip);
+		}
+		else
+		{
+			DrawLine(PipX, PY, PipX + Pip, PY, PC, 1.5f);
+			DrawLine(PipX + Pip, PY, PipX + Pip, PY + Pip, PC, 1.5f);
+			DrawLine(PipX + Pip, PY + Pip, PipX, PY + Pip, PC, 1.5f);
+			DrawLine(PipX, PY + Pip, PipX, PY, PC, 1.5f);
+		}
+		PipX += Pip + PipGap;
+	}
+	const FString Right = FString::Printf(TEXT("CIRCUIT LINK  %d / %d"), Linked, Pairs);
+	float RW = 0.0f, RH = 0.0f;
+	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Right, PipStart - 10.0f * S() - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+
+	// 왼쪽: 격자(짝 정보 없음 — 시작점 모두 파랑, 도착점 모두 초록)
+	const int32 GridW = FMath::Max(1, Terminal.GetCircuitWidth());
+	const int32 GridH = FMath::Max(1, Terminal.GetCircuitHeight());
+	const float Cell = FMath::Min(280.0f / GridW, 210.0f / GridH) * S();
+	const float GX = X + Pad + 18.0f * S();
+	const float GY = Y + 58.0f * S();
+	DrawCircuitGrid(Terminal, GX, GY, Cell, false, !bGranted, 1.0f);
+	if (bBlocked)
+	{
+		// 막힌 방향: 커서 칸 위에 짧게
+		const int32 C = Terminal.GetCircuitCursor();
+		const float CX = GX + (C % GridW + 0.5f) * Cell;
+		const float CY = GY + (C / GridW) * Cell;
+		Label(TEXT("BLOCKED"), CX, CY - 18.0f * S(), DeniedColor.CopyWithNewOpacity(1.0f - Hack.GetCircuitStepAge() / 0.45f), GEngine->GetTinyFont(), 1.0f, true);
+	}
+
+	// 오른쪽: 목표 / 범례 / 중계 상태 / 지금 상태
+	const float RX = GX + GridW * Cell + 44.0f * S();
+	Label(TEXT("LINK EVERY SOURCE TO ITS MATCHING SINK"), RX, Y + 58.0f * S(), Accent.CopyWithNewOpacity(0.9f), GEngine->GetSmallFont(), 0.9f);
+	const float LegY = Y + 90.0f * S();
+	const float Sw = 14.0f * S();
+	DrawRect(FLinearColor(0.18f, 0.5f, 1.0f, 1.0f), RX, LegY + 2.0f * S(), Sw, Sw);
+	Label(TEXT("SOURCE"), RX + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f);
+	DrawRect(FLinearColor(0.2f, 1.0f, 0.45f, 1.0f), RX + 110.0f * S(), LegY + 2.0f * S(), Sw, Sw);
+	Label(TEXT("SINK"), RX + 110.0f * S() + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f);
+	Label(TEXT("PATHS CANNOT CROSS"), RX + 200.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), GEngine->GetTinyFont(), 1.0f);
+
+	const APawn* Relay = Terminal.FindRelayPawn();
+	const UCXPlayerLifeComponent* RelayLife = Relay ? Relay->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+	const float StatusY = Y + 122.0f * S();
+	if (bGranted)
+	{
+		Label(TEXT("ALL CIRCUITS LINKED"), RX, StatusY, GrantedColor, GEngine->GetSmallFont(), 1.0f);
+	}
+	else if (Terminal.IsCircuitRelayActive())
+	{
+		Label(TEXT("PARTNER RELAY  //  PAIR MAP LINKED"), RX, StatusY, Accent, GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("BROTHER SEES THE PAIRS - ASK HIM"), RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+	}
+	else
+	{
+		Label(TEXT("PAIR MAP OFFLINE"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(4.0f)), GEngine->GetSmallFont(), 1.0f);
+		FString Sub;
+		if (!Relay)
+		{
+			Sub = TEXT("NO PARTNER SIGNAL");
+		}
+		else if (RelayLife && !RelayLife->IsAlive())
+		{
+			Sub = TEXT("BROTHER SIGNAL LOST");
+		}
+		else
+		{
+			Sub = FString::Printf(TEXT("BROTHER %.1fm  -  RELAY RANGE %.0fm"), FVector::Dist(Relay->GetActorLocation(), Terminal.GetActorLocation()) / 100.0f, Terminal.CircuitRelayRange / 100.0f);
+		}
+		Label(Sub, RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+		Label(TEXT("BRING HIM CLOSER - OR SOLVE BY TRIAL AND ERROR"), RX, StatusY + 48.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), GEngine->GetTinyFont(), 1.0f);
+	}
+
+	// 지금 상태: 그리는 중 / 틀린 짝 있음
+	int32 Mismatches = 0;
+	for (const FCXCircuitPathRep& Path : Terminal.GetCircuitPaths())
+	{
+		Mismatches += Path.IsMismatch() ? 1 : 0;
+	}
+	const float StateY = Y + 200.0f * S();
+	if (!bGranted && Terminal.GetCircuitActivePath() != INDEX_NONE)
+	{
+		Label(TEXT("DRAWING  -  STEP BACK TO UNDO"), RX, StateY, SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f);
+	}
+	else if (!bGranted && Mismatches > 0)
+	{
+		Label(FString::Printf(TEXT("%d MISMATCHED - %s ON A PATH TO CUT IT"), Mismatches, *HackKeyHint), RX, StateY, DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), GEngine->GetTinyFont(), 1.0f);
+	}
+	else if (!bGranted)
+	{
+		Label(FString::Printf(TEXT("%s ON A SOURCE OR SINK TO START A PATH"), *HackKeyHint), RX, StateY, FLinearColor(1.0f, 1.0f, 1.0f, 0.6f), GEngine->GetTinyFont(), 1.0f);
+	}
+
+	// 하단: 진행 바(이어진 짝 / 전체) + 조작 안내
+	const float FootY = Y + H - 34.0f * S();
+	const float BarW = X + W - Pad - RX;
+	DrawRect(Accent.CopyWithNewOpacity(0.15f), RX, FootY - 14.0f * S(), BarW, 4.0f * S());
+	DrawRect(Accent, RX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
+	Label(FString::Printf(TEXT("D-PAD  MOVE / DRAW      %s  START / CUT      [B]  ABORT"), *HackKeyHint), RX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f);
+
+	// 판정 연출: 짝 연결 / MISMATCH / 성공
+	if (bMismatch || bLinkFlash || bGranted)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bMismatch ? TEXT("MISMATCH") : TEXT("CIRCUIT LINKED"));
+		const FLinearColor MsgColor = bMismatch ? DeniedColor : GrantedColor;
+		const float Fade = bGranted ? 1.0f : FMath::Clamp(1.0f - FeedbackAge / (bMismatch ? 0.8f : 0.6f), 0.0f, 1.0f);
+		DrawRect(MsgColor.CopyWithNewOpacity((bLinkFlash ? 0.08f : 0.18f) * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), bLinkFlash ? 1.1f : 1.4f, true);
+	}
+}
+
+void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
+{
+	// 진행 중인 회로 연결 단말기(또는 방금 성공해 결과만 보여 주는 단말기) 중 가장 가까운 것
+	const AHackTerminal* Terminal = nullptr;
+	float BestDist = TNumericLimits<float>::Max();
+	for (const TWeakObjectPtr<AActor>& Weak : HackTerminals)
+	{
+		const AHackTerminal* T = Cast<AHackTerminal>(Weak.Get());
+		if (!T || !T->IsCircuitLink())
+		{
+			continue;
+		}
+		const bool bShowResult = T->GetState() == EHackTerminalState::Hacked && T->GetCircuitLastEvent() == EHackFeedback::Granted && T->GetCircuitEventAge() < 1.5f
+			&& T->GetCircuitWidth() > 0;
+		if (!T->IsCircuitSessionActive() && !bShowResult)
+		{
+			continue;
+		}
+		const float D = FVector::Dist(MyPawn.GetActorLocation(), T->GetActorLocation());
+		if (D < BestDist)
+		{
+			Terminal = T;
+			BestDist = D;
+		}
+	}
+	if (!Terminal)
+	{
+		return;
+	}
+
+	const EHackFeedback Event = Terminal->GetCircuitLastEvent();
+	const float EventAge = Terminal->GetCircuitEventAge();
+	const bool bGranted = Event == EHackFeedback::Granted;
+	const bool bMismatch = Event == EHackFeedback::Denied && EventAge < 1.0f;
+	const bool bLinkFlash = Event == EHackFeedback::Correct && EventAge < 0.8f;
+	const bool bLinked = Terminal->IsCircuitRelayActive();
+	const FLinearColor DeniedColor(1.0f, 0.12f, 0.08f, 1.0f);
+	const FLinearColor GrantedColor(0.25f, 1.0f, 0.45f, 1.0f);
+	const FLinearColor Accent = bGranted ? GrantedColor : (bMismatch ? DeniedColor : (bLinked ? BrotherColor : WarningColor));
+	const float Shake = bMismatch ? FMath::Sin(EventAge * 70.0f) * FMath::Max(0.0f, 1.0f - EventAge / 0.6f) * 8.0f * S() : 0.0f;
+
+	// 패널: 메모리 패턴 중계와 같은 자리(오빠 칸 오른쪽, 파트너 표시 자리 70 띄움)
+	const int32 GridW = FMath::Max(1, Terminal->GetCircuitWidth());
+	const int32 GridH = FMath::Max(1, Terminal->GetCircuitHeight());
+	const float Cell = FMath::Min(250.0f / GridW, 200.0f / GridH) * S();
+	const float W = 330.0f * S();
+	const float H = 360.0f * S();
+	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 70.0f) * S() - W + Shake;
+	// 위쪽 136 = 제미니 배터리 패널 + 말하기 안내(우상단) 아래
+	const float Y = FMath::Max(136.0f * S(), (Canvas->ClipY - H) * 0.5f);
+	const float Pad = 18.0f * S();
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
+	Panel(X, Y, W, H, Accent);
+	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f) + 29);
+	for (int32 i = 0; i < 2; ++i)
+	{
+		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.08f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 3.0f) * S());
+	}
+
+	Label(TEXT("CIRCUIT RELAY"), X + Pad, Y + 10.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	const int32 Pairs = FMath::Max(1, Terminal->GetCircuitPairCount());
+	const int32 Done = bGranted ? Pairs : Terminal->GetCircuitLinkedCount();
+	const FString Count = FString::Printf(TEXT("%d/%d"), Done, Pairs);
+	float CW = 0.0f, CH = 0.0f;
+	GetTextSize(Count, CW, CH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	Label(Count, X + W - Pad - CW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	Label(FString::Printf(TEXT("PAIR MAP  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f);
+
+	const float GridPixW = GridW * Cell;
+	const float GridPixH = GridH * Cell;
+	const float GX = X + (W - GridPixW) * 0.5f;
+	const float GY = Y + 68.0f * S();
+	const bool bShowPairs = bLinked || bGranted;
+	// 중계 밖: 짝 정보 없이 흐린 격자(어디에 무엇이 있는지만)
+	DrawCircuitGrid(*Terminal, GX, GY, Cell, bShowPairs, true, bShowPairs ? 1.0f : 0.3f);
+
+	const float FootY = GY + GridPixH + 18.0f * S();
+	if (!bShowPairs)
+	{
+		const float Blink = 0.55f + 0.45f * Pulse(6.0f);
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), GX, GY + GridPixH * 0.5f - 44.0f * S(), GridPixW, 88.0f * S());
+		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + GridPixH * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetLargeFont(), 1.1f, true);
+		Label(TEXT("PAIR MAP OFFLINE"), X + W * 0.5f, GY + GridPixH * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f, true);
+		const float DistM = FVector::Dist(MyPawn.GetActorLocation(), Terminal->GetActorLocation()) / 100.0f;
+		Label(FString::Printf(TEXT("TERMINAL %.1fm  -  RELAY RANGE %.0fm"), DistM, Terminal->CircuitRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(TEXT("SISTER CAN'T SEE THE PAIRS"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f, true);
+
+		// 월드 마커: 단말기 위 괄호 + 거리(메모리 패턴 중계와 같은 문법)
+		FVector Origin, Extent;
+		Terminal->GetActorBounds(true, Origin, Extent);
+		FVector ViewLoc;
+		FRotator ViewRot;
+		if (PlayerOwner)
+		{
+			PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+			if (FVector::DotProduct(Origin - ViewLoc, ViewRot.Vector()) > 0.0f)
+			{
+				const FVector P = Project(Origin + FVector(0.0f, 0.0f, Extent.Z + 50.0f), false);
+				if (P.X >= 0.0f && P.X <= Canvas->ClipX && P.Y >= 0.0f && P.Y <= Canvas->ClipY)
+				{
+					Bracket(FVector2D(P.X, P.Y), 14.0f * S(), 6.0f * S(), WarningColor.CopyWithNewOpacity(Blink), 2.0f);
+					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetTinyFont(), 1.0f, true);
+				}
+			}
+		}
+	}
+	else
+	{
+		// 짝 색 칩(1~n) + 안내
+		const float Chip = 18.0f * S();
+		const float ChipGap = 10.0f * S();
+		const float RowW = Pairs * Chip + (Pairs - 1) * ChipGap;
+		for (int32 i = 0; i < Pairs; ++i)
+		{
+			const float SX = X + (W - RowW) * 0.5f + i * (Chip + ChipGap);
+			DrawRect(CircuitPairColor(i), SX, FootY, Chip, Chip * 0.5f);
+		}
+		Label(bGranted ? FString(TEXT("RELAY COMPLETE")) : FString(TEXT("CALL OUT THE PAIRS")), X + W * 0.5f, FootY + 16.0f * S(),
+			FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(FString::Printf(TEXT("SISTER LINKS  %d / %d"), Done, Pairs), X + W * 0.5f, FootY + 40.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f, true);
+	}
+
+	if (bMismatch || bLinkFlash || bGranted)
+	{
+		const FString Msg = bGranted ? TEXT("ACCESS GRANTED") : (bMismatch ? TEXT("MISMATCH // WRONG PAIR") : TEXT("CIRCUIT LINKED"));
+		const FLinearColor MsgColor = bMismatch ? DeniedColor : GrantedColor;
+		const float Fade = bGranted ? FMath::Clamp(1.5f - EventAge, 0.0f, 1.0f) : FMath::Clamp(1.0f - EventAge, 0.0f, 1.0f);
+		DrawRect(MsgColor.CopyWithNewOpacity((bLinkFlash ? 0.07f : 0.14f) * Fade), X, Y, W, H);
+		Label(Msg, X + W * 0.5f, Y - 34.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetSmallFont(), 1.1f, true);
+	}
 }

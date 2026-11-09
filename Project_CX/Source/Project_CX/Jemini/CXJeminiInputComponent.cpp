@@ -2,6 +2,8 @@
 
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiDrone.h"
+#include "CXJeminiClient.h"
+#include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -19,6 +21,9 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCXJeminiInput, Log, All);
 
@@ -183,13 +188,49 @@ void UCXJeminiInputComponent::BeginPlay()
 void UCXJeminiInputComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseChat();
-	Recorder.Cancel();
+	// 마이크 스트림은 GC 소멸자가 아니라 여기서 닫는다(Docs/Debug_log.md 2026-11-07 PIE 종료 크래시)
+	ShutdownVoice();
 	if (APlayerController* PC = BoundController.Get(); PC && JeminiInput)
 	{
 		PC->PopInputComponent(JeminiInput);
 	}
 	BoundController.Reset();
 	Super::EndPlay(EndPlayReason);
+}
+
+void UCXJeminiInputComponent::OnUnregister()
+{
+	ShutdownVoice();
+	Super::OnUnregister();
+}
+
+void UCXJeminiInputComponent::ShutdownVoice()
+{
+	Recorder.Shutdown();
+	bDebugFeeding = false;
+	DebugSamples.Reset();
+	ClearLiveCaption();
+	FinalPartialWav.Reset();
+	if (PartialRequest.IsValid())
+	{
+		// 취소하면 완료 콜백이 bOk=false로 오지만 세션 번호가 바뀌어 무시된다(약한 포인터라 컴포넌트가 사라져도 안전)
+		const FHttpRequestPtr Request = MoveTemp(PartialRequest);
+		PartialRequest.Reset();
+		Request->OnProcessRequestComplete().Unbind();
+		Request->CancelRequest();
+	}
+	bPartialInFlight = false;
+}
+
+bool UCXJeminiInputComponent::DebugStartMicRecording()
+{
+	OnTalkPressed();
+	return Recorder.IsRecording();
+}
+
+void UCXJeminiInputComponent::DebugStopMicRecording()
+{
+	OnTalkReleased();
 }
 
 void UCXJeminiInputComponent::BuildInputAssets()
@@ -251,6 +292,17 @@ void UCXJeminiInputComponent::TickComponent(float DeltaTime, ELevelTick TickType
 			OnTalkReleased();
 		}
 	}
+	TickDebugFeed(DeltaTime);
+	TickLiveCaption();
+}
+
+float UCXJeminiInputComponent::GetRecordSeconds() const
+{
+	if (bDebugFeeding)
+	{
+		return DebugSampleRate > 0 ? static_cast<float>(DebugPlayhead / DebugSampleRate) : 0.0f;
+	}
+	return Recorder.GetRecordedSeconds();
 }
 
 bool UCXJeminiInputComponent::CanTalkNow() const
@@ -284,7 +336,7 @@ void UCXJeminiInputComponent::SetNotice(const FString& Text)
 
 void UCXJeminiInputComponent::OnChatPressed()
 {
-	if (ChatWidget.IsValid() || Recorder.IsRecording())
+	if (ChatWidget.IsValid() || IsRecording())
 	{
 		return;
 	}
@@ -425,7 +477,7 @@ void UCXJeminiInputComponent::Server_SubmitText_Implementation(const FString& Te
 
 void UCXJeminiInputComponent::OnTalkPressed()
 {
-	if (ChatWidget.IsValid() || Recorder.IsRecording())
+	if (ChatWidget.IsValid() || IsRecording())
 	{
 		return;
 	}
@@ -437,38 +489,57 @@ void UCXJeminiInputComponent::OnTalkPressed()
 	if (!Recorder.Start())
 	{
 		SetNotice(FCXJeminiVoiceRecorder::IsAnyRecording() ? TEXT("MIC BUSY") : TEXT("NO MICROPHONE"));
+		return;
 	}
+	BeginLiveCaption();
 }
 
 void UCXJeminiInputComponent::OnTalkReleased()
 {
-	if (!Recorder.IsRecording())
+	if (!IsRecording())
 	{
 		return;
 	}
-	const TArray<uint8> Wav = Recorder.Stop();
+	const TArray<uint8> Wav = StopRecording();
 	if (Wav.Num() == 0)
 	{
+		EndLiveCaptionRecording(false, Wav);
 		SetNotice(TEXT("HOLD [Y] AND SPEAK"));
 		return;
 	}
-	SendVoice(Wav);
+	const bool bSubmitted = SendVoice(Wav);
+	EndLiveCaptionRecording(bSubmitted, Wav);
 }
 
-void UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
+TArray<uint8> UCXJeminiInputComponent::StopRecording()
+{
+	if (bDebugFeeding)
+	{
+		bDebugFeeding = false;
+		const int32 Frames = FMath::Min(DebugSamples.Num() / DebugChannels, static_cast<int32>(DebugPlayhead));
+		if (Frames < DebugSampleRate * 0.3f)
+		{
+			DebugSamples.Reset();
+			return {};
+		}
+		const TArray<float> Fed(DebugSamples.GetData(), Frames * DebugChannels);
+		DebugSamples.Reset();
+		return FCXJeminiVoiceRecorder::EncodeWav16kMono(Fed, DebugChannels, DebugSampleRate);
+	}
+	return Recorder.Stop();
+}
+
+bool UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
 {
 	if (!CanTalkNow())
 	{
 		MarkBlocked();
-		return;
+		return false;
 	}
 	if (GetOwner()->HasAuthority())
 	{
-		if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
-		{
-			Drone->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
-		}
-		return;
+		ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+		return Drone && Drone->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
 	}
 	// 원격 클라이언트: RPC 크기 제한 때문에 조각으로 보낸다
 	for (int32 Offset = 0; Offset < Wav.Num(); Offset += CXJeminiInput::VoiceChunkBytes)
@@ -477,6 +548,7 @@ void UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
 		TArray<uint8> Chunk(Wav.GetData() + Offset, Size);
 		Server_VoiceChunk(Chunk, Offset + Size >= Wav.Num());
 	}
+	return true;
 }
 
 void UCXJeminiInputComponent::Server_VoiceChunk_Implementation(const TArray<uint8>& Chunk, bool bFinal)
@@ -494,5 +566,248 @@ void UCXJeminiInputComponent::Server_VoiceChunk_Implementation(const TArray<uint
 			Drone->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
 		}
 		PendingVoice.Reset();
+	}
+}
+
+// ---------------------------------------------------------------- 실시간 자막(말하는 도중 STT, 로컬 전용)
+
+bool UCXJeminiInputComponent::CanUseLiveCaptions() const
+{
+	// 호스트(로컬 협동 두 폰 모두 여기)에서만: 자막 요청은 이 PC의 Jemini 서버로 간다.
+	// 원격 클라이언트는 HUD도 서버 주소도 따로라 최종 Heard 말풍선만 쓴다.
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	return bLiveCaptions && Pawn && Pawn->HasAuthority() && Pawn->IsLocallyControlled() && ACXJeminiDrone::Get(this) != nullptr;
+}
+
+void UCXJeminiInputComponent::BeginLiveCaption()
+{
+	++CaptionSession;
+	LiveCaption.Reset();
+	FinalPartialWav.Reset();
+	// 첫 요청은 LiveCaptionMinSeconds가 쌓이자마자(간격 대기 없이)
+	LastPartialTime = -100.0;
+	CaptionState = CanUseLiveCaptions() ? ECXLiveCaptionState::Listening : ECXLiveCaptionState::None;
+}
+
+void UCXJeminiInputComponent::EndLiveCaptionRecording(bool bSubmitted, const TArray<uint8>& FinalWav)
+{
+	if (CaptionState != ECXLiveCaptionState::Listening)
+	{
+		return;
+	}
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!bSubmitted || !Drone)
+	{
+		ClearLiveCaption();
+		return;
+	}
+	// 최종 응답(드론 대사)이 올 때까지 마지막 자막 유지 + 전체 WAV로 한 번 더 받아 적기
+	CaptionState = ECXLiveCaptionState::Pending;
+	PendingStartTime = GetWorld()->GetTimeSeconds();
+	PendingDialogueSeq = Drone->GetDialogueSeq();
+	if (bPartialInFlight)
+	{
+		FinalPartialWav = FinalWav;
+	}
+	else
+	{
+		SendPartial(FinalWav);
+	}
+}
+
+void UCXJeminiInputComponent::ClearLiveCaption()
+{
+	CaptionState = ECXLiveCaptionState::None;
+	LiveCaption.Reset();
+	FinalPartialWav.Reset();
+	// 늦게 오는 응답은 세션 번호로 버린다
+	++CaptionSession;
+}
+
+TArray<uint8> UCXJeminiInputComponent::SnapshotWav() const
+{
+	if (bDebugFeeding)
+	{
+		const int32 MaxFrames = FMath::FloorToInt(MaxVoiceSeconds * DebugSampleRate);
+		const int32 Frames = FMath::Min3(DebugSamples.Num() / DebugChannels, static_cast<int32>(DebugPlayhead), MaxFrames);
+		if (Frames <= 0)
+		{
+			return {};
+		}
+		const TArray<float> Fed(DebugSamples.GetData(), Frames * DebugChannels);
+		return FCXJeminiVoiceRecorder::EncodeWav16kMono(Fed, DebugChannels, DebugSampleRate);
+	}
+	return Recorder.EncodeSnapshot(MaxVoiceSeconds);
+}
+
+void UCXJeminiInputComponent::TickLiveCaption()
+{
+	if (CaptionState == ECXLiveCaptionState::Listening)
+	{
+		if (!IsRecording())
+		{
+			// 녹음이 다른 경로로 끝남(EndPlay 등)
+			ClearLiveCaption();
+			return;
+		}
+		const double Now = FPlatformTime::Seconds();
+		if (!bPartialInFlight && Now - LastPartialTime >= LiveCaptionInterval && GetRecordSeconds() >= LiveCaptionMinSeconds)
+		{
+			SendPartial(SnapshotWav());
+		}
+	}
+	else if (CaptionState == ECXLiveCaptionState::Pending)
+	{
+		const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+		const float Waited = GetWorld()->GetTimeSeconds() - PendingStartTime;
+		// 드론 대사가 바뀜 = 최종 응답 도착(이제 HUD가 Heard 말풍선을 그린다). 요청이 끝났는데 대사가 없거나 너무 오래면 지운다.
+		if (!Drone || Drone->GetDialogueSeq() != PendingDialogueSeq || (!Drone->IsRequestPending() && Waited > 1.0f) || Waited > 15.0f)
+		{
+			ClearLiveCaption();
+		}
+	}
+}
+
+void UCXJeminiInputComponent::SendPartial(const TArray<uint8>& Wav)
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone || Wav.Num() < 64)
+	{
+		return;
+	}
+	CXJemini::FEndpoint Endpoint = Drone->GetEndpoint();
+	Endpoint.TimeoutSec = LiveCaptionTimeout;
+	bPartialInFlight = true;
+	LastPartialTime = FPlatformTime::Seconds();
+	++PartialSent;
+	const int32 Session = CaptionSession;
+	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
+	PartialRequest = CXJemini::SendSttPartial(Endpoint, Wav, FOnCXJeminiPartial::CreateLambda([WeakThis, Session](bool bOk, const FString& Text)
+	{
+		UCXJeminiInputComponent* Self = WeakThis.Get();
+		if (!Self)
+		{
+			return;
+		}
+		Self->bPartialInFlight = false;
+		Self->PartialRequest.Reset();
+		if (Session != Self->CaptionSession || Self->CaptionState == ECXLiveCaptionState::None)
+		{
+			return;
+		}
+		// null·실패면 이전 글자 유지(처음부터 없으면 아무것도 안 보임 = 기존 동작)
+		if (bOk)
+		{
+			++Self->PartialReceived;
+			Self->LiveCaption = Text.Left(60);
+		}
+		// 뗀 뒤 보낼 전체 WAV가 기다리고 있으면 이어서
+		if (Self->CaptionState == ECXLiveCaptionState::Pending && Self->FinalPartialWav.Num() > 0)
+		{
+			const TArray<uint8> Final = MoveTemp(Self->FinalPartialWav);
+			Self->FinalPartialWav.Reset();
+			Self->SendPartial(Final);
+		}
+	}));
+}
+
+FString UCXJeminiInputComponent::GetLiveCaptionDebug() const
+{
+	static const TCHAR* Names[] = { TEXT("None"), TEXT("Listening"), TEXT("Pending") };
+	return FString::Printf(TEXT("caption=%s text=\"%s\" sent=%d received=%d inflight=%d rec=%.2fs"), Names[static_cast<int32>(CaptionState)], *LiveCaption,
+		PartialSent, PartialReceived, bPartialInFlight ? 1 : 0, GetRecordSeconds());
+}
+
+// ---------------------------------------------------------------- 테스트: WAV 파일을 마이크처럼 흘려 넣기
+
+namespace CXJeminiInput
+{
+	/** RIFF WAV(16bit PCM) → float 인터리브 샘플. */
+	static bool DecodeWav16(const TArray<uint8>& Bytes, TArray<float>& OutSamples, int32& OutChannels, int32& OutRate)
+	{
+		auto Read32 = [&Bytes](int32 At)
+		{
+			return static_cast<uint32>(Bytes[At]) | (static_cast<uint32>(Bytes[At + 1]) << 8) | (static_cast<uint32>(Bytes[At + 2]) << 16) | (static_cast<uint32>(Bytes[At + 3]) << 24);
+		};
+		auto Read16 = [&Bytes](int32 At) { return static_cast<uint16>(Bytes[At] | (Bytes[At + 1] << 8)); };
+		if (Bytes.Num() < 44 || FMemory::Memcmp(Bytes.GetData(), "RIFF", 4) != 0 || FMemory::Memcmp(Bytes.GetData() + 8, "WAVE", 4) != 0)
+		{
+			return false;
+		}
+		int32 Bits = 0;
+		OutChannels = 0;
+		OutRate = 0;
+		int32 At = 12;
+		while (At + 8 <= Bytes.Num())
+		{
+			const uint32 Size = Read32(At + 4);
+			const int32 Body = At + 8;
+			if (FMemory::Memcmp(Bytes.GetData() + At, "fmt ", 4) == 0 && Body + 16 <= Bytes.Num())
+			{
+				OutChannels = Read16(Body + 2);
+				OutRate = static_cast<int32>(Read32(Body + 4));
+				Bits = Read16(Body + 14);
+			}
+			else if (FMemory::Memcmp(Bytes.GetData() + At, "data", 4) == 0)
+			{
+				if (Bits != 16 || OutChannels <= 0 || OutRate <= 0)
+				{
+					return false;
+				}
+				const int32 Count = FMath::Min(static_cast<int32>(Size), Bytes.Num() - Body) / 2;
+				OutSamples.SetNumUninitialized(Count);
+				for (int32 i = 0; i < Count; ++i)
+				{
+					OutSamples[i] = static_cast<int16>(Read16(Body + i * 2)) / 32768.0f;
+				}
+				return Count > 0;
+			}
+			At = Body + static_cast<int32>(Size) + static_cast<int32>(Size & 1);
+		}
+		return false;
+	}
+}
+
+bool UCXJeminiInputComponent::DebugFeedVoiceFile(const FString& WavPath)
+{
+	if (ChatWidget.IsValid() || IsRecording())
+	{
+		return false;
+	}
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return false;
+	}
+	TArray<uint8> Bytes;
+	const FString Path = FPaths::ConvertRelativePathToFull(WavPath.TrimQuotes());
+	if (!FFileHelper::LoadFileToArray(Bytes, *Path) || !CXJeminiInput::DecodeWav16(Bytes, DebugSamples, DebugChannels, DebugSampleRate))
+	{
+		UE_LOG(LogCXJeminiInput, Warning, TEXT("DebugFeedVoiceFile: cannot read 16-bit PCM WAV '%s'"), *Path);
+		DebugSamples.Reset();
+		return false;
+	}
+	DebugPlayhead = 0.0;
+	bDebugFeeding = true;
+	BeginLiveCaption();
+	UE_LOG(LogCXJeminiInput, Log, TEXT("DebugFeedVoiceFile: %s (%.2fs, %d ch, %d Hz) live captions %s"), *Path,
+		static_cast<float>(DebugSamples.Num()) / (DebugChannels * DebugSampleRate), DebugChannels, DebugSampleRate,
+		CaptionState == ECXLiveCaptionState::Listening ? TEXT("on") : TEXT("off"));
+	return true;
+}
+
+void UCXJeminiInputComponent::TickDebugFeed(float DeltaTime)
+{
+	if (!bDebugFeeding)
+	{
+		return;
+	}
+	// 실시간과 같은 속도로 흘려 넣고, 파일 끝(또는 최대 길이)이면 버튼을 뗀 것처럼 전송
+	DebugPlayhead += DeltaTime * DebugSampleRate;
+	const double TotalFrames = static_cast<double>(DebugSamples.Num() / DebugChannels);
+	if (DebugPlayhead >= TotalFrames || DebugPlayhead / DebugSampleRate >= MaxVoiceSeconds - 0.1f)
+	{
+		DebugPlayhead = FMath::Min(DebugPlayhead, TotalFrames);
+		OnTalkReleased();
 	}
 }

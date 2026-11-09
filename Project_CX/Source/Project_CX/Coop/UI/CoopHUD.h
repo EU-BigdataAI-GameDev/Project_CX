@@ -14,6 +14,9 @@ class USoundBase;
 class UCXPlayerLifeComponent;
 class UCXHealthComponent;
 
+/** 제미니 음성 말풍선 스타일: 최종 Heard(따옴표, 흰색) / 실시간 자막 듣는 중(글자 + 점) / 뗀 뒤 최종 대기(흐린 글자 + 느린 점). */
+enum class ECXSpeakerBubble : uint8 { Final, Listening, Pending };
+
 /**
  *  로컬 2인 협동용 인게임 HUD(.claude/Plans/HUD 기획.md).
  *
@@ -32,6 +35,7 @@ class UCXHealthComponent;
  *    (해킹 UI는 여동생 폰을 가진 HUD에서만 그린다 → 오빠 화면에는 절대 나타나지 않는다)
  *  - 예외(해킹 시스템 기획 11장 메모리 패턴): 메모리 패턴 단말기 세션 중 오빠 칸에 PATTERN RELAY 패널 — 패턴 점멸은 오빠 칸에만,
  *    여동생 칸은 같은 3x3 숫자판(점멸 없음) + 커서. 오빠가 중계 거리 밖이면 MOVE CLOSER // SIGNAL WEAK
+ *  - 예외(맵2 개선 기획 3장 회로 연결): 세션 중 오빠 칸에 CIRCUIT RELAY 미니 격자(짝 색·번호). 여동생 칸은 짝 정보 없는 격자.
  */
 UCLASS()
 class ACoopHUD : public AHUD
@@ -178,6 +182,16 @@ private:
 	/** 3x3 노드 한 칸(전화 키패드 숫자 반투명). Flash 0~1 = 점멸 세기. */
 	void DrawMemoryNode(float X, float Y, float Cell, int32 Node, const FLinearColor& Accent, float Dim, float Flash, bool bCursor, bool bPressed);
 	void DrawArrowGlyph(const FVector2D& Center, float Size, EHackArrow Direction, const FLinearColor& Color);
+	/** 여동생 칸: 회로 연결 세션(맵2 개선 기획 3장) — 격자(시작점 파랑 / 도착점 초록, 짝 정보 없음) + 커서 + 중계 상태. */
+	void DrawCircuitHackSession(const USisterHackComponent& Hack, const AHackTerminal& Terminal);
+	/** 오빠 칸: 진행 중인 회로 연결 단말기가 있으면 CIRCUIT RELAY 미니 격자(짝마다 색·번호) / 거리 밖이면 MOVE CLOSER. */
+	void DrawCircuitRelay(const APawn& MyPawn);
+	/** 회로 격자 공용 그림(단말기 복제값). bPairView = 짝 색·번호(오빠), 아니면 시작점 파랑·도착점 초록(여동생). */
+	void DrawCircuitGrid(const AHackTerminal& Terminal, float GX, float GY, float Cell, bool bPairView, bool bShowCursor, float Dim);
+	/** 둥근 연결점(가로·세로 사각형 겹침). */
+	void DrawCircuitDot(const FVector2D& Center, float Radius, const FLinearColor& Color);
+	/** 짝 번호(0~)별 네온 색(노랑, 보라, 주황, 청록, 연두, 분홍). */
+	static FLinearColor CircuitPairColor(int32 Pair);
 
 	/** 이미 해킹된 단말기는 표시/활성 대상에서 뺀다. */
 	static bool IsTerminalAvailable(const AActor* Terminal);
@@ -201,6 +215,16 @@ private:
 	 *  오빠 탄약 0 안내, 여동생 해킹 대행 진행도.
 	 */
 	void DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const UBrotherCombatComponent* MyCombat);
+	/**
+	 *  음성으로 말한 플레이어 머리 위 STT 말풍선(Age = 응답 도착 후 경과 초).
+	 *  말하는 도중에는 이 PC의 로컬 플레이어 실시간 자막(UCXJeminiInputComponent)을 먼저 그리고, 그 사람의 이전 Heard는 숨긴다.
+	 */
+	void DrawHeardBubble(const class ACXJeminiDrone& Drone, float Age);
+	/** 말한 사람 머리 위 말풍선 하나(Style: ECXSpeakerBubble). */
+	void DrawSpeakerBubble(const APawn* Speaker, const FString& Text, float Fade, ECXSpeakerBubble Style);
+	/** STT 말풍선 표시 시간(초). */
+	UPROPERTY(EditAnywhere, Category = "HUD|Jemini")
+	float HeardBubbleDuration = 4.0f;
 
 	/** 자기 칸 체력 바 옆: 제미니 보호막 남은 시간 + 회복 +N 팝업(제미니 기능 기획 2-6, 2-9). */
 	void DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UCXPlayerLifeComponent* Life);
