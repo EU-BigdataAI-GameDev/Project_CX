@@ -1,6 +1,6 @@
 # Project_CX 진행도 (TODO)
 
-- 마지막 갱신: 2026-11-06(제미니 AI봇 1~3단계 구현), 2026-11-04(레인 앞쪽 깊이 1.1배, Map2 수로 출구 수정, Map1·Map2 세로 1.1배, 세이브 복도 해킹 단말기 제거·상호작용 저장, Map2 단말기 퍼즐 3종, 거미 톱날 회전 축 수정)
+- 마지막 갱신: 2026-11-07(Map2 배경음 적용, Map2 계단 콜라이더를 계단 아트에 맞춤, Map2 비밀번호 단말기 → 회로 연결 퍼즐), 2026-11-06(제미니 AI봇 1~3단계 구현), 2026-11-04(레인 앞쪽 깊이 1.1배, Map2 수로 출구 수정, Map1·Map2 세로 1.1배, 세이브 복도 해킹 단말기 제거·상호작용 저장, Map2 단말기 퍼즐 3종, 거미 톱날 회전 축 수정)
 - MVP 흐름: 방 1(Map1) → 방 2(Map2) → **세이브 복도** → 마지막 방(보스맵 `Map3_Final`, 팀원 제작) → 출구 문 → 클리어
 - 완료하면 `[x]`로 바꾸고, 관련 기획서/커밋을 옆에 적는다.
 
@@ -54,25 +54,32 @@
 - [ ] 허깅페이스 Space 생성·배포(계정 필요) → UE ini `ServerUrl` 교체
 - [x] 드론 모델 교체 + 표정 시스템 — `SM_SupportDrone`(블렌더) 임포트, 머티리얼 6개, 표정 4종(스크린 아틀라스 A/B 프레임 + 감정 색 발광·추진기), 호버, 응답·상황별 자동 표정. 스크린이 +Y라 코드에서 보정. 캡처 `Docs/Screenshots/Drone/` (`Docs/SupportDrone_UE_Prompt.md`)
 - [x] 제미니 기능 9종 UE 구현(`.claude/Plans/제미니 기능 기획.md` as-built) — 재장전·단말기(A 대행/B 드론 비행)·적 해킹·펄스·공격력 강화·회복·미끼·빠른 재부팅·보호막, 실행 시점 차감·TARGET_LOST, BUSY, LOW BATTERY, 쓰러진 사람 입력, HUD. 헤드리스 `CXJeminiSelfTest`로 8종 확인
+- [x] 실시간 자막(말하는 도중 STT) — 서버 `POST /stt/partial`(faster-whisper small int8 CPU, 요청당 ~0.85초), UE 녹음 중 0.6초마다 요청 → 말한 사람 머리 위 듣는 중/대기/최종 말풍선(두 칸). exe 패키징에 모델 포함. PIE(WAV 흘려 넣기) 확인 `Docs/Screenshots/Jemini/live_stt_*.png`
+- [x] 마이크 사용 후 PIE 종료 시 에디터 크래시 수정(Debug_log #12)
+- [ ] 실제 마이크로 확인: 실시간 자막 체감 속도·인식률, 녹음 중/짧은 녹음 뒤 PIE 종료 시 크래시 없음(확인 당시 헤드셋 미연결)
 - [ ] 제미니 기능 PIE 확인: 빠른 재부팅, 단말기 A·적 해킹 A(여동생 퍼즐 중), Fx 밝기·크기, 쓰러진 사람 채팅·음성, 맵 이동 강화 유지, 실제 Gemini로 9-2 판별 문장
 - [ ] 발표 PPT(10장 이내)
 
 ---
 
 ## 남은 자잘한 것
-
+- [ ] 실시간 STT 반영 안되는 버그 수정
+- [ ] 게임명 `CAELUM:UNCHAINED`로 확정. 게임 화면에 반영
 - [ ] 게임 아이콘 추가(실행 파일 / 창 아이콘)
-- [ ] Map2 배경음 제작(Suno) 및 적용 — `Docs/배경음_제작기록.md`, `ALocalCoopGameMode::MapMusic`
+- [ ] 폰트 에셋 적용
+- [x] Map2 배경음 제작(Suno) 및 적용 — `District 5 - Undercurrent` → `SW_BGM_Map2`(SCl_BGM), 101.29bpm, 인트로 0~19.07초 1회 + 반복 19.07~194.41초(73마디), 크로스페이드 1마디 2.37초. `MapMusic["Map2_SoulCity2"]`. 에디터를 다시 켜야 `BP_GameMode`에 반영(Live Coding은 C++ CDO만 갱신). 반복 이음새 귀로 미확인(`Docs/배경음_제작기록.md` 4장)
+- [x] Map2 계단 그래픽 ↔ 콜라이더 맞춤(`맵2 개선 기획.md` 2장) — 계단 아트 9곳 전수 조사, 불일치 8곳 모두 수정: 계단 5곳(경사를 계단 코 선으로 + 계단참·첫 단 상자), 마지막 단말기 아래 바위 A(평평한 220 → 211→7 계단)·바위 B(경사), 메모리 게이트 막대·COL 아래 끝을 새 바닥까지. 바위 구덩이는 아트대로면 진행 불가라 아트를 평평한 `SM_Slums_Wall_02k`로 교체(COL 77 유지), 메모리 단말기를 계단 경사 위(Z 220 → 146.4)로 내림. `Tools/LevelBuild/fix_map2_stairs.py`(백업·undo), 트레이스 |dz| 최대 211 → 0, 표 `Docs/LevelManifests/map2_stairs_audit.md`, PIE `Docs/Screenshots/Map2Stairs/`. 실제로 걸어 보기 미확인
+- [x] Map2 비밀번호 단말기 → 회로 연결 퍼즐(`맵2 개선 기획.md` 3장) — 새 종류 `EHackPuzzleType::CircuitLink`(6x5 격자, 시작점 파랑·도착점 초록 짝 3~4개, 교차 불가, 틀린 짝 MISMATCH, 제한 시간·실패 없음). 서버 권위(단말기가 퍼즐·커서 보유, 여동생은 방향/확인만 전송), 오빠 9m 중계 시 오빠 칸에 짝 색·번호 미니 격자. 기본 레이아웃 4종(열 때마다 무작위, 시작 시 답 검사). 제미니 단말기 대행(A·B)·`CXSolveHack` 지원. `SHUTTER_CTRL-5` 종류 변경 + 단서 4개 삭제(이전 상태 `Docs/LevelManifests/Map2_circuitlink_before.json`), `add_map2_hacking.py` 반영. PIE 검증 `Docs/Screenshots/CircuitLink/`. 실제 패드 손맛·네트워크(원격 클라이언트) PIE 미확인
 - [ ] 해킹 HUD 안내 `[B] ABORT` → 키보드면 `[Backspace]` 표시
 - [x] 여동생 적 해킹 → 거미로봇 **3초 그로기** (`해킹 시스템 기획.md` 10장 — 기획서 5초 → 3초) — 적 퍼즐은 **화살표 1라운드 5칸·4초**(처음 구현한 "주파수 동조"에서 교체 — 아래 줄), 쿨타임 3초, 그로기 연출(톱 팔 떨굼·경련·정전 깜빡임·청록/자홍 불빛·스파크·재부팅음), 두 화면 `SYSTEM DOWN` 마커. 실제 패드 손맛·네트워크 PIE 미확인
 - [x] 해킹 퍼즐 배정 변경 (`해킹 시스템 기획.md` 0-1·10.2·12장) — 적 해킹 = 화살표 빠른 입력(1x5, 4초, 틀리면 같은 배열 처음부터, 시간 초과 실패), 주파수 동조 → 단말기 퍼즐 `FrequencyLock`(숫자 그대로, 제한 시간 없음), 단말기 화살표 폐기(`ArrowSequence` 숨김 + 남아 있으면 경고 후 FrequencyLock). Map1 `CORE_MAINFRAME` = 주파수 동조. 퍼즐 규칙은 `CXHackPuzzles.h` 구조체로 분리. PIE 검증 스크린샷 `Docs/Screenshots/Hacking/swap_*`. 실제 패드 손맛·네트워크 PIE 미확인
-- [x] Map2 단말기 퍼즐 3종 배치(`해킹 시스템 기획.md` 13장) — 비밀번호 `SHUTTER_CTRL-5`(S2 합류 → S3 문 게이트, 단서 4개 오빠 동선), 주파수 동조 `MARKET_RELAY`(S4 입구 → 낮은 마당 게이트), 메모리 패턴 `CAVE_LIFT_ECHO`(S5 바위 A → 구덩이 게이트, 오빠 9m 중계). `Tools/LevelBuild/add_map2_hacking.py`(태그 `GEN_Map2Hack`, 추가만) 검사 ALL PASS, PIE 3종 해킹 → 게이트 해제 확인 `Docs/Screenshots/Hacking/map2_*`. 실제 패드 손맛·네트워크 PIE 미확인
+- [x] Map2 단말기 퍼즐 3종 배치(`해킹 시스템 기획.md` 13장) — 비밀번호 `SHUTTER_CTRL-5`(2026-11-07 회로 연결로 교체 — 위 항목)(S2 합류 → S3 문 게이트, 단서 4개 오빠 동선), 주파수 동조 `MARKET_RELAY`(S4 입구 → 낮은 마당 게이트), 메모리 패턴 `CAVE_LIFT_ECHO`(S5 바위 A → 구덩이 게이트, 오빠 9m 중계). `Tools/LevelBuild/add_map2_hacking.py`(태그 `GEN_Map2Hack`, 추가만) 검사 ALL PASS, PIE 3종 해킹 → 게이트 해제 확인 `Docs/Screenshots/Hacking/map2_*`. 실제 패드 손맛·네트워크 PIE 미확인
 - [x] 협동 해킹 퍼즐 D **메모리 패턴(Ghost Echo)** (`해킹 시스템 기획.md` 11장) — 3x3 숫자판(1~9), 점멸 패턴은 **오빠 화면에만**(PATTERN RELAY 패널), 여동생은 D-pad 커서 + F/X로 입력, 라운드 3→4→5(사이먼식), 오빠가 단말기 9m 안에 살아 있어야 재생·입력, 오답은 같은 패턴 재생. 세이브 복도 출구 앞 단말기 + 레이저 게이트 배치(검증 ALL PASS, 스크린샷 `Docs/Screenshots/Hacking/mem_*`) → 2026-11-04 복도에서는 제거, Map2 S5로 옮김. 실제 패드 손맛·네트워크 PIE 미확인
-- [ ] 실제 게임패드·마우스로 전체 메뉴/플레이 테스트(지금까지는 시뮬레이션 입력)
-- [ ] 패키징 빌드 테스트(`Map_Title`로 시작하는지)
-- [ ] 효과음 밸런스·발소리 타이밍 귀로 확인 후 조정
-- [ ] PR 템플릿이 `main`에 없음 → develop을 main에 머지하거나 `.github`만 올리기
-- [ ] 회로 연결 퍼즐 추가하기(피그마 방4 고난도 퍼즐 참고)
+- [x] 실제 게임패드·마우스로 전체 메뉴/플레이 테스트(지금까지는 시뮬레이션 입력)
+- [x] 패키징 빌드 테스트(`Map_Title`로 시작하는지)
+- [x] 효과음 밸런스·발소리 타이밍 귀로 확인 후 조정
+- [x] PR 템플릿이 `main`에 없음 → develop을 main에 머지하거나 `.github`만 올리기
+- [x] 회로 연결 퍼즐 추가하기(피그마 방4 고난도 퍼즐 참고)
 
 ---
 
@@ -82,5 +89,5 @@
 - [x] 오빠 자동 조준 사격(`자동 조준 사격 구현.md`), 여동생 해킹 퍼즐(`해킹 시스템 기획.md`)
 - [x] 인게임 HUD(`HUD 기획.md`)
 - [x] 메뉴 화면 5종 — 시작 / ESC / 설정 / 클리어 / 게임 오버 + 부활 흐름 (PR #11)
-- [x] 배경음 2곡(시작화면, Map1), 효과음 31종
+- [x] 배경음 3곡(시작화면, Map1, Map2), 효과음 31종
 - [x] 빌드 오류 해결(git 한글 경로 → `Tools/setup_git.bat`), MetaHuman 플러그인 제거
