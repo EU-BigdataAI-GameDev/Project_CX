@@ -587,6 +587,12 @@ void UCXJeminiInputComponent::BeginLiveCaption()
 	// 첫 요청은 LiveCaptionMinSeconds가 쌓이자마자(간격 대기 없이)
 	LastPartialTime = -100.0;
 	CaptionState = CanUseLiveCaptions() ? ECXLiveCaptionState::Listening : ECXLiveCaptionState::None;
+	if (CaptionState == ECXLiveCaptionState::None)
+	{
+		const APawn* Pawn = Cast<APawn>(GetOwner());
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Live caption: off (enabled=%d authority=%d local=%d drone=%d)"), bLiveCaptions ? 1 : 0,
+			Pawn && Pawn->HasAuthority() ? 1 : 0, Pawn && Pawn->IsLocallyControlled() ? 1 : 0, ACXJeminiDrone::Get(this) ? 1 : 0);
+	}
 }
 
 void UCXJeminiInputComponent::EndLiveCaptionRecording(bool bSubmitted, const TArray<uint8>& FinalWav)
@@ -677,6 +683,7 @@ void UCXJeminiInputComponent::SendPartial(const TArray<uint8>& Wav)
 	}
 	CXJemini::FEndpoint Endpoint = Drone->GetEndpoint();
 	Endpoint.TimeoutSec = LiveCaptionTimeout;
+	UE_LOG(LogCXJeminiInput, Log, TEXT("Live caption: send %d bytes (rec %.2fs, state %d)"), Wav.Num(), GetRecordSeconds(), static_cast<int32>(CaptionState));
 	bPartialInFlight = true;
 	LastPartialTime = FPlatformTime::Seconds();
 	++PartialSent;

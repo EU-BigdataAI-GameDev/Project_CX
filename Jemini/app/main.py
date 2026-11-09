@@ -174,4 +174,14 @@ async def stt_partial(audio: UploadFile = File(...),
     if seconds > settings.max_audio_sec + 0.05:
         raise HTTPException(status_code=422, detail=f"audio longer than {settings.max_audio_sec}s")
     text, state = await stt.engine.transcribe(samples)
-    return SttPartialResponse(text=text, ms=round((time.perf_counter() - start) * 1000), state=state)
+    ms = round((time.perf_counter() - start) * 1000)
+    # 진단: 요청마다 길이·음량(RMS)·구간별 결과를 logs/stt.jsonl에 남긴다(음성 원본은 저장하지 않음)
+    try:
+        import numpy as np
+        rms = float(np.sqrt(np.mean(np.square(samples)))) if len(samples) else 0.0
+        write_log(settings.log_path.with_name("stt.jsonl"), {
+            "seconds": round(seconds, 2), "rms": round(rms, 5), "peak": round(float(np.max(np.abs(samples))) if len(samples) else 0.0, 4),
+            "state": state, "text": text, "segments": list(stt.last_segments) if state == "ready" else [], "ms": ms})
+    except Exception:  # noqa: BLE001 - 진단 로그 실패는 무시
+        pass
+    return SttPartialResponse(text=text, ms=ms, state=state)

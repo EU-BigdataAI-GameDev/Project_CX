@@ -223,7 +223,7 @@ namespace CXJemini
 						bOk = !Text.IsEmpty();
 					}
 				}
-				UE_LOG(LogCXJemini, Verbose, TEXT("Jemini STT partial: HTTP %d (%.0f ms) \"%s\""), Response.IsValid() ? Response->GetResponseCode() : 0,
+				UE_LOG(LogCXJemini, Log, TEXT("Jemini STT partial: HTTP %d (%.0f ms) \"%s\""), Response.IsValid() ? Response->GetResponseCode() : 0,
 					(FPlatformTime::Seconds() - StartTime) * 1000.0, *Text);
 				OnDone.ExecuteIfBound(bOk, Text);
 			});
