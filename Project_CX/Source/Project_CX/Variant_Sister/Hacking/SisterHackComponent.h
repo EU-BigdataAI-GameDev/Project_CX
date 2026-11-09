@@ -23,6 +23,8 @@ class USoundBase;
  *    해킹 시작/제출 키(F/X)는 두 캐릭터 공용 상호작용 키라 UCoopInteractComponent가 받아 Interact()로 넘긴다.
  *  - 해킹 중에는 이동/점프를 잠그고, 단말기 퍼즐(4자리 비밀번호 / 메모리 패턴 11장 / 주파수 동조 12장)을 진행한다.
  *    퍼즐 규칙(판정·상태)은 CXHackPuzzles.h의 구조체 — 이 컴포넌트는 세션·입력·소리·네트워크만 맡는다.
+ *  - 회로 연결(맵2 개선 기획 3장)도 서버 권위: 커서·회로는 단말기(서버)가 들고, 여동생은 방향/확인 입력만 보낸다
+ *    (권위 측이면 직접, 원격이면 Server_CircuitInput → 결과는 Client_CircuitResult). 상태는 단말기 복제값으로 HUD가 그린다.
  *  - 메모리 패턴은 서버 권위: 패턴 생성·판정은 단말기(서버)가 하고, 여동생은 커서(3x3)를 움직여 노드를 보낸다
  *    (권위 측이면 직접, 원격이면 Server_MemoryPress → 결과는 Client_MemoryResult).
  *  - 실패해도 무제한 재시도, 언제든 취소 가능(소프트락 없음).
@@ -91,6 +93,34 @@ public:
 	/** 테스트: 정답(true) 또는 오답(false) 노드를 누른다(정답은 단말기 복제 패턴에서 읽음). */
 	UFUNCTION(BlueprintCallable, Category = "Sister|Hack|Debug")
 	FString DebugMemoryPressAnswer(bool bCorrect);
+
+	// ------------------------------------------------------------ 회로 연결(맵2 개선 기획 3장)
+
+	/** 회로 연결 단말기 세션 중. */
+	UFUNCTION(BlueprintPure, Category = "Sister|Hack|Circuit")
+	bool IsCircuitSession() const;
+
+	/** 마지막 입력 판정(HUD: BLOCKED 표시 등)과 그 뒤 경과 시간. */
+	ECXCircuitStep GetCircuitLastStep() const { return CircuitLastStep; }
+	float GetCircuitStepAge() const;
+
+	/** 테스트: 입력 하나(0 위 / 1 아래 / 2 왼쪽 / 3 오른쪽 / 4 확인)를 키 입력과 같은 경로로 보낸다. 처리 후 "step=... | 단말기 상태". */
+	UFUNCTION(BlueprintCallable, Category = "Sister|Hack|Debug")
+	FString DebugCircuitInput(int32 Op);
+
+	/**
+	 *  테스트(서버): StartPair 시작점에서 GoalPair 도착점까지 지금 판의 빈 칸 최단 경로를 입력으로 그린다
+	 *  (커서 이동 → 확인 → 한 칸씩 이동). StartPair == GoalPair면 맞는 짝, 다르면 MISMATCH 확인용.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sister|Hack|Debug")
+	FString DebugCircuitConnect(int32 StartPair, int32 GoalPair);
+
+	/** 테스트(서버): 그려진 회로를 모두 확인 입력으로 지운 뒤 정답 회로를 입력으로 그린다(입력 경로 전체 검증). */
+	UFUNCTION(BlueprintCallable, Category = "Sister|Hack|Debug")
+	FString DebugCircuitSolveByInput();
+
+	UFUNCTION(BlueprintPure, Category = "Sister|Hack|Debug")
+	FString GetCircuitDebugState() const;
 
 	// ------------------------------------------------------------ HUD 조회
 
@@ -353,6 +383,29 @@ private:
 
 	UFUNCTION(Client, Reliable)
 	void Client_MemoryResult(EHackFeedback Result);
+
+	// 회로 연결
+	void SendCircuitSession(bool bBegin);
+	void SendCircuitOp(ECXCircuitOp Op);
+	void HandleCircuitResult(ECXCircuitStep Result);
+	/** 다른 경로(CXSolveHack·제미니·서버)로 단말기가 열렸으면 성공 표시 후 닫기. */
+	void TickCircuit();
+	/** 테스트: 그리는 중이 아니면 커서를 Cell로(이동 입력으로). */
+	void DebugCircuitMoveCursor(int32 Cell);
+	/** 테스트: 칸 목록을 따라 그린다(첫 칸에서 확인 → 나머지 칸으로 이동). */
+	void DebugCircuitTrace(const TArray<int32>& Cells);
+
+	UFUNCTION(Server, Reliable)
+	void Server_CircuitSession(AHackTerminal* Terminal, bool bBegin);
+
+	UFUNCTION(Server, Reliable)
+	void Server_CircuitInput(AHackTerminal* Terminal, uint8 Op);
+
+	UFUNCTION(Client, Reliable)
+	void Client_CircuitResult(uint8 Result);
+
+	ECXCircuitStep CircuitLastStep = ECXCircuitStep::Ignored;
+	float CircuitStepTime = -100.0f;
 
 	// 제미니 해킹 대행
 	void StartJeminiAssistLocal(float Duration);
