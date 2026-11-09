@@ -1,6 +1,6 @@
 # [FIX] 제미니 실시간 STT 자막이 말하는 동안 안 뜨는 문제
 
-- 브랜치: `fix/lkj-fix-live-stt-server` → `develop`
+- 브랜치: `fix/lkj-fix-live-stt-server` → `feat/lkj-map2-improve`
 
 ## 개요 (Overview)
 
@@ -68,5 +68,4 @@ Y를 누르자마자 "듣는 중" 말풍선 → 약 1초 뒤부터 받아 적은
 
 ## 추가 메모 (Additional Notes)
 
-- 이 브랜치는 `feat/lkj-map2-improve`에서 갈라졌음 — **`feat/lkj-map2-improve` PR이 먼저 머지돼야** 이 PR 변경이 STT 수정만 보임(그 전에는 맵2 커밋 5개가 같이 보임)
 - 버그·수정 기록: `Docs/Debug_log.md` #13
