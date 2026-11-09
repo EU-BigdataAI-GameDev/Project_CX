@@ -21,7 +21,10 @@ public class Project_CX : ModuleRules
 			"Slate"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore", "ApplicationCore" });
+
+		// 제미니 AI봇: LLM 서버 HTTP + JSON, 게임패드 음성 녹음(AudioCapture 플러그인은 엔진 기본 활성)
+		PrivateDependencyModuleNames.AddRange(new string[] { "HTTP", "Json", "AudioCaptureCore" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Project_CX",
@@ -37,7 +40,22 @@ public class Project_CX : ModuleRules
 			"Project_CX/Variant_SideScrolling/AI",
 			"Project_CX/Variant_SideScrolling/Gameplay",
 			"Project_CX/Variant_SideScrolling/Interfaces",
-			"Project_CX/Variant_SideScrolling/UI"
+			"Project_CX/Variant_SideScrolling/UI",
+			"Project_CX/Variant_BrotherCombat",
+			"Project_CX/Variant_BrotherCombat/Gameplay",
+			"Project_CX/Variant_Sister",
+			"Project_CX/Variant_Sister/Animation",
+			"Project_CX/Variant_Sister/Hacking",
+			"Project_CX/Variant_SpiderBot",
+			"Project_CX/Variant_SpiderBot/AI",
+			"Project_CX/Coop",
+			"Project_CX/Coop/UI",
+			"Project_CX/Coop/Gameplay",
+			"Project_CX/Coop/Interfaces",
+			"Project_CX/Core",
+			"Project_CX/Jemini",
+			"Project_CX/Title",
+			"Project_CX/UI/Menu"
 		});
 
 		// Uncomment if you are using Slate UI

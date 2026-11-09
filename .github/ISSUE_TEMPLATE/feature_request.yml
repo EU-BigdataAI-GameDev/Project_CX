@@ -1,0 +1,91 @@
+name: "✨ 기능 제안"
+description: "새로운 기능이나 시스템을 제안합니다."
+title: "[FEATURE] "
+labels: ["enhancement", "needs-review"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 새로운 기능을 제안하시나요?
+        제안 전, Discussions에서 팀원들과 먼저 논의해보는 것을 권장합니다.
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: "기능 영역"
+      description: "어떤 영역의 기능인가요?"
+      options:
+        - "코어 게임플레이 (Core Gameplay)"
+        - "캐릭터 / 플레이어 (Character / Player)"
+        - "UI / UX"
+        - "오디오 시스템 (Audio System)"
+        - "레벨 / 맵 (Level / Map)"
+        - "적 / AI (Enemy / AI)"
+        - "아이템 / 인벤토리 (Item / Inventory)"
+        - "세이브 / 로드 (Save / Load)"
+        - "기타 (Other)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "우선순위 (Priority)"
+      options:
+        - "Must-have — 핵심 기능, 없으면 게임 성립 안 됨"
+        - "Should-have — 있으면 크게 개선됨"
+        - "Nice-to-have — 여유 있을 때 추가"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: "해결하려는 문제 (Problem Statement)"
+      description: "이 기능이 왜 필요한가요? 어떤 문제를 해결하나요?"
+      placeholder: "예: 현재 적이 단순 직선 이동만 해서 전투가 너무 단조롭습니다."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: "제안하는 해결책 (Proposed Solution)"
+      description: "어떻게 구현하면 좋을지 구체적으로 설명해주세요."
+      placeholder: |
+        예: 
+        - 적에게 순찰(Patrol) → 탐지(Detect) → 추격(Chase) → 공격(Attack) 상태 머신 적용
+        - 일정 반경 내 플레이어 진입 시 탐지 상태로 전환
+        - 시야각(FOV) 기반 탐지 로직 구현
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "고려한 대안 (Alternatives Considered)"
+      placeholder: "다른 방법도 고려해봤나요? 왜 이 방법을 선택했나요?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "완료 조건 (Acceptance Criteria)"
+      description: "이 기능이 '완성됐다'고 볼 수 있는 기준을 적어주세요."
+      placeholder: |
+        - [ ] 적이 플레이어를 탐지하면 추격 시작
+        - [ ] 추격 중 플레이어를 놓치면 마지막 위치로 이동 후 복귀
+        - [ ] 공격 애니메이션과 히트박스 연동
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "참고 자료 (References)"
+      placeholder: "레퍼런스 게임, 영상, 문서 링크 등을 첨부해주세요."
+    validations:
+      required: false
