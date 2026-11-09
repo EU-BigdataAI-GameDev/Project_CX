@@ -24,11 +24,18 @@ log = logging.getLogger("jemini.stt")
 SAMPLE_RATE = 16000
 
 # 게임 단어로 인식을 기울인다(제미니 기능 이름·호칭)
-INITIAL_PROMPT = ("제미니, 재장전, 해킹, 단말기, 공격력, 회복, 힐, 보호막, 미끼, 어그로, "
-                  "재부팅, 펄스, 오빠, 여동생.")
+# 2026-11-09: 단어 목록("회복, 힐, 보호막, ...")은 작은 소리+잡음에서 목록을 그대로 반복해 지어냈다 → 실제 명령 문장 형태로.
+INITIAL_PROMPT = ("제미니, 재장전해 줘. 공격력 올려 줘. 힐 해 줘. 보호막 쳐 줘. 단말기 해킹해 줘. "
+                  "적 공격해. 어그로 끌어 줘. 오빠 빨리 살려 줘.")
+# 자막 한 번에 나올 최대 토큰(8초 명령이면 충분, 반복 환각이 길게 늘어나는 것을 막는다)
+MAX_NEW_TOKENS = 32
 
-# 이 RMS(float -1~1) 미만이면 무음으로 보고 받아 적지 않는다(무음에서 프롬프트를 지어내는 환각 방지)
-SILENCE_RMS = 0.004
+# 이 RMS(float -1~1) 미만이면 무음으로 보고 받아 적지 않는다(무음에서 프롬프트를 지어내는 환각 방지).
+# 2026-11-09 실측: 블루투스 헤드셋 실제 말소리가 RMS 0.003~0.005(peak 0.07)로 0.004 게이트에 걸려 자막이 안 나왔다 → 낮춤.
+SILENCE_RMS = 0.0015
+# 작은 마이크 소리는 받아 적기 전에 최대 진폭이 이 값이 되도록 키운다(최대 MAX_GAIN배)
+TARGET_PEAK = 0.7
+MAX_GAIN = 20.0
 
 
 class Transcriber(Protocol):
@@ -100,9 +107,19 @@ def _clean(text: str) -> Optional[str]:
     bare = _bare(text)
     if not bare or bare in HALLUCINATIONS:
         return None
-    # 프롬프트를 그대로 읊는 환각(무음·잡음에서 가끔)
-    if len(bare) >= 6 and bare in _bare(INITIAL_PROMPT):
+    # 프롬프트를 그대로 읊는 환각(무음·잡음에서 가끔). 프롬프트가 명령 문장이라 명령 하나("공격력올려줘" 6자)는
+    # 진짜 말일 수 있다 → 문장 두 개 이상 길이(12자+)를 이어 읊을 때만 버린다.
+    if len(bare) >= 12 and bare in _bare(INITIAL_PROMPT):
         return None
+    # 같은 구절 반복("공격력, 공격력", "힐, 보호막, 힐, 보호막")은 한 번만
+    items = [p.strip() for p in text.split(",") if p.strip()]
+    if len(items) > 1:
+        unique: list[str] = []
+        for item in items:
+            if item not in unique:
+                unique.append(item)
+        if len(unique) < len(items):
+            text = ", ".join(unique)
     return text
 
 
@@ -190,23 +207,38 @@ class SttEngine:
                 self._queued -= 1
 
 
+# 마지막 받아 적기의 구간별 결과(진단 로그용 — logs/stt.jsonl). 단일 스레드 풀이라 경쟁 없음.
+last_segments: list[dict[str, Any]] = []
+
+
 def _make_transcriber(whisper: Any) -> Callable[..., str]:
     import numpy as np
 
     def transcribe(samples: Any, warmup: bool = False) -> str:
-        if not warmup and (len(samples) == 0 or float(np.sqrt(np.mean(np.square(samples)))) < SILENCE_RMS):
-            return ""
+        if not warmup:
+            if len(samples) == 0 or float(np.sqrt(np.mean(np.square(samples)))) < SILENCE_RMS:
+                last_segments.clear()
+                return ""
+            peak = float(np.max(np.abs(samples)))
+            if 0.0 < peak < TARGET_PEAK:
+                samples = (samples * min(TARGET_PEAK / peak, MAX_GAIN)).astype(np.float32)
         segments, _info = whisper.transcribe(
             samples, language="ko", task="transcribe", beam_size=1, best_of=1, temperature=0.0,
             initial_prompt=INITIAL_PROMPT, condition_on_previous_text=False, without_timestamps=True,
-            vad_filter=False)
+            vad_filter=False, max_new_tokens=MAX_NEW_TOKENS)
         parts = []
+        debug = []
         for seg in segments:
             # 말이 아닌 구간(높은 no_speech + 낮은 확신)은 버린다.
             # 실측: 잡음 환각 nsp 0.98 / lp -0.93, 짧은 실제 말(0.9초 "공격력") nsp 0.87 / lp -0.16
-            if (seg.no_speech_prob > 0.6 and seg.avg_logprob < -1.0) or (seg.no_speech_prob > 0.9 and seg.avg_logprob < -0.5):
+            dropped = ((seg.no_speech_prob > 0.6 and seg.avg_logprob < -1.0) or (seg.no_speech_prob > 0.9 and seg.avg_logprob < -0.5)
+                       or getattr(seg, "compression_ratio", 0.0) > 2.2)
+            debug.append({"text": seg.text, "nsp": round(seg.no_speech_prob, 2), "lp": round(seg.avg_logprob, 2), "dropped": dropped})
+            if dropped:
                 continue
             parts.append(seg.text)
+        last_segments.clear()
+        last_segments.extend(debug)
         return "".join(parts)
 
     return transcribe

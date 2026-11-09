@@ -926,10 +926,13 @@ void ACoopHUD::DrawHeardBubble(const ACXJeminiDrone& Drone, float Age)
 		const APlayerController* PC = It->Get();
 		const APawn* Pawn = PC && PC->IsLocalController() ? PC->GetPawn() : nullptr;
 		const UCXJeminiInputComponent* Input = Pawn ? Pawn->FindComponentByClass<UCXJeminiInputComponent>() : nullptr;
-		if (Input && Input->HasLiveCaption())
+		// Y를 누르는 순간부터 말풍선을 띄운다 — 첫 글자가 오기 전(약 1초)에는 "듣는 중"
+		if (Input && Input->GetLiveCaptionState() != ECXLiveCaptionState::None)
 		{
 			const bool bPending = Input->GetLiveCaptionState() == ECXLiveCaptionState::Pending;
-			DrawSpeakerBubble(Pawn, Input->GetLiveCaption(), 1.0f, bPending ? ECXSpeakerBubble::Pending : ECXSpeakerBubble::Listening);
+			const FString& Caption = Input->GetLiveCaption();
+			DrawSpeakerBubble(Pawn, Caption.IsEmpty() ? FString(TEXT("듣는 중")) : Caption, 1.0f,
+				bPending ? ECXSpeakerBubble::Pending : ECXSpeakerBubble::Listening);
 			LiveSpeakers.Add(Pawn);
 		}
 	}

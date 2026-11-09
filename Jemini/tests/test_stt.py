@@ -83,8 +83,20 @@ def test_partial_empty_text_is_null(client, stt_engine):
 
 
 def test_partial_prompt_hallucination_is_null(client, stt_engine):
-    stt_engine.set_transcriber(lambda s: "재장전, 해킹, 단말기")
+    # 프롬프트 문장 여러 개를 이어 읊으면 버린다
+    stt_engine.set_transcriber(lambda s: "재장전해 줘. 공격력 올려 줘. 힐 해 줘.")
     assert partial(client, tone_wav(1.0)).json()["text"] is None
+
+
+def test_partial_single_command_from_prompt_is_kept(client, stt_engine):
+    # 명령 하나는 프롬프트에 있어도 진짜 말이다
+    stt_engine.set_transcriber(lambda s: " 공격력 올려 줘.")
+    assert partial(client, tone_wav(1.0)).json()["text"] == "공격력 올려 줘"
+
+
+def test_partial_repeated_phrases_collapsed(client, stt_engine):
+    stt_engine.set_transcriber(lambda s: "공격력, 공격력, 공격력")
+    assert partial(client, tone_wav(1.0)).json()["text"] == "공격력"
 
 
 def test_partial_known_hallucination_is_null(client, stt_engine):
