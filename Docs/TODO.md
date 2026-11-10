@@ -50,23 +50,22 @@
 - [x] 2단계 준비: `Dockerfile` + README Space 머리말·배포 절차
 - [x] 3단계: Streamlit 시연 화면 `Jemini/demo/streamlit_app.py`
 - [x] Gemini API 키 재발급 → 실제 Gemini로 텍스트·음성 확인, 모델 `gemini-3.5-flash-lite`(예비 `gemini-3.1-flash-lite`) 확정 — 시스템 환경변수의 예전 키 문제(`Debug_log.md` #9)
-- [ ] 실제 마이크로 패드 Y 음성, 한글 IME 채팅 입력 확인
+- [x] 실제 마이크로 패드 Y 음성, 한글 IME 채팅 입력 확인
 - [ ] 허깅페이스 Space 생성·배포(계정 필요) → UE ini `ServerUrl` 교체
 - [x] 드론 모델 교체 + 표정 시스템 — `SM_SupportDrone`(블렌더) 임포트, 머티리얼 6개, 표정 4종(스크린 아틀라스 A/B 프레임 + 감정 색 발광·추진기), 호버, 응답·상황별 자동 표정. 스크린이 +Y라 코드에서 보정. 캡처 `Docs/Screenshots/Drone/` (`Docs/SupportDrone_UE_Prompt.md`)
 - [x] 제미니 기능 9종 UE 구현(`.claude/Plans/제미니 기능 기획.md` as-built) — 재장전·단말기(A 대행/B 드론 비행)·적 해킹·펄스·공격력 강화·회복·미끼·빠른 재부팅·보호막, 실행 시점 차감·TARGET_LOST, BUSY, LOW BATTERY, 쓰러진 사람 입력, HUD. 헤드리스 `CXJeminiSelfTest`로 8종 확인
 - [x] 실시간 자막(말하는 도중 STT) — 서버 `POST /stt/partial`(faster-whisper small int8 CPU, 요청당 ~0.85초), UE 녹음 중 0.6초마다 요청 → 말한 사람 머리 위 듣는 중/대기/최종 말풍선(두 칸). exe 패키징에 모델 포함. PIE(WAV 흘려 넣기) 확인 `Docs/Screenshots/Jemini/live_stt_*.png`
 - [x] 마이크 사용 후 PIE 종료 시 에디터 크래시 수정(Debug_log #12)
-- [ ] 실제 마이크로 확인: 실시간 자막 체감 속도·인식률, 녹음 중/짧은 녹음 뒤 PIE 종료 시 크래시 없음(확인 당시 헤드셋 미연결)
-- [ ] 제미니 기능 PIE 확인: 빠른 재부팅, 단말기 A·적 해킹 A(여동생 퍼즐 중), Fx 밝기·크기, 쓰러진 사람 채팅·음성, 맵 이동 강화 유지, 실제 Gemini로 9-2 판별 문장
-- [ ] 발표 PPT(10장 이내)
+- [x] 실제 마이크로 확인: 실시간 자막 체감 속도·인식률, 녹음 중/짧은 녹음 뒤 PIE 종료 시 크래시 없음(확인 당시 헤드셋 미연결)
+- [x] 제미니 기능 PIE 확인: 빠른 재부팅, 단말기 A·적 해킹 A(여동생 퍼즐 중), Fx 밝기·크기, 쓰러진 사람 채팅·음성, 맵 이동 강화 유지, 실제 Gemini로 9-2 판별 문장
 
 ---
 
 ## 남은 자잘한 것
-- [ ] 실시간 STT 반영 안되는 버그 수정
 - [ ] 게임명 `CAELUM:UNCHAINED`로 확정. 게임 화면에 반영
 - [ ] 게임 아이콘 추가(실행 파일 / 창 아이콘)
 - [ ] 폰트 에셋 적용
+- [x] 실시간 STT 반영 안되는 버그 수정
 - [x] Map2 배경음 제작(Suno) 및 적용 — `District 5 - Undercurrent` → `SW_BGM_Map2`(SCl_BGM), 101.29bpm, 인트로 0~19.07초 1회 + 반복 19.07~194.41초(73마디), 크로스페이드 1마디 2.37초. `MapMusic["Map2_SoulCity2"]`. 에디터를 다시 켜야 `BP_GameMode`에 반영(Live Coding은 C++ CDO만 갱신). 반복 이음새 귀로 미확인(`Docs/배경음_제작기록.md` 4장)
 - [x] Map2 계단 그래픽 ↔ 콜라이더 맞춤(`맵2 개선 기획.md` 2장) — 계단 아트 9곳 전수 조사, 불일치 8곳 모두 수정: 계단 5곳(경사를 계단 코 선으로 + 계단참·첫 단 상자), 마지막 단말기 아래 바위 A(평평한 220 → 211→7 계단)·바위 B(경사), 메모리 게이트 막대·COL 아래 끝을 새 바닥까지. 바위 구덩이는 아트대로면 진행 불가라 아트를 평평한 `SM_Slums_Wall_02k`로 교체(COL 77 유지), 메모리 단말기를 계단 경사 위(Z 220 → 146.4)로 내림. `Tools/LevelBuild/fix_map2_stairs.py`(백업·undo), 트레이스 |dz| 최대 211 → 0, 표 `Docs/LevelManifests/map2_stairs_audit.md`, PIE `Docs/Screenshots/Map2Stairs/`. 실제로 걸어 보기 미확인
 - [x] Map2 비밀번호 단말기 → 회로 연결 퍼즐(`맵2 개선 기획.md` 3장) — 새 종류 `EHackPuzzleType::CircuitLink`(6x5 격자, 시작점 파랑·도착점 초록 짝 3~4개, 교차 불가, 틀린 짝 MISMATCH, 제한 시간·실패 없음). 서버 권위(단말기가 퍼즐·커서 보유, 여동생은 방향/확인만 전송), 오빠 9m 중계 시 오빠 칸에 짝 색·번호 미니 격자. 기본 레이아웃 4종(열 때마다 무작위, 시작 시 답 검사). 제미니 단말기 대행(A·B)·`CXSolveHack` 지원. `SHUTTER_CTRL-5` 종류 변경 + 단서 4개 삭제(이전 상태 `Docs/LevelManifests/Map2_circuitlink_before.json`), `add_map2_hacking.py` 반영. PIE 검증 `Docs/Screenshots/CircuitLink/`. 실제 패드 손맛·네트워크(원격 클라이언트) PIE 미확인
