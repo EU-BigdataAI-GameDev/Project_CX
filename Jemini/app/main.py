@@ -6,16 +6,17 @@ import json
 import random
 import time
 import wave
-from typing import Any, Awaitable, Callable, Optional
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Awaitable, Callable, Optional
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from pydantic import ValidationError
 
-from . import llm
+from . import llm, stt
 from .config import Settings, load_settings
 from .logger import write_log
 from .mock import mock_call
-from .schemas import CommandRequest, CommandResponse, GameState
+from .schemas import CommandRequest, CommandResponse, GameState, SttPartialResponse
 from .validator import LlmCall, validate
 
 FALLBACK_LINES = [
@@ -24,7 +25,14 @@ FALLBACK_LINES = [
     "잠깐 연결이 불안정해요. 다시 부탁해요!",
 ]
 
-app = FastAPI(title="Jemini LLM Server", version="2.0.0")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # 실시간 자막 모델은 백그라운드에서 읽는다(서버는 바로 요청을 받는다)
+    _start_stt(get_settings())
+    yield
+
+
+app = FastAPI(title="Jemini LLM Server", version="2.1.0", lifespan=_lifespan)
 
 # 테스트에서 교체할 수 있도록 함수로 둔다
 _settings: Optional[Settings] = None
@@ -45,9 +53,17 @@ def check_token(settings: Settings = Depends(get_settings),
         raise HTTPException(status_code=401, detail="invalid API key")
 
 
+def _start_stt(settings: Settings) -> None:
+    stt.engine.start_loading(enabled=settings.stt_enabled, model=settings.stt_model,
+                             model_dir=settings.stt_model_dir,
+                             cpu_threads=settings.stt_cpu_threads or stt.default_cpu_threads(),
+                             auto_download=settings.stt_auto_download)
+
+
 @app.get("/health")
 def health(settings: Settings = Depends(get_settings)) -> dict[str, Any]:
-    return {"status": "ok", "mock": settings.mock_mode, "model": settings.gemini_model}
+    return {"status": "ok", "mock": settings.mock_mode, "model": settings.gemini_model,
+            "stt": stt.engine.state}
 
 
 async def _run(settings: Settings, state: GameState, *, kind: str, text: Optional[str],
@@ -135,3 +151,37 @@ async def command_voice(audio: UploadFile = File(...), state: str = Form(...),
 
     return await _run(settings, game_state, kind="voice", text=None, audio=data,
                       audio_sec=round(seconds, 2), mock_text=mock_text)
+
+
+@app.post("/stt/partial", response_model=SttPartialResponse, dependencies=[Depends(check_token)])
+async def stt_partial(audio: UploadFile = File(...),
+                      settings: Settings = Depends(get_settings)) -> SttPartialResponse:
+    """말하는 도중 실시간 자막: 지금까지 녹음된 WAV → 받아 적은 글자. 명령은 실행하지 않는다(mock 모드 무관).
+
+    모델이 읽는 중·꺼짐·실패·무음이면 text=null(HTTP 200) — UE는 무시하고 지금처럼 동작한다.
+    """
+    start = time.perf_counter()
+    # lifespan 없이 띄운 경우(테스트 등)에도 첫 요청에서 읽기 시작
+    if stt.engine.state == "idle":
+        _start_stt(settings)
+    data = await audio.read(settings.max_audio_bytes + 1)
+    if len(data) > settings.max_audio_bytes:
+        raise HTTPException(status_code=422, detail="audio too large")
+    try:
+        samples, seconds = stt.decode_wav(data)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    if seconds > settings.max_audio_sec + 0.05:
+        raise HTTPException(status_code=422, detail=f"audio longer than {settings.max_audio_sec}s")
+    text, state = await stt.engine.transcribe(samples)
+    ms = round((time.perf_counter() - start) * 1000)
+    # 진단: 요청마다 길이·음량(RMS)·구간별 결과를 logs/stt.jsonl에 남긴다(음성 원본은 저장하지 않음)
+    try:
+        import numpy as np
+        rms = float(np.sqrt(np.mean(np.square(samples)))) if len(samples) else 0.0
+        write_log(settings.log_path.with_name("stt.jsonl"), {
+            "seconds": round(seconds, 2), "rms": round(rms, 5), "peak": round(float(np.max(np.abs(samples))) if len(samples) else 0.0, 4),
+            "state": state, "text": text, "segments": list(stt.last_segments) if state == "ready" else [], "ms": ms})
+    except Exception:  # noqa: BLE001 - 진단 로그 실패는 무시
+        pass
+    return SttPartialResponse(text=text, ms=ms, state=state)

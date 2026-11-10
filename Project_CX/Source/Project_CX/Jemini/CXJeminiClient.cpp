@@ -195,6 +195,46 @@ namespace CXJemini
 		Dispatch(Request, State.Battery, MoveTemp(OnDone));
 	}
 
+	FHttpRequestPtr SendSttPartial(const FEndpoint& Endpoint, const TArray<uint8>& Wav, FOnCXJeminiPartial OnDone)
+	{
+		const FString Boundary = FString::Printf(TEXT("----CXJeminiStt%08x%08x"), FMath::Rand(), FMath::Rand());
+		TArray<uint8> Body;
+		Body.Reserve(Wav.Num() + 256);
+		AppendUtf8(Body, FString::Printf(TEXT("--%s\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"partial.wav\"\r\nContent-Type: audio/wav\r\n\r\n"), *Boundary));
+		Body.Append(Wav);
+		AppendUtf8(Body, FString::Printf(TEXT("\r\n--%s--\r\n"), *Boundary));
+
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = MakeRequest(Endpoint, TEXT("/stt/partial"));
+		Request->SetHeader(TEXT("Content-Type"), FString::Printf(TEXT("multipart/form-data; boundary=%s"), *Boundary));
+		Request->SetContent(MoveTemp(Body));
+		const double StartTime = FPlatformTime::Seconds();
+		Request->OnProcessRequestComplete().BindLambda(
+			[OnDone, StartTime](FHttpRequestPtr Req, FHttpResponsePtr Response, bool bConnected)
+			{
+				FString Text;
+				bool bOk = false;
+				if (bConnected && Response.IsValid() && Response->GetResponseCode() == 200)
+				{
+					TSharedPtr<FJsonObject> Root;
+					const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+					if (FJsonSerializer::Deserialize(Reader, Root) && Root.IsValid())
+					{
+						Text = GetStringOrEmpty(Root, TEXT("text")).TrimStartAndEnd();
+						bOk = !Text.IsEmpty();
+					}
+				}
+				UE_LOG(LogCXJemini, Log, TEXT("Jemini STT partial: HTTP %d (%.0f ms) \"%s\""), Response.IsValid() ? Response->GetResponseCode() : 0,
+					(FPlatformTime::Seconds() - StartTime) * 1000.0, *Text);
+				OnDone.ExecuteIfBound(bOk, Text);
+			});
+		if (!Request->ProcessRequest())
+		{
+			OnDone.ExecuteIfBound(false, FString());
+			return nullptr;
+		}
+		return Request;
+	}
+
 	void SendVoice(const FEndpoint& Endpoint, const TArray<uint8>& Wav, const FCXJeminiState& State, FOnCXJeminiResponse OnDone)
 	{
 		const FString Boundary = FString::Printf(TEXT("----CXJemini%08x%08x"), FMath::Rand(), FMath::Rand());

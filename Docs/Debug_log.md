@@ -10,6 +10,37 @@
 
 ---
 
+## #13 실시간 STT 자막이 말하는 동안 안 뜨고 제미니 응답 뒤에만 뜸 — 🔧 수정·빌드 완료(실제 마이크 재확인 필요)
+- **수정 날짜**: 2026-11-09
+- **문제**: Y를 누르고 말하는 동안 머리 위 자막이 안 나오고, 손을 떼고 제미니 처리가 끝나야 플레이어 말풍선이 뜸.
+- **디버깅** (`Jemini/logs/stt.jsonl` 진단 로그 추가 후 실제 블루투스 헤드셋으로 재현):
+  - 말하는 도중 자막 요청은 서버에 도착(0.4/1/2초)했지만 음량이 RMS 0.003~0.005(peak 0.07)로 작아 서버 무음 게이트(RMS 0.004)에 걸려 `text: null`. Gemini는 같은 소리를 알아들음.
+  - UE는 글자가 없으면 말풍선을 아예 그리지 않음 → "응답이 와야 뜨는" 것처럼 보임.
+  - 작은 소리를 키우자 단어 목록 프롬프트("회복, 힐, 보호막…")를 반복해 지어내는 환각이 생김. 또 명령 문장 프롬프트로 바꾸면 기존 "프롬프트를 읊으면 버림" 필터(6자+)가 진짜 명령까지 버림.
+  - 한 녹음(4.27초)에서는 말하는 동안 요청이 하나도 안 감 — 원인 미확인, UE 로그 추가.
+- **수정**:
+  - 서버(`app/stt.py`): 무음 게이트 RMS 0.0015, 받아 적기 전 최대 진폭 0.7까지 증폭(최대 20배), 프롬프트를 명령 문장 형태로, `max_new_tokens` 32, 압축률 2.2 초과 구간 버림, 반복 구절 제거, 프롬프트 읊기 필터는 12자+만. 합성 저음량+잡음 테스트에서 0.9초 "공격력" → 1.5초 "공격력 올려 줘".
+  - UE: Y를 누르는 순간부터 말풍선("듣는 중" + 점) 표시(`ACoopHUD`), 자막 요청 보냄/응답/꺼짐 이유를 `LogCXJeminiInput`·`LogCXJemini`에 Log로 남김.
+  - 서버 테스트 118개 통과, 에디터 빌드 성공.
+
+## #12 마이크를 쓴 뒤 PIE를 끄면 에디터 전체가 크래시 — 🔧 수정·빌드 완료(실제 마이크 재확인 필요)
+- **수정 날짜**: 2026-11-07
+- **문제**: PIE에서 Y로 녹음(헤드셋 WASAPI)한 뒤 PIE를 끄면 `EXCEPTION_ACCESS_VIOLATION reading 0xffffffffffffffff`. 콜스택: Core ← AudioCaptureWasapi ← AudioCaptureCore ← `FCXJeminiVoiceRecorder::~FCXJeminiVoiceRecorder` ← `UCXJeminiInputComponent` 소멸(GC). 직전 로그: `too short (0.00s), discarded`(`Saved/Crashes/UECC-...45EBE9C9..._0000`).
+- **디버깅**: 엔진 `FAudioCaptureSynth` 멤버 순서가 `AudioCapture` → `CaptureCriticalSection` → `AudioCaptureData`라 소멸 때 버퍼·락이 캡처 객체보다 먼저 파괴됨. 우리 `Stop()`은 `StopCapturing()`(플래그만)만 해서 **WASAPI 스트림·캡처 스레드가 계속 돌았고**, `Cancel()`은 녹음 중일 때만 닫음 → 짧은 녹음 뒤에도 스트림이 열린 채 GC 소멸자까지 감 → 파괴 중 캡처 콜백/스레드 종료가 해제된 락·버퍼를 만짐.
+- **수정**: `CXJeminiVoice` — `Stop()`/`Cancel()`/`Start()` 실패 시 항상 `AbortCapturing()`(AbortStream+CloseStream, 캡처 스레드 join)으로 스트림을 닫고(이중 닫기 안전: `IsStreamOpen` 확인), 새 `Shutdown()`이 스트림을 닫은 뒤 캡처 객체를 파괴. `UCXJeminiInputComponent::EndPlay`/`OnUnregister`가 `ShutdownVoice()`(녹음기 Shutdown + 테스트 피드·실시간 자막 정리 + 진행 중 `/stt/partial` HTTP 취소·콜백 해제). 소멸자는 안전망(남아 있으면 경고 후 닫기)만. 덤: 녹음이 끝나면 마이크가 바로 해제된다.
+- **확인**: 빌드 성공. PIE 시작→녹음 시작→PIE 종료, 짧은 녹음→PIE 종료, 녹음→전송 직후 PIE 종료 각 2회 + 실시간 자막 요청 진행 중 PIE 종료 2회 → 크래시 없음. 단, 확인 시점에 헤드셋(siindoo-H1)이 끊겨 캡처 장치가 없었다(`no default capture device`) → **실제 마이크로 PIE 종료 재확인 필요**.
+- **교훈**: 엔진 오디오 캡처 객체는 스트림을 명시적으로 닫은 뒤 파괴한다. UObject 소멸자(GC)에 네이티브 스레드 정리를 맡기지 않는다.
+
+## #11 Map2 계단에서 발이 묻히거나 뜸(마지막 단말기 아래는 평평한 바닥) — ✅ 완료
+- **수정 날짜**: 2026-11-07
+- **문제**: 맵2 계단의 그래픽과 걷는 판정이 다름. 특히 마지막 단말기(`CAVE_LIFT_ECHO`) 주변은 화면에 계단이 보이는데 평평하게 걸어짐.
+- **디버깅**: 계단 아트와 콜라이더의 바운드(시작·끝 Y, 아래·위 Z)는 거의 같아서 바운드 비교로는 안 잡힘. 메시 정점을 뽑아 단면을 봄 →
+  1. `SM_stairs_W1_H3_00`은 높은 쪽 23%가 계단참인데, `build_map2.ramp()`은 바운드 모서리를 직선으로 이음 → 계단참 시작에서 COL이 계단 코보다 65~91cm 낮음.
+  2. S5 바위 턱 아트 `SM_Slums_Wall_02o`가 사실 계단 벽 메시임. 바위 A는 211 → 7 계단인데 COL은 220으로 평평함(최대 2.1m 뜸).
+- **수정**: `Tools/LevelBuild/fix_map2_stairs.py`(백업·undo). 경사 COL을 계단 코 선으로 옮기고 계단참·첫 단 상자를 추가. 바위 A·B 평면 COL은 잘라 내고 경사로 바꿈. 메모리 게이트 막대·COL 아래 끝을 새 바닥까지 내림. 바위 구덩이는 아트대로 고치면 진행이 막혀서 반대로 아트를 평평한 메시로 교체(2단계), 메모리 단말기도 경사 위로 내림.
+- **확인**: 트레이스 |dz| 최대 211 → 0, 캡슐 서기 통과, PIE 두 캐릭터가 계단 위에 섬. `Docs/LevelManifests/map2_stairs_audit.md`, `Docs/Screenshots/Map2Stairs/`.
+- **교훈**: 계단 같은 모양의 아트는 바운드가 아니라 단면(디딤판 목록)으로 콜라이더와 비교한다.
+
 ## #10 게임이 띄운 jemini-server.exe가 살아 있는데 응답이 없음 — ✅ 완료
 - **수정 날짜**: 2026-11-06
 - **문제**: 서버 자동 실행(`UCXJeminiServerSubsystem`)을 넣은 뒤 독립 실행(-game)에서 exe 프로세스는 떠 있는데 `/health`가 끝까지 타임아웃.

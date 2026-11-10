@@ -9,6 +9,7 @@
  *  해킹 퍼즐 규칙(.claude/Plans/해킹 시스템 기획.md) — 상태와 판정만 가진 순수 C++ 구조체.
  *  USisterHackComponent가 세션 종류(단말기 / 적)에 맞게 들고 쓰고, HUD는 컴포넌트의 조회 함수로 읽는다.
  *  입력 장치·소리·세션 수명은 컴포넌트 담당이다(여기는 규칙만 → 단말기/적 경로가 같은 코드를 공유).
+ *  회로 연결(FCXCircuitLinkPuzzle)은 서버 단말기가 직접 들고 있어야 해서 CXCircuitLinkPuzzle.h에 따로 있다(HackTerminal.h가 포함).
  */
 
 /** 화살표 입력 한 번의 판정. */

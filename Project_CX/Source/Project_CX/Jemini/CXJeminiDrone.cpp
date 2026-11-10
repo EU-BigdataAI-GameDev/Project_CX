@@ -382,6 +382,7 @@ void ACXJeminiDrone::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ACXJeminiDrone, bRequestPending);
 	DOREPLIFETIME(ACXJeminiDrone, Dialogue);
 	DOREPLIFETIME(ACXJeminiDrone, Heard);
+	DOREPLIFETIME(ACXJeminiDrone, HeardSpeaker);
 	DOREPLIFETIME(ACXJeminiDrone, DialogueStatus);
 	DOREPLIFETIME(ACXJeminiDrone, DialogueSeq);
 	DOREPLIFETIME(ACXJeminiDrone, bServerMock);
@@ -1606,6 +1607,8 @@ void ACXJeminiDrone::SetDialogue(const FString& Text, const FString& InHeard, co
 {
 	Dialogue = Text;
 	Heard = InHeard;
+	// 음성 요청이면 Heard가 있다 → 요청한 사람 머리 위 STT 말풍선용
+	HeardSpeaker = InHeard.IsEmpty() ? nullptr : RequestSpeaker.Get();
 	DialogueStatus = Status;
 	++DialogueSeq;
 }

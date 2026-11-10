@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import main  # noqa: E402
+from app import main, stt  # noqa: E402
 from app.config import load_settings  # noqa: E402
 
 
@@ -22,7 +22,17 @@ def settings(tmp_path):
                    log_path=tmp_path / "jemini.jsonl",
                    cost_reload=5, cost_hack_terminal=20, cost_hack_enemy=20, cost_pulse_attack=50,
                    cost_damage_boost=10, cost_heal=30, cost_decoy=15, cost_quick_reboot=30,
-                   cost_shield=25)
+                   cost_shield=25,
+                   # 테스트는 실제 STT 모델을 읽지 않는다(가짜는 stt_engine 픽스처로)
+                   stt_enabled=False)
+
+
+@pytest.fixture(autouse=True)
+def stt_engine(monkeypatch):
+    """테스트마다 새 STT 엔진(모델 없음). set_transcriber()로 가짜를 꽂는다."""
+    engine = stt.SttEngine()
+    monkeypatch.setattr(stt, "engine", engine)
+    return engine
 
 
 @pytest.fixture

@@ -53,6 +53,16 @@ ALocalCoopGameMode::ALocalCoopGameMode()
 	// 2026-11-02 맵 이름 변경: 실제 Map1 레벨은 Map1_SoulCity1(Map1_SoulCity는 리디렉터) — 둘 다 둔다
 	MapMusic.Add(TEXT("Map1_SoulCity1"), Map1Track);
 
+	// Map2 배경음(수노 "District 5 - Undercurrent", 101.29bpm — 1마디 2.369초, 첫 다운비트 0.112초).
+	// 인트로(0~19.07초, 8마디)는 처음 한 번, 이후 19.07~194.41초 반복(크로스페이드 1마디 → 실제 반복 73마디, 끝 타격음 전에서 이음)(Docs/배경음_제작기록.md)
+	FCXMusicTrack Map2Track;
+	Map2Track.Music = TSoftObjectPtr<USoundBase>(FSoftObjectPath(TEXT("/Game/Project_CX/Audio/BGM/SW_BGM_Map2.SW_BGM_Map2")));
+	Map2Track.LoopStart = 19.07f;
+	Map2Track.LoopEnd = 194.41f;
+	Map2Track.FadeIn = 1.0f;
+	Map2Track.Crossfade = 2.37f;
+	MapMusic.Add(TEXT("Map2_SoulCity2"), Map2Track);
+
 	// 세이브 복도(Map2와 보스맵 사이 쉼터): 시작화면 곡(District 5 - Signal, 70bpm, 따뜻한 패드)을 "안전 지대 테마"로 재사용.
 	// Map1 곡(압박감 있는 언더스코어)보다 숨 고르기에 맞다. 인트로(0~21초)는 처음 한 번, 이후 21~224.5초 반복(시작화면과 같은 값).
 	FCXMusicTrack CorridorTrack;
@@ -279,6 +289,32 @@ void ALocalCoopGameMode::CXJeminiSister(const FString& Text)
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("CXJeminiSister: no sister controller"));
+}
+
+void ALocalCoopGameMode::CXJeminiVoiceFile(const FString& Path, const FString& Who)
+{
+	const FString Arg = Who.TrimStartAndEnd().ToLower();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		if (!PC || !PC->GetLocalPlayer() || !PC->GetPawn())
+		{
+			continue;
+		}
+		const bool bSister = IsSisterController(PC);
+		const bool bMatch = ((Arg == TEXT("brother") || Arg == TEXT("b")) && !bSister)
+			|| ((Arg == TEXT("sister") || Arg == TEXT("s")) && bSister)
+			|| (Arg.IsNumeric() && FCString::Atoi(*Arg) == PC->GetLocalPlayer()->GetLocalPlayerIndex());
+		if (!bMatch)
+		{
+			continue;
+		}
+		UCXJeminiInputComponent* Input = PC->GetPawn()->FindComponentByClass<UCXJeminiInputComponent>();
+		const bool bStarted = Input && Input->DebugFeedVoiceFile(Path);
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiVoiceFile: %s from P%d -> %s"), *Path, PC->GetLocalPlayer()->GetLocalPlayerIndex() + 1, bStarted ? TEXT("feeding") : TEXT("blocked"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("CXJeminiVoiceFile: no player '%s'"), *Who);
 }
 
 void ALocalCoopGameMode::CXJeminiCmd(const FString& Name, const FString& Target)
@@ -559,6 +595,13 @@ void ALocalCoopGameMode::CXSolveHack()
 	if (!Target)
 	{
 		UE_LOG(LogTemp, Log, TEXT("CXSolveHack: 잠긴 단말기가 없습니다."));
+		return;
+	}
+	// 회로 연결 세션 진행 중: 정답 회로를 채워 완성된 판으로 성공 표시(여동생 세션은 복제된 Hacked를 보고 스스로 닫힌다)
+	if (Target->IsCircuitSessionActive())
+	{
+		Target->ServerCircuitSolve();
+		UE_LOG(LogTemp, Log, TEXT("CXSolveHack: %s 회로 연결 정답 적용 + 해킹 완료"), *Target->TerminalName);
 		return;
 	}
 	// 진행 중인 세션을 닫고(이동 잠금 해제) 단말기를 해킹 완료 처리 → 연결된 게이트가 열린다

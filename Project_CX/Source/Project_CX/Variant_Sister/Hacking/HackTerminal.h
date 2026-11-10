@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "CXCircuitLinkPuzzle.h"
 #include "HackTerminal.generated.h"
 
 class UStaticMeshComponent;
@@ -35,7 +36,52 @@ enum class EHackPuzzleType : uint8
 	 *  주파수 동조(Frequency Lock, 해킹 시스템 기획 12장): 왕복 커서가 목표 구간 안일 때 F/X — 단계마다 구간이 좁아지고 빨라진다.
 	 *  (원래 적 해킹 퍼즐 → 단말기로 이동. 단말기는 전투 압박이 없어 기본 제한 시간 없음.)
 	 */
-	FrequencyLock
+	FrequencyLock,
+	/**
+	 *  회로 연결(Circuit Link, 맵2 개선 기획 3장): 격자 위 시작점(파랑)과 짝 도착점(초록)을 교차 없이 상하좌우 회로로 잇는다.
+	 *  여동생 화면은 짝을 모른다(시작점 모두 파랑, 도착점 모두 초록). 오빠가 중계 거리(CircuitRelayRange) 안이면 오빠 칸에 짝 색·번호가 보인다.
+	 *  틀린 짝은 MISMATCH(빨강, 성공 아님). 제한 시간·실패 없음. 서버 권위(메모리 패턴과 같은 세션 방식).
+	 */
+	CircuitLink
+};
+
+/** 회로 연결 레이아웃 하나(단말기 설정). Starts[i]와 Goals[i]가 짝 — 칸 좌표(X 0..Width-1 왼쪽→오른쪽, Y 0..Height-1 위→아래). */
+USTRUCT(BlueprintType)
+struct FCXCircuitLayout
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hack|Circuit", meta = (ClampMin = "2", ClampMax = "12"))
+	int32 Width = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hack|Circuit", meta = (ClampMin = "2", ClampMax = "12"))
+	int32 Height = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hack|Circuit")
+	TArray<FIntPoint> Starts;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hack|Circuit")
+	TArray<FIntPoint> Goals;
+};
+
+/** 회로 하나의 복제 사본(칸 번호 = Y * Width + X). Origin/End = 끝점 번호(짝 = 번호 / 2, 짝수 = 시작점), 255 = 없음. */
+USTRUCT()
+struct FCXCircuitPathRep
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<uint8> Cells;
+
+	UPROPERTY()
+	uint8 Origin = 255;
+
+	UPROPERTY()
+	uint8 End = 255;
+
+	bool IsOpen() const { return End == 255; }
+	bool IsLinked() const { return End != 255 && Origin / 2 == End / 2; }
+	bool IsMismatch() const { return End != 255 && Origin / 2 != End / 2; }
 };
 
 /** HUD 연출용 최근 판정 결과(여동생 해킹 세션 / 메모리 패턴 단말기 이벤트 공용). */
@@ -156,6 +202,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Hack|Memory", meta = (EditCondition = "PuzzleType == EHackPuzzleType::MemoryPattern"))
 	float MemoryServerRangeSlack = 200.0f;
 
+	// ------------------------------------------------------------ 회로 연결(맵2 개선 기획 3장)
+
+	/**
+	 *  레이아웃 후보. 단말기를 열 때마다 하나를 고른다(직전과 다른 것 우선). 비어 있으면 코드 기본 레이아웃(6x5, 4종).
+	 *  열 때 답이 있는지 검사(Solve)하고, 틀린 레이아웃은 경고 로그 후 빼며, 남는 게 없으면 기본 레이아웃 0번을 쓴다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack|Circuit", meta = (EditCondition = "PuzzleType == EHackPuzzleType::CircuitLink"))
+	TArray<FCXCircuitLayout> CircuitLayouts;
+
+	/** 오빠가 단말기에서 이 거리(cm) 안에 살아 있으면 오빠 칸에 짝 정보(색·번호) 격자가 뜬다. 밖이어도 여동생 입력은 막지 않는다(시행착오 가능). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack|Circuit", meta = (EditCondition = "PuzzleType == EHackPuzzleType::CircuitLink"))
+	float CircuitRelayRange = 900.0f;
+
+	/** 서버 검증: 입력한 여동생이 InteractRange + 이 값(cm) 안이어야 입력을 받는다. */
+	UPROPERTY(EditAnywhere, Category = "Hack|Circuit", meta = (EditCondition = "PuzzleType == EHackPuzzleType::CircuitLink"))
+	float CircuitServerRangeSlack = 200.0f;
+
 	/** 여동생이 이 거리(cm) 안에 있어야 해킹을 시작할 수 있다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack")
 	float InteractRange = 300.0f;
@@ -190,6 +253,73 @@ public:
 
 	/** 서버: 세션 취소(해킹되지 않았으면 Locked 복귀, 패턴 삭제). */
 	void ServerMemoryEnd(APawn* Hacker);
+
+	// ------------------------------------------------------------ 회로 연결: 서버 권위 API(USisterHackComponent가 직접/Server RPC로 호출)
+
+	/** 서버: 세션 시작 — 레이아웃 고르기(답 검사), 회로 비우기, InProgress. */
+	void ServerCircuitBegin(APawn* Hacker);
+
+	/** 서버: 입력 하나 판정(커서 이동 / 확인). 마지막 짝까지 맞으면 Complete + MarkHacked. 받지 않은 입력은 Ignored. */
+	ECXCircuitStep ServerCircuitInput(APawn* Hacker, ECXCircuitOp Op);
+
+	/** 서버: 세션 취소(해킹되지 않았으면 Locked 복귀, 회로 삭제). */
+	void ServerCircuitEnd(APawn* Hacker);
+
+	/** 서버: 정답 회로로 채우고 해킹 완료(CXSolveHack / 제미니 대행). 세션이 없으면 MarkHacked만. */
+	void ServerCircuitSolve();
+
+	/** 서버: 세션을 연 여동생(제미니 대행 — 원격 여동생 세션 찾기). */
+	APawn* GetCircuitHacker() const { return CircuitHacker.Get(); }
+
+	// ------------------------------------------------------------ 회로 연결: 조회(HUD — 복제된 값만 사용)
+
+	bool IsCircuitLink() const { return PuzzleType == EHackPuzzleType::CircuitLink; }
+
+	/** 회로 연결 세션 진행 중(InProgress + 레이아웃 있음). */
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit")
+	bool IsCircuitSessionActive() const;
+
+	int32 GetCircuitWidth() const { return CircuitWidth; }
+	int32 GetCircuitHeight() const { return CircuitHeight; }
+	/** 끝점 칸 번호(짝마다 시작점, 도착점 순). */
+	const TArray<uint8>& GetCircuitEndpoints() const { return CircuitEndpoints; }
+	const TArray<FCXCircuitPathRep>& GetCircuitPaths() const { return CircuitPaths; }
+	/** 지금 그리는 회로(GetCircuitPaths 인덱스), 없으면 -1. */
+	int32 GetCircuitActivePath() const { return CircuitActivePath; }
+	int32 GetCircuitCursor() const { return CircuitCursor; }
+
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit")
+	int32 GetCircuitPairCount() const { return CircuitEndpoints.Num() / 2; }
+
+	/** 맞는 짝으로 연결된 수(제미니 progress = 이 값 / 짝 수). */
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit")
+	int32 GetCircuitLinkedCount() const;
+
+	/** 그 칸의 끝점 번호 / 지나는 회로 인덱스(없으면 -1) — 복제값 기준. */
+	int32 GetCircuitEndpointAt(int32 Cell) const;
+	int32 GetCircuitPathAt(int32 Cell) const;
+
+	/** 오빠가 중계 거리 안에 살아 있음(서버 판정, 복제) → 오빠 칸에 짝 색·번호. */
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit")
+	bool IsCircuitRelayActive() const { return bCircuitRelayActive; }
+
+	/** 마지막 판정 이벤트(Correct = 짝 연결, Denied = MISMATCH, Granted = 완료 — 복제)와 경과 시간. */
+	EHackFeedback GetCircuitLastEvent() const { return CircuitLastEvent; }
+	float GetCircuitEventAge() const { return GetSyncedTime() - CircuitEventTime; }
+
+	/** 이번 세션 레이아웃 번호(기본 레이아웃 기준이면 0~, 단말기 설정이면 100~). 테스트·로그용. */
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit|Debug")
+	int32 GetCircuitLayoutId() const { return CircuitLayoutId; }
+
+	/** 테스트: 서버 퍼즐 상태 한 줄(끝점·회로·커서·중계). */
+	UFUNCTION(BlueprintPure, Category = "Hack|Circuit|Debug")
+	FString GetCircuitDebugState() const;
+
+	/** 테스트(서버): 지금 판에서 From → To 칸 최단 경로(다른 회로·끝점 피함). 없으면 빈 배열. */
+	TArray<int32> DebugCircuitRoute(int32 FromCell, int32 ToCell) const;
+
+	/** 테스트(서버): 빈 판 기준 정답 회로(짝 순서, 칸 번호를 이어 붙이고 짝 사이는 -1). */
+	TArray<int32> DebugCircuitSolution() const;
 
 	// ------------------------------------------------------------ 메모리 패턴: 조회(HUD — 복제된 값만 사용)
 
@@ -308,8 +438,54 @@ protected:
 	UPROPERTY(Replicated)
 	float MemoryEventTime = -100.0f;
 
+	// ------------------------------------------------------------ 회로 연결 복제 상태(서버가 쓰고 두 HUD가 읽는다)
+
+	UPROPERTY(Replicated)
+	uint8 CircuitWidth = 0;
+
+	UPROPERTY(Replicated)
+	uint8 CircuitHeight = 0;
+
+	UPROPERTY(Replicated)
+	TArray<uint8> CircuitEndpoints;
+
+	UPROPERTY(Replicated)
+	TArray<FCXCircuitPathRep> CircuitPaths;
+
+	UPROPERTY(Replicated)
+	int32 CircuitActivePath = INDEX_NONE;
+
+	UPROPERTY(Replicated)
+	int32 CircuitCursor = 0;
+
+	UPROPERTY(Replicated)
+	bool bCircuitRelayActive = false;
+
+	UPROPERTY(Replicated)
+	EHackFeedback CircuitLastEvent = EHackFeedback::None;
+
+	UPROPERTY(Replicated)
+	float CircuitEventTime = -100.0f;
+
+	UPROPERTY(Replicated)
+	int32 CircuitLayoutId = INDEX_NONE;
+
 private:
 	void UpdateStateSounds();
+
+	/** 서버: 회로 퍼즐 → 복제 사본. */
+	void SyncCircuitRep();
+	void SetCircuitEvent(EHackFeedback Event);
+	/** 서버: 중계 상태(오빠 거리·생존) 갱신. */
+	void UpdateCircuitRelay();
+	/** 서버: 레이아웃 후보 중 하나를 골라 Circuit에 깐다(답 검사, 실패 시 기본 0번). */
+	void PickCircuitLayout();
+
+	/** 서버 전용 퍼즐 상태(복제는 Circuit* 사본으로). */
+	FCXCircuitLinkPuzzle Circuit;
+	TWeakObjectPtr<APawn> CircuitHacker;
+	/** 직전 세션 레이아웃(연속으로 같은 판이 나오지 않게). */
+	int32 LastCircuitLayoutId = INDEX_NONE;
 
 	/** 서버: 중계 상태(오빠 거리·생존) 갱신. 새로 연결되면 준비 시간 뒤 처음부터 재생. */
 	void UpdateMemoryRelay();

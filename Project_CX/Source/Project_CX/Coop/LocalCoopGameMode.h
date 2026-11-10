@@ -191,6 +191,14 @@ public:
 	void CXJeminiSister(const FString& Text);
 
 	/**
+	 *  테스트용 콘솔 명령: 마이크 대신 WAV 파일(16bit PCM)을 Y 푸시투토크처럼 실시간으로 흘려 넣는다
+	 *  (실시간 자막 /stt/partial → 머리 위 말풍선 → 끝나면 최종 음성 요청). Who = 0/1 또는 brother/sister.
+	 *  예) CXJeminiVoiceFile "C:/tmp/attack.wav" sister
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiVoiceFile(const FString& Path, const FString& Who = TEXT("0"));
+
+	/**
 	 *  테스트용 콘솔 명령: LLM 서버 없이 ok 응답을 받은 것처럼 명령 실행(배터리는 실제 비용대로 실행 시 차감).
 	 *  예) CXJeminiCmd PulseAttack / CXJeminiCmd Shield sister / CXJeminiCmd QuickReboot brother
 	 */

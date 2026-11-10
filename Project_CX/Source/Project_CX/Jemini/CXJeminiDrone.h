@@ -107,6 +107,9 @@ public:
 	/** DefaultGame.ini의 서버 주소(따옴표·잘림 보정, 끝 '/' 없음). 서버 자동 실행(UCXJeminiServerSubsystem)도 쓴다. */
 	static FString GetConfiguredServerUrl();
 
+	/** 서버 주소·토큰·타임아웃. 실시간 자막(UCXJeminiInputComponent → /stt/partial)도 같은 서버를 쓴다. */
+	CXJemini::FEndpoint GetEndpoint() const;
+
 	// ---------------------------------------------------------------- 요청(서버)
 
 	/** 지금 새 요청을 받을 수 있는지(요청 중 아님 + 드론 작업 중 아님 + 게임 오버·클리어·이동 중 아님). */
@@ -139,6 +142,8 @@ public:
 	bool IsRequestPending() const { return bRequestPending; }
 	const FString& GetDialogue() const { return Dialogue; }
 	const FString& GetHeard() const { return Heard; }
+	/** 음성으로 말한 사람(Heard가 있을 때만, 없으면 nullptr) — HUD가 그 머리 위에 STT 말풍선을 띄운다. */
+	APawn* GetHeardSpeaker() const { return HeardSpeaker; }
 	/** 대사가 바뀔 때마다 증가(HUD가 표시 시작 시각을 잡는다). */
 	int32 GetDialogueSeq() const { return DialogueSeq; }
 	/** 마지막 응답 status(ok / rejected / chat / fallback). */
@@ -320,7 +325,6 @@ protected:
 
 private:
 	FCXJeminiState GatherState(const APawn* Speaker) const;
-	CXJemini::FEndpoint GetEndpoint() const;
 	bool BeginRequest(APawn* From, bool bVoice);
 	void HandleResponse(const FCXJeminiResponse& Response);
 	/** 명령 시작. 대상이 이미 없으면 false(차감 없이 TARGET_LOST). */
@@ -391,6 +395,10 @@ private:
 
 	UPROPERTY(Replicated)
 	FString Heard;
+
+	/** Heard를 말한 플레이어(음성 요청자). */
+	UPROPERTY(Replicated)
+	TObjectPtr<APawn> HeardSpeaker;
 
 	UPROPERTY(Replicated)
 	FString DialogueStatus;

@@ -65,6 +65,14 @@ class Settings:
     log_path: Path
     # 모든 모델 한도 초과 시 텍스트 요청을 mock 키워드 판별로 처리(시연 안전장치)
     mock_on_rate_limit: bool = True
+    # 실시간 자막(POST /stt/partial, 로컬 faster-whisper). 끄면 항상 text=null.
+    stt_enabled: bool = True
+    stt_model: str = "small"
+    # 모델 폴더(models/faster-whisper-<model>). exe면 exe 옆 models/
+    stt_model_dir: Path = ROOT / "models"
+    stt_cpu_threads: int = 0
+    # 모델이 없으면 첫 실행 때 Hugging Face에서 내려받기
+    stt_auto_download: bool = True
 
 
 def load_settings() -> Settings:
@@ -72,6 +80,9 @@ def load_settings() -> Settings:
     if not log_path.is_absolute():
         log_path = ROOT / log_path
     api_key = os.getenv("GEMINI_API_KEY", "")
+    stt_model_dir = Path(os.getenv("STT_MODEL_DIR", "") or "models")
+    if not stt_model_dir.is_absolute():
+        stt_model_dir = ROOT / stt_model_dir
     return Settings(
         gemini_api_key=api_key,
         # 버전 고정(별칭 gemini-flash-latest는 가리키는 모델이 바뀔 수 있음)
@@ -98,4 +109,9 @@ def load_settings() -> Settings:
         max_audio_bytes=_int("MAX_AUDIO_BYTES", 2_000_000),
         log_path=log_path,
         mock_on_rate_limit=_bool("MOCK_ON_RATE_LIMIT", default=True),
+        stt_enabled=_bool("STT_ENABLED", default=True),
+        stt_model=os.getenv("STT_MODEL", "small").strip() or "small",
+        stt_model_dir=stt_model_dir,
+        stt_cpu_threads=_int("STT_CPU_THREADS", 0),
+        stt_auto_download=_bool("STT_AUTO_DOWNLOAD", default=True),
     )

@@ -1,13 +1,14 @@
 """
-Map2_SoulCity2 에 단말기 퍼즐 3종(.claude/Plans/해킹 시스템 기획.md 0-1장 — 비밀번호 / 주파수 동조 / 메모리 패턴)을 추가한다.
+Map2_SoulCity2 에 단말기 퍼즐 3종(회로 연결 / 주파수 동조 / 메모리 패턴)을 추가한다.
+(.claude/Plans/해킹 시스템 기획.md 0-1장. 2026-11-07 맵2 개선 기획 3장: 1번 단말기 비밀번호 → 회로 연결, 숫자 단서 4개 삭제.)
 
 - 사람이 손본 레벨이므로 **추가만** 한다: 태그 GEN_Map2Hack 이 붙은 액터만 지우고 다시 만든다(다른 액터는 이동/삭제하지 않음).
 - 폴더 Gameplay/Hacking. 바닥 높이는 COL_ 박스에 라인트레이스(COL_Prop_* 와 단말기는 무시)로 구한다.
 - 실행 전 레벨이 이미 dirty(다른 사람의 저장 안 한 수정)면 배치는 하되 **저장하지 않고** 알린다.
 
 배치(맵2_레벨디자인.md 4장 구간 기준, 진행 +Y, 카메라 -X, 레인 X -120~150):
-  1) 비밀번호  SHUTTER_CTRL-5  — S2 합류 마당(Y 5920, 뒤쪽 X 110). 게이트: S3 공동주택 입구 문(Y 5995, 바닥 0~260 — 문 위 벽은 Z 250부터).
-     숫자 단서 4개(오빠 화면 전용): 오빠 동선 S1 판자 발판 → S2 지붕 R1 → R2 → R4, 레인 뒤 X 155, 발판 위 230cm, yaw 180.
+  1) 회로 연결 SHUTTER_CTRL-5  — S2 합류 마당(Y 5920, 뒤쪽 X 110). 게이트: S3 공동주택 입구 문(Y 5995, 바닥 0~260 — 문 위 벽은 Z 250부터).
+     짝 정보는 오빠가 중계 거리(CircuitRelayRange 9m) 안일 때 오빠 칸에만. (예전 비밀번호 숫자 단서 4개는 만들지 않는다.)
   2) 주파수 동조 MARKET_RELAY  — S4 옥상 입구(Y 9590, 뒤쪽 X 110, Z 728). 게이트: S4 낮은 마당 직전(Y 10475, Z 728~1050).
      게이트 앞 구간(Y 9420~10455)에는 적이 없다 — 거미 S4_01(Y 11224)은 게이트 뒤.
   3) 메모리 패턴 CAVE_LIFT_ECHO — S5 바위 턱 A(Y 12505, 뒤쪽 X 110, Z 200). 게이트: 바위 A 끝/구덩이 시작(Y 12750, Z 60~540).
@@ -34,13 +35,16 @@ GATE_X0, GATE_X1 = -125.0, 155.0   # 앞/뒤 경계벽(COL_Bound_Front/Back)과 
 MAP2_VSCALE_TAG = "GEN_Map2VScale"
 TERMINALS = [
     # label, terminal_name, puzzle, (x, y), gate(label, y, z0, z1, bar_z0)
-    ("HackTerminal_M2_Passcode", "SHUTTER_CTRL-5", "PASSCODE", (110.0, 5920.0), ("HackGate_M2_S3Door", 5995.0, 0.0, 262.0, 0.0)),
+    # 2026-11-07 맵2 개선 기획 3장: PASSCODE → CIRCUIT_LINK (라벨은 레벨 참조 호환을 위해 그대로 둔다)
+    ("HackTerminal_M2_Passcode", "SHUTTER_CTRL-5", "CIRCUIT_LINK", (110.0, 5920.0), ("HackGate_M2_S3Door", 5995.0, 0.0, 262.0, 0.0)),
     ("HackTerminal_M2_FreqLock", "MARKET_RELAY", "FREQUENCY_LOCK", (110.0, 9590.0), ("HackGate_M2_S4Yard", 10475.0, 728.0, 1050.0, 728.0)),
-    ("HackTerminal_M2_Memory", "CAVE_LIFT_ECHO", "MEMORY_PATTERN", (110.0, 12505.0), ("HackGate_M2_S5Pit", 12750.0, 60.0, 540.0, 200.0)),
+    # 2026-11-07 fix_map2_stairs.py: 바위 A 가 아트대로 211 → 7 계단이 되어 게이트 막대·COL 아래 끝을 새 바닥(7.7)까지 내림(원래 z0 60, bar_z0 200).
+    # 단말기는 floor_at 트레이스로 바위 A 경사 COL_S5_RockA_Ramp1 위(Z 146.4)에 놓인다 — fix_map2_stairs.py apply2 가 옮긴 위치와 같음.
+    ("HackTerminal_M2_Memory", "CAVE_LIFT_ECHO", "MEMORY_PATTERN", (110.0, 12505.0), ("HackGate_M2_S5Pit", 12750.0, 0.0, 540.0, 7.0)),
 ]
-# 비밀번호 단서: label, y, digit_index(자리 순서를 섞어 둠 — 오빠 동선 순서로 #2 → #4 → #1 → #3)
-CLUES = [("HackClue_M2_S1_Canal", 1300.0, 1), ("HackClue_M2_S2_R1", 3250.0, 3), ("HackClue_M2_S2_R2", 4250.0, 0), ("HackClue_M2_S2_R4", 5180.0, 2)]
-CLUE_X, CLUE_H = 155.0, 230.0
+# 비밀번호 단서는 2026-11-07(맵2 개선 기획 3장) 회로 연결로 바뀌며 삭제 — 예전 값(label, y, digit_index):
+#   HackClue_M2_S1_Canal 1300 #1, HackClue_M2_S2_R1 3250 #3, HackClue_M2_S2_R2 4250 #0, HackClue_M2_S2_R4 5180 #2 (X 155, 발판 위 230, yaw 180)
+CLUES = []
 # 2026-11-04: widen_lane_front.py 로 레인 앞(카메라 쪽)이 넓어졌으면(표식 액터 태그 'LaneFrontDelta=<cm>', Map2 1.1배 = 27 → 2026-11-06 1.5배 = 135)
 # 게이트 COL 앞 끝·레일·네온 막대를 그만큼 앞으로 늘린다 → 재실행해도 넓어진 레인 전체를 막는다.
 LANE_FRONT_TAG = "LaneFrontDelta="
@@ -71,7 +75,6 @@ def place():
             removed += 1
 
     TerminalClass = unreal.load_class(None, "/Script/Project_CX.HackTerminal")
-    ClueClass = unreal.load_class(None, "/Script/Project_CX.HackCodeClue")
     ignore = [a for a in eas.get_all_level_actors() if a.get_actor_label().startswith("COL_Prop_") or a.get_class() == TerminalClass]
 
     def floor_at(x, y, z_from=3000.0):
@@ -139,6 +142,10 @@ def place():
         if puzzle == "MEMORY_PATTERN":
             t.set_editor_property("memory_round_lengths", [3, 4, 5])
             t.set_editor_property("memory_relay_range", 900.0)
+        if puzzle == "CIRCUIT_LINK":
+            # 레이아웃은 코드 기본 4종(비워 두면 사용). 오빠 중계 거리 9m(메모리 패턴과 같음).
+            t.set_editor_property("circuit_layouts", [])
+            t.set_editor_property("circuit_relay_range", 900.0)
         mesh = t.get_component_by_class(unreal.StaticMeshComponent)
         mesh.set_static_mesh(unreal.load_asset(TERMINAL_MESH))
         mesh.set_relative_scale3d(unreal.Vector(0.9, 1.4, 1.5))
@@ -156,12 +163,7 @@ def place():
         gate = laser_gate(glabel, gy, gz0 * vz, gz1 * vz, gbz * vz)
         terms[puzzle] = terminal(label, name, puzzle, x, y, gate, gy)
 
-    for label, y, idx in CLUES:
-        z, under = floor_at(0.0, y)   # 그 Y의 오빠 동선 발판(S1 판자 / S2 지붕) 높이 기준
-        c = eas.spawn_actor_from_class(ClueClass, unreal.Vector(CLUE_X, y, z + CLUE_H), unreal.Rotator(pitch=0, yaw=180, roll=0))
-        c.set_editor_property("terminal", terms["PASSCODE"])
-        c.set_editor_property("digit_index", idx)
-        finish(c, f"{FOLDER}/Clues", label, "clue", {"digit_index": idx, "floor": under})
+    # 비밀번호 단서 없음(CLUES = []) — 회로 연결은 오빠 칸 중계 격자가 단서 역할
 
     fails = validate(world, eas, ignore)
 
@@ -202,7 +204,7 @@ def validate(world, eas, ignore):
 
     terms = [a for a in actors if a.get_class().get_name() == "HackTerminal" and TAG in [str(t) for t in a.tags]]
     kinds = [t.get_editor_property("puzzle_type") for t in terms]
-    check(len(terms) == 3 and all(k in kinds for k in (unreal.HackPuzzleType.PASSCODE, unreal.HackPuzzleType.FREQUENCY_LOCK, unreal.HackPuzzleType.MEMORY_PATTERN)),
+    check(len(terms) == 3 and all(k in kinds for k in (unreal.HackPuzzleType.CIRCUIT_LINK, unreal.HackPuzzleType.FREQUENCY_LOCK, unreal.HackPuzzleType.MEMORY_PATTERN)),
           f"3 terminals {[ (t.get_actor_label(), str(t.get_editor_property('puzzle_type'))) for t in terms]}")
     spiders = [a for a in actors if a.get_class().get_name() == "SpiderBot" or a.get_actor_label().startswith("Enemy_SpiderBot")]
     for t in terms:
@@ -254,9 +256,10 @@ def validate(world, eas, ignore):
                 if abs(so.y - cy) < se.y + 300 and abs(so.z - se.z - cz) < 300:
                     near.append((s.get_actor_label(), nm, round(so.y)))
         check(not near, f"  spiders clear of terminal/gate: {near}")
-        if t.get_editor_property("puzzle_type") == unreal.HackPuzzleType.MEMORY_PATTERN:
+        pz = t.get_editor_property("puzzle_type")
+        if pz in (unreal.HackPuzzleType.MEMORY_PATTERN, unreal.HackPuzzleType.CIRCUIT_LINK):
             # 오빠가 설 수 있는 게이트 앞 발판 중 중계 범위(9m) 안인 지점
-            rr = t.get_editor_property("memory_relay_range")
+            rr = t.get_editor_property("memory_relay_range" if pz == unreal.HackPuzzleType.MEMORY_PATTERN else "circuit_relay_range")
             spots = []
             y = gy0 - 60
             while y > gy0 - 1500:
@@ -266,15 +269,11 @@ def validate(world, eas, ignore):
                     if dd <= rr - 100:
                         spots.append(round(y))
                 y -= 50.0
-            check(len(spots) >= 5, f"  memory relay: brother standable spots within {rr - 100:.0f}cm of terminal before gate: {len(spots)} (Y {min(spots) if spots else None}..{max(spots) if spots else None})")
+            check(len(spots) >= 5, f"  {'memory' if pz == unreal.HackPuzzleType.MEMORY_PATTERN else 'circuit'} relay: brother standable spots within {rr - 100:.0f}cm of terminal before gate: {len(spots)} (Y {min(spots) if spots else None}..{max(spots) if spots else None})")
 
-    clues = [a for a in actors if a.get_class().get_name() == "HackCodeClue" and TAG in [str(t) for t in a.tags]]
-    pt = [t for t in terms if t.get_editor_property("puzzle_type") == unreal.HackPuzzleType.PASSCODE]
-    check(len(clues) == 4 and pt and all(c.get_editor_property("terminal") and c.get_editor_property("terminal").get_actor_label() == pt[0].get_actor_label() for c in clues)
-          and sorted(c.get_editor_property("digit_index") for c in clues) == [0, 1, 2, 3]
-          and all(c.get_actor_location().y < pt[0].get_actor_location().y for c in clues)
-          and all(abs(abs(c.get_actor_rotation().yaw) - 180) < 1 for c in clues),
-          f"4 clues -> passcode terminal, digits 0..3, before terminal, yaw 180: {[(c.get_actor_label(), c.get_editor_property('digit_index'), round(c.get_actor_location().y)) for c in clues]}")
+    # 회로 연결로 바뀐 뒤 비밀번호 단서는 없어야 한다(남아 있으면 오빠 화면에 의미 없는 숫자가 뜬다)
+    clues = [a for a in actors if a.get_class().get_name() == "HackCodeClue"]
+    check(len(clues) == 0, f"no passcode clues left: {[c.get_actor_label() for c in clues]}")
     print("RESULT:", "ALL PASS" if not fails else f"{len(fails)} FAIL")
     return fails
 

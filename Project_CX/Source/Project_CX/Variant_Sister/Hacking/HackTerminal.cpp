@@ -74,6 +74,16 @@ void AHackTerminal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(AHackTerminal, MemoryPlaybackStart);
 	DOREPLIFETIME(AHackTerminal, MemoryLastEvent);
 	DOREPLIFETIME(AHackTerminal, MemoryEventTime);
+	DOREPLIFETIME(AHackTerminal, CircuitWidth);
+	DOREPLIFETIME(AHackTerminal, CircuitHeight);
+	DOREPLIFETIME(AHackTerminal, CircuitEndpoints);
+	DOREPLIFETIME(AHackTerminal, CircuitPaths);
+	DOREPLIFETIME(AHackTerminal, CircuitActivePath);
+	DOREPLIFETIME(AHackTerminal, CircuitCursor);
+	DOREPLIFETIME(AHackTerminal, bCircuitRelayActive);
+	DOREPLIFETIME(AHackTerminal, CircuitLastEvent);
+	DOREPLIFETIME(AHackTerminal, CircuitEventTime);
+	DOREPLIFETIME(AHackTerminal, CircuitLayoutId);
 }
 
 void AHackTerminal::BeginPlay()
@@ -126,6 +136,11 @@ void AHackTerminal::Tick(float DeltaSeconds)
 	if (HasAuthority() && IsMemoryPattern())
 	{
 		UpdateMemoryRelay();
+	}
+	// 회로 연결: 같은 방식으로 오빠 중계(짝 정보 표시) 판정
+	if (HasAuthority() && IsCircuitLink())
+	{
+		UpdateCircuitRelay();
 	}
 }
 
@@ -505,4 +520,305 @@ FString AHackTerminal::GetMemoryDebugState() const
 		*TerminalName, StateNames[FMath::Clamp(static_cast<int32>(State), 0, 2)], MemoryRound + 1, GetMemoryRoundCount(), *Seq, MemoryInputIndex,
 		bMemoryRelayActive ? 1 : 0, Relay ? FVector::Dist(Relay->GetActorLocation(), GetActorLocation()) : -1.0f, MemoryRelayRange,
 		Flash == INDEX_NONE ? 0 : Flash + 1, Step, Wait, EventNames[FMath::Clamp(static_cast<int32>(MemoryLastEvent), 0, 5)], GetMemoryEventAge());
+}
+
+// ---------------------------------------------------------------- 회로 연결(맵2 개선 기획 3장) — 서버 권위
+
+bool AHackTerminal::IsCircuitSessionActive() const
+{
+	return IsCircuitLink() && State == EHackTerminalState::InProgress && CircuitWidth > 0 && CircuitEndpoints.Num() > 0;
+}
+
+int32 AHackTerminal::GetCircuitLinkedCount() const
+{
+	int32 Count = 0;
+	for (const FCXCircuitPathRep& Path : CircuitPaths)
+	{
+		Count += Path.IsLinked() ? 1 : 0;
+	}
+	return Count;
+}
+
+int32 AHackTerminal::GetCircuitEndpointAt(int32 Cell) const
+{
+	return Cell >= 0 && Cell < 256 ? CircuitEndpoints.IndexOfByKey(static_cast<uint8>(Cell)) : INDEX_NONE;
+}
+
+int32 AHackTerminal::GetCircuitPathAt(int32 Cell) const
+{
+	if (Cell < 0 || Cell >= 256)
+	{
+		return INDEX_NONE;
+	}
+	for (int32 i = 0; i < CircuitPaths.Num(); ++i)
+	{
+		if (CircuitPaths[i].Cells.Contains(static_cast<uint8>(Cell)))
+		{
+			return i;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void AHackTerminal::SyncCircuitRep()
+{
+	CircuitWidth = static_cast<uint8>(FMath::Clamp(Circuit.Width, 0, 255));
+	CircuitHeight = static_cast<uint8>(FMath::Clamp(Circuit.Height, 0, 255));
+	CircuitEndpoints.Reset();
+	for (const int32 Cell : Circuit.Endpoints)
+	{
+		CircuitEndpoints.Add(static_cast<uint8>(Cell));
+	}
+	CircuitPaths.Reset();
+	for (const FCXCircuitLinkPuzzle::FPath& Path : Circuit.Paths)
+	{
+		FCXCircuitPathRep& Rep = CircuitPaths.AddDefaulted_GetRef();
+		for (const int32 Cell : Path.Cells)
+		{
+			Rep.Cells.Add(static_cast<uint8>(Cell));
+		}
+		Rep.Origin = Path.Origin == INDEX_NONE ? 255 : static_cast<uint8>(Path.Origin);
+		Rep.End = Path.End == INDEX_NONE ? 255 : static_cast<uint8>(Path.End);
+	}
+	CircuitActivePath = Circuit.Active;
+	CircuitCursor = Circuit.Cursor;
+}
+
+void AHackTerminal::SetCircuitEvent(EHackFeedback Event)
+{
+	CircuitLastEvent = Event;
+	CircuitEventTime = GetSyncedTime();
+}
+
+void AHackTerminal::UpdateCircuitRelay()
+{
+	if (!IsCircuitSessionActive())
+	{
+		bCircuitRelayActive = false;
+		return;
+	}
+	const APawn* Relay = FindRelayPawn();
+	const bool bInRange = Relay && UCXPlayerLifeComponent::IsPawnAlive(Relay) && !Relay->IsHidden()
+		&& FVector::Dist(Relay->GetActorLocation(), GetActorLocation()) <= CircuitRelayRange;
+	if (bInRange != bCircuitRelayActive)
+	{
+		bCircuitRelayActive = bInRange;
+		UE_LOG(LogTemp, Log, TEXT("HackTerminal %s: circuit relay %s"), *TerminalName, bInRange ? TEXT("LINKED") : TEXT("LOST"));
+	}
+}
+
+void AHackTerminal::PickCircuitLayout()
+{
+	// 후보: 단말기 설정(있으면, Id 100~) 또는 코드 기본(Id 0~). 구조·답을 검사해 통과한 것만.
+	struct FCandidate
+	{
+		int32 Id = 0;
+		int32 Width = 0;
+		int32 Height = 0;
+		TArray<FIntPoint> Starts;
+		TArray<FIntPoint> Goals;
+	};
+	TArray<FCandidate> Candidates;
+	if (CircuitLayouts.Num() > 0)
+	{
+		for (int32 i = 0; i < CircuitLayouts.Num(); ++i)
+		{
+			FCandidate& C = Candidates.AddDefaulted_GetRef();
+			C.Id = 100 + i;
+			C.Width = CircuitLayouts[i].Width;
+			C.Height = CircuitLayouts[i].Height;
+			C.Starts = CircuitLayouts[i].Starts;
+			C.Goals = CircuitLayouts[i].Goals;
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < FCXCircuitLinkPuzzle::NumBuiltInLayouts(); ++i)
+		{
+			FCandidate& C = Candidates.AddDefaulted_GetRef();
+			C.Id = i;
+			FCXCircuitLinkPuzzle::GetBuiltInLayout(i, C.Width, C.Height, C.Starts, C.Goals);
+		}
+	}
+
+	TArray<int32> Valid;
+	for (int32 i = 0; i < Candidates.Num(); ++i)
+	{
+		const FCandidate& C = Candidates[i];
+		FString Error;
+		if (!FCXCircuitLinkPuzzle::IsValidLayout(C.Width, C.Height, C.Starts, C.Goals, &Error))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HackTerminal %s: circuit layout %d invalid (%s) - skipped"), *TerminalName, C.Id, *Error);
+			continue;
+		}
+		FCXCircuitLinkPuzzle Test;
+		TArray<TArray<int32>> Solution;
+		Test.Start(C.Width, C.Height, C.Starts, C.Goals);
+		if (!Test.Solve(Solution))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HackTerminal %s: circuit layout %d has no solution - skipped"), *TerminalName, C.Id);
+			continue;
+		}
+		Valid.Add(i);
+	}
+
+	if (Valid.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HackTerminal %s: no valid circuit layout - using built-in layout 0"), *TerminalName);
+		int32 W = 0, H = 0;
+		TArray<FIntPoint> Starts, Goals;
+		FCXCircuitLinkPuzzle::GetBuiltInLayout(0, W, H, Starts, Goals);
+		Circuit.Start(W, H, Starts, Goals);
+		CircuitLayoutId = 0;
+		return;
+	}
+
+	// 직전 판과 다른 것 우선(후보가 둘 이상일 때)
+	if (Valid.Num() > 1)
+	{
+		const int32 Last = LastCircuitLayoutId;
+		Valid.RemoveAll([&Candidates, Last](int32 i) { return Candidates[i].Id == Last; });
+	}
+	const FCandidate& Pick = Candidates[Valid[FMath::RandRange(0, Valid.Num() - 1)]];
+	Circuit.Start(Pick.Width, Pick.Height, Pick.Starts, Pick.Goals);
+	CircuitLayoutId = Pick.Id;
+}
+
+void AHackTerminal::ServerCircuitBegin(APawn* Hacker)
+{
+	if (!HasAuthority() || !IsCircuitLink() || State == EHackTerminalState::Hacked)
+	{
+		return;
+	}
+	CircuitHacker = Hacker;
+	PickCircuitLayout();
+	LastCircuitLayoutId = CircuitLayoutId;
+	SyncCircuitRep();
+	SetCircuitEvent(EHackFeedback::None);
+	SetInProgress(true);
+	bCircuitRelayActive = false;
+	UpdateCircuitRelay();
+	UE_LOG(LogTemp, Log, TEXT("HackTerminal %s: circuit session begin (layout %d) %s"), *TerminalName, CircuitLayoutId, *Circuit.ToDebugString());
+}
+
+ECXCircuitStep AHackTerminal::ServerCircuitInput(APawn* Hacker, ECXCircuitOp Op)
+{
+	if (!HasAuthority() || !IsCircuitSessionActive() || !Circuit.IsActive())
+	{
+		return ECXCircuitStep::Ignored;
+	}
+	// 입력 검증: 세션을 연 여동생, 살아 있음, 단말기 가까이(메모리 패턴과 같은 규칙)
+	if (!Hacker || Hacker != CircuitHacker.Get() || !UCXPlayerLifeComponent::IsPawnAlive(Hacker)
+		|| FVector::Dist(Hacker->GetActorLocation(), GetActorLocation()) > InteractRange + CircuitServerRangeSlack)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HackTerminal %s: rejected circuit input from %s"), *TerminalName, *GetNameSafe(Hacker));
+		return ECXCircuitStep::Ignored;
+	}
+
+	const ECXCircuitStep Step = Circuit.Input(Op);
+	SyncCircuitRep();
+	switch (Step)
+	{
+	case ECXCircuitStep::Linked:	SetCircuitEvent(EHackFeedback::Correct); break;
+	case ECXCircuitStep::Mismatch:	SetCircuitEvent(EHackFeedback::Denied); break;
+	case ECXCircuitStep::Complete:
+		SetCircuitEvent(EHackFeedback::Granted);
+		bCircuitRelayActive = false;
+		MarkHacked();
+		UE_LOG(LogTemp, Log, TEXT("HackTerminal %s: circuit link GRANTED"), *TerminalName);
+		break;
+	default: break;
+	}
+	return Step;
+}
+
+void AHackTerminal::ServerCircuitEnd(APawn* Hacker)
+{
+	if (!HasAuthority() || !IsCircuitLink() || State == EHackTerminalState::Hacked)
+	{
+		return;
+	}
+	if (CircuitHacker.IsValid() && Hacker && Hacker != CircuitHacker.Get())
+	{
+		return;
+	}
+	CircuitHacker.Reset();
+	Circuit.Reset();
+	SyncCircuitRep();
+	bCircuitRelayActive = false;
+	SetCircuitEvent(EHackFeedback::None);
+	SetInProgress(false);
+}
+
+void AHackTerminal::ServerCircuitSolve()
+{
+	if (!HasAuthority() || State == EHackTerminalState::Hacked)
+	{
+		return;
+	}
+	if (IsCircuitLink() && Circuit.IsActive())
+	{
+		// 정답 회로를 그려 두고(HUD 성공 화면에 완성된 판) 해킹 완료
+		if (!Circuit.ApplySolution())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HackTerminal %s: circuit solve failed (no solution) - hacking anyway"), *TerminalName);
+		}
+		SyncCircuitRep();
+		SetCircuitEvent(EHackFeedback::Granted);
+		bCircuitRelayActive = false;
+	}
+	MarkHacked();
+}
+
+FString AHackTerminal::GetCircuitDebugState() const
+{
+	static const TCHAR* StateNames[] = { TEXT("Locked"), TEXT("InProgress"), TEXT("Hacked") };
+	static const TCHAR* EventNames[] = { TEXT("None"), TEXT("Correct"), TEXT("RoundClear"), TEXT("Denied"), TEXT("Granted"), TEXT("Failed") };
+	const APawn* Relay = FindRelayPawn();
+	// 복제값 기준(클라이언트에서도 같은 문자열)
+	FString Eps;
+	for (int32 e = 0; e < CircuitEndpoints.Num(); ++e)
+	{
+		Eps += FString::Printf(TEXT("%s%d"), e ? TEXT(",") : TEXT(""), CircuitEndpoints[e]);
+	}
+	FString PathText;
+	for (const FCXCircuitPathRep& Path : CircuitPaths)
+	{
+		FString Cells;
+		for (const uint8 C : Path.Cells)
+		{
+			Cells += FString::Printf(TEXT("%s%d"), Cells.IsEmpty() ? TEXT("") : TEXT("-"), C);
+		}
+		PathText += FString::Printf(TEXT(" %d>%d:%s"), Path.Origin == 255 ? -1 : Path.Origin, Path.End == 255 ? -1 : Path.End, *Cells);
+	}
+	return FString::Printf(TEXT("terminal=%s state=%s layout=%d grid=%dx%d eps=%s cursor=%d active=%d linked=%d/%d relay=%d brotherDist=%.0f/%.0f event=%s age=%.2f paths=%s"),
+		*TerminalName, StateNames[FMath::Clamp(static_cast<int32>(State), 0, 2)], CircuitLayoutId, CircuitWidth, CircuitHeight, *Eps, CircuitCursor, CircuitActivePath,
+		GetCircuitLinkedCount(), GetCircuitPairCount(), bCircuitRelayActive ? 1 : 0,
+		Relay ? FVector::Dist(Relay->GetActorLocation(), GetActorLocation()) : -1.0f, CircuitRelayRange,
+		EventNames[FMath::Clamp(static_cast<int32>(CircuitLastEvent), 0, 5)], GetCircuitEventAge(), *PathText);
+}
+
+TArray<int32> AHackTerminal::DebugCircuitRoute(int32 FromCell, int32 ToCell) const
+{
+	TArray<int32> Route;
+	Circuit.FindRoute(FromCell, ToCell, Route);
+	return Route;
+}
+
+TArray<int32> AHackTerminal::DebugCircuitSolution() const
+{
+	TArray<int32> Flat;
+	TArray<TArray<int32>> Solution;
+	if (Circuit.Solve(Solution))
+	{
+		for (int32 Pair = 0; Pair < Solution.Num(); ++Pair)
+		{
+			if (Pair > 0)
+			{
+				Flat.Add(INDEX_NONE);
+			}
+			Flat.Append(Solution[Pair]);
+		}
+	}
+	return Flat;
 }

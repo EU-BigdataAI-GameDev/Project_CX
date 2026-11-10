@@ -84,6 +84,10 @@ void USisterHackComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	{
 		TickFreqLock(DeltaTime);
 	}
+	else if (IsCircuitSession())
+	{
+		TickCircuit();
+	}
 
 	FocusTimer -= DeltaTime;
 	if (FocusTimer <= 0.0f)
@@ -229,6 +233,11 @@ void USisterHackComponent::Interact()
 		{
 			ConfirmFreqLock();
 		}
+		else if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink)
+		{
+			// 회로 연결: 빈 끝점 = 그리기 시작, 회로 위 = 지우기(판정은 서버)
+			SendCircuitOp(ECXCircuitOp::Confirm);
+		}
 		return;
 	}
 
@@ -258,6 +267,13 @@ void USisterHackComponent::Interact()
 		MemoryLocalCorrect = 0;
 		SendMemorySession(true);
 	}
+	else if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink)
+	{
+		// 레이아웃 선택·회로 상태는 서버(단말기)가 한다
+		CircuitLastStep = ECXCircuitStep::Ignored;
+		CircuitStepTime = -100.0f;
+		SendCircuitSession(true);
+	}
 	else
 	{
 		PasscodeInput.Init(0, 4);
@@ -284,6 +300,10 @@ void USisterHackComponent::CancelHack()
 	if (ActiveTerminal->PuzzleType == EHackPuzzleType::MemoryPattern)
 	{
 		SendMemorySession(false);
+	}
+	else if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink)
+	{
+		SendCircuitSession(false);
 	}
 	ActiveTerminal->SetInProgress(false);
 	PlayHackSound(HackCancelSound);
@@ -529,6 +549,17 @@ void USisterHackComponent::TickJeminiAssist(float DeltaTime)
 	{
 		CompleteJeminiAssist();
 	}
+	else if (JeminiAssistRemaining <= 0.0f && GetOwner()->HasAuthority())
+	{
+		// 원격 여동생의 회로 연결 세션: 회로·해킹 상태는 서버 권위라 서버 사본이 정답을 채운다(여동생 머신은 복제로 성공 표시)
+		for (TActorIterator<AHackTerminal> It(GetWorld()); It; ++It)
+		{
+			if (It->IsCircuitSessionActive() && It->GetCircuitHacker() == GetOwner())
+			{
+				It->ServerCircuitSolve();
+			}
+		}
+	}
 }
 
 void USisterHackComponent::CompleteJeminiAssist()
@@ -543,6 +574,11 @@ void USisterHackComponent::CompleteJeminiAssist()
 		if (ActiveTerminal->PuzzleType == EHackPuzzleType::MemoryPattern)
 		{
 			SendMemorySession(false);
+		}
+		else if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink && GetOwner()->HasAuthority())
+		{
+			// 회로 연결: 서버가 정답 회로를 채우고 해킹 완료(판이 완성된 모습으로 성공 표시). 원격이면 서버 사본이 처리.
+			ActiveTerminal->ServerCircuitSolve();
 		}
 		FinishSuccess();
 	}
@@ -691,6 +727,13 @@ void USisterHackComponent::InputDirection(EHackArrow Direction)
 		return;
 	}
 
+	if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink)
+	{
+		// 커서 이동(그리는 중이면 회로가 따라온다 / 되돌아가면 줄어든다) — 판정은 서버. EHackArrow와 ECXCircuitOp 방향 순서가 같다.
+		SendCircuitOp(static_cast<ECXCircuitOp>(Direction));
+		return;
+	}
+
 	// 주파수 동조는 F/X만 쓴다(D-pad 무시). 화살표 시퀀스는 단말기에서 폐기(적 해킹 전용).
 }
 
@@ -734,6 +777,7 @@ void USisterHackComponent::EndSession()
 	FreqLock.Reset();
 	MemoryLastPressed = INDEX_NONE;
 	MemoryLocalCorrect = 0;
+	CircuitLastStep = ECXCircuitStep::Ignored;
 	SetMovementLocked(false);
 	StopHackLoop();
 }
@@ -769,7 +813,7 @@ void USisterHackComponent::SetFeedback(EHackFeedback NewFeedback)
 	{
 	case EHackFeedback::Correct:
 		// 맞힌 순서(1부터)마다 조금씩 높게. 주파수 동조는 단계가 3개뿐이라 두 칸씩 올린다.
-		PlayHackSound(CorrectSound, 1.0f + CorrectPitchStep * FMath::Max(0, (ActiveEnemy ? EnemyArrows.Index : (IsFreqLockSession() ? FreqLock.Step * 2 : MemoryLocalCorrect)) - 1));
+		PlayHackSound(CorrectSound, 1.0f + CorrectPitchStep * FMath::Max(0, (ActiveEnemy ? EnemyArrows.Index : (IsFreqLockSession() ? FreqLock.Step * 2 : (IsCircuitSession() ? ActiveTerminal->GetCircuitLinkedCount() * 2 : MemoryLocalCorrect))) - 1));
 		break;
 	case EHackFeedback::Failed:		PlayHackSound(DeniedSound, 0.8f); break;
 	case EHackFeedback::RoundClear:	PlayHackSound(RoundClearSound); break;
@@ -879,6 +923,12 @@ float USisterHackComponent::GetProgress() const
 	if (ActiveTerminal->PuzzleType == EHackPuzzleType::FrequencyLock)
 	{
 		return static_cast<float>(FreqLock.Step) / FreqLock.GetStepCount();
+	}
+	if (ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink)
+	{
+		// 이어진 짝 / 전체 짝(단말기 복제값 — 제미니 progress와 같은 값)
+		const int32 Pairs = ActiveTerminal->GetCircuitPairCount();
+		return Pairs > 0 ? FMath::Clamp(static_cast<float>(ActiveTerminal->GetCircuitLinkedCount()) / Pairs, 0.0f, 1.0f) : 0.0f;
 	}
 	return 0.0f;
 }
@@ -1036,4 +1086,255 @@ FString USisterHackComponent::DebugMemoryPressAnswer(bool bCorrect)
 		return ActiveTerminal->GetMemoryDebugState();
 	}
 	return DebugMemoryPress(bCorrect ? Expected : (Expected + 4) % 9);
+}
+
+// ---------------------------------------------------------------- 회로 연결(맵2 개선 기획 3장) — 서버 권위
+
+bool USisterHackComponent::IsCircuitSession() const
+{
+	return ActiveTerminal && ActiveTerminal->PuzzleType == EHackPuzzleType::CircuitLink;
+}
+
+float USisterHackComponent::GetCircuitStepAge() const
+{
+	return GetWorld()->GetTimeSeconds() - CircuitStepTime;
+}
+
+void USisterHackComponent::SendCircuitSession(bool bBegin)
+{
+	if (!ActiveTerminal)
+	{
+		return;
+	}
+	if (GetOwner()->HasAuthority())
+	{
+		Server_CircuitSession_Implementation(ActiveTerminal, bBegin);
+	}
+	else
+	{
+		Server_CircuitSession(ActiveTerminal, bBegin);
+	}
+}
+
+void USisterHackComponent::Server_CircuitSession_Implementation(AHackTerminal* Terminal, bool bBegin)
+{
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	if (!IsValid(Terminal) || !Pawn || !Terminal->IsCircuitLink())
+	{
+		return;
+	}
+	if (bBegin)
+	{
+		// 서버 재검증: 살아 있음 + 단말기 가까이 + 아직 해킹 가능
+		if (!UCXPlayerLifeComponent::IsPawnAlive(Pawn) || Terminal->GetState() == EHackTerminalState::Hacked
+			|| FVector::Dist(Pawn->GetActorLocation(), Terminal->GetActorLocation()) > Terminal->InteractRange + Terminal->CircuitServerRangeSlack)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SisterHack: server rejected circuit session on %s"), *Terminal->TerminalName);
+			Client_CircuitResult(static_cast<uint8>(ECXCircuitStep::Rejected));
+			return;
+		}
+		Terminal->ServerCircuitBegin(Pawn);
+	}
+	else
+	{
+		Terminal->ServerCircuitEnd(Pawn);
+	}
+}
+
+void USisterHackComponent::SendCircuitOp(ECXCircuitOp Op)
+{
+	if (!IsCircuitSession() || ActiveTerminal->GetState() == EHackTerminalState::Hacked || Feedback == EHackFeedback::Granted)
+	{
+		return;
+	}
+	if (GetOwner()->HasAuthority())
+	{
+		// 리슨 서버 호스트(로컬 2인 포함): 바로 판정
+		HandleCircuitResult(ActiveTerminal->ServerCircuitInput(Cast<APawn>(GetOwner()), Op));
+	}
+	else
+	{
+		Server_CircuitInput(ActiveTerminal, static_cast<uint8>(Op));
+	}
+}
+
+void USisterHackComponent::Server_CircuitInput_Implementation(AHackTerminal* Terminal, uint8 Op)
+{
+	if (!IsValid(Terminal) || Op > static_cast<uint8>(ECXCircuitOp::Confirm))
+	{
+		return;
+	}
+	const ECXCircuitStep Result = Terminal->ServerCircuitInput(Cast<APawn>(GetOwner()), static_cast<ECXCircuitOp>(Op));
+	if (Result != ECXCircuitStep::Ignored)
+	{
+		Client_CircuitResult(static_cast<uint8>(Result));
+	}
+}
+
+void USisterHackComponent::Client_CircuitResult_Implementation(uint8 Result)
+{
+	HandleCircuitResult(static_cast<ECXCircuitStep>(FMath::Min<uint8>(Result, static_cast<uint8>(ECXCircuitStep::Rejected))));
+}
+
+void USisterHackComponent::HandleCircuitResult(ECXCircuitStep Result)
+{
+	if (!IsCircuitSession() || Result == ECXCircuitStep::Ignored)
+	{
+		return;
+	}
+	CircuitLastStep = Result;
+	CircuitStepTime = GetWorld()->GetTimeSeconds();
+	switch (Result)
+	{
+	case ECXCircuitStep::Moved:			PlayHackSound(DigitTickSound); break;
+	case ECXCircuitStep::Started:		PlayHackSound(DigitTickSound, 1.2f); break;
+	case ECXCircuitStep::Extended:		PlayHackSound(DigitTickSound, 1.08f); break;
+	case ECXCircuitStep::Backtracked:	PlayHackSound(DigitTickSound, 0.88f); break;
+	case ECXCircuitStep::Deleted:		PlayHackSound(DigitTickSound, 0.7f); break;
+	// 막힘: 낮은 거부음만(판정 연출 없음 — HUD가 칸에 BLOCKED를 짧게)
+	case ECXCircuitStep::Blocked:		PlayHackSound(DeniedSound, 0.7f); break;
+	case ECXCircuitStep::Linked:		SetFeedback(EHackFeedback::Correct); break;
+	case ECXCircuitStep::Mismatch:		SetFeedback(EHackFeedback::Denied); break;
+	case ECXCircuitStep::Complete:
+		// 단말기 Hacked는 서버가 이미 처리(복제) — 성공 표시 후 세션 종료만
+		SetFeedback(EHackFeedback::Granted);
+		GetWorld()->GetTimerManager().SetTimer(GrantedTimer, this, &USisterHackComponent::EndSession, GrantedHoldTime, false);
+		break;
+	case ECXCircuitStep::Rejected:
+		// 서버가 세션 시작을 거부(사망·거리·이미 해킹됨) — 조용히 닫는다
+		if (ActiveTerminal->GetState() != EHackTerminalState::Hacked)
+		{
+			ActiveTerminal->SetInProgress(false);
+		}
+		PlayHackSound(HackCancelSound);
+		EndSession();
+		break;
+	default:
+		break;
+	}
+}
+
+void USisterHackComponent::TickCircuit()
+{
+	// CXSolveHack / 제미니 대행(원격 서버 사본) 등 다른 경로로 열렸으면: 성공 표시 후 닫기
+	if (ActiveTerminal->GetState() == EHackTerminalState::Hacked && Feedback != EHackFeedback::Granted)
+	{
+		SetFeedback(EHackFeedback::Granted);
+		GetWorld()->GetTimerManager().SetTimer(GrantedTimer, this, &USisterHackComponent::EndSession, GrantedHoldTime, false);
+	}
+}
+
+FString USisterHackComponent::GetCircuitDebugState() const
+{
+	static const TCHAR* StepNames[] = { TEXT("Ignored"), TEXT("Moved"), TEXT("Started"), TEXT("Extended"), TEXT("Backtracked"), TEXT("Blocked"),
+		TEXT("Deleted"), TEXT("Linked"), TEXT("Mismatch"), TEXT("Complete"), TEXT("Rejected") };
+	return FString::Printf(TEXT("step=%s feedback=%s progress=%.2f moveLocked=%d | %s"), StepNames[FMath::Clamp(static_cast<int32>(CircuitLastStep), 0, 10)],
+		SisterHackDebug::FeedbackName(Feedback), GetProgress(), bMovementLocked ? 1 : 0,
+		ActiveTerminal && ActiveTerminal->IsCircuitLink() ? *ActiveTerminal->GetCircuitDebugState() : TEXT("no circuit session"));
+}
+
+FString USisterHackComponent::DebugCircuitInput(int32 Op)
+{
+	if (IsCircuitSession())
+	{
+		const int32 Clamped = FMath::Clamp(Op, 0, 4);
+		if (Clamped == static_cast<int32>(ECXCircuitOp::Confirm))
+		{
+			Interact();
+		}
+		else
+		{
+			InputDirection(static_cast<EHackArrow>(Clamped));
+		}
+	}
+	return GetCircuitDebugState();
+}
+
+void USisterHackComponent::DebugCircuitMoveCursor(int32 Cell)
+{
+	if (!IsCircuitSession() || ActiveTerminal->GetCircuitWidth() <= 0)
+	{
+		return;
+	}
+	const int32 W = ActiveTerminal->GetCircuitWidth();
+	for (int32 Guard = 0; Guard < 64 && ActiveTerminal->GetCircuitCursor() != Cell && ActiveTerminal->GetCircuitActivePath() == INDEX_NONE; ++Guard)
+	{
+		const int32 Cur = ActiveTerminal->GetCircuitCursor();
+		const int32 DX = Cell % W - Cur % W;
+		const int32 DY = Cell / W - Cur / W;
+		InputDirection(DX > 0 ? EHackArrow::Right : DX < 0 ? EHackArrow::Left : DY > 0 ? EHackArrow::Down : EHackArrow::Up);
+	}
+}
+
+void USisterHackComponent::DebugCircuitTrace(const TArray<int32>& Cells)
+{
+	if (!IsCircuitSession() || Cells.Num() < 2 || ActiveTerminal->GetCircuitWidth() <= 0)
+	{
+		return;
+	}
+	const int32 W = ActiveTerminal->GetCircuitWidth();
+	DebugCircuitMoveCursor(Cells[0]);
+	Interact();
+	for (int32 i = 1; i < Cells.Num(); ++i)
+	{
+		const int32 DX = Cells[i] % W - Cells[i - 1] % W;
+		const int32 DY = Cells[i] / W - Cells[i - 1] / W;
+		InputDirection(DX > 0 ? EHackArrow::Right : DX < 0 ? EHackArrow::Left : DY > 0 ? EHackArrow::Down : EHackArrow::Up);
+	}
+}
+
+FString USisterHackComponent::DebugCircuitConnect(int32 StartPair, int32 GoalPair)
+{
+	if (!IsCircuitSession() || !GetOwner()->HasAuthority())
+	{
+		return TEXT("no circuit session (server only)");
+	}
+	const TArray<uint8>& Eps = ActiveTerminal->GetCircuitEndpoints();
+	if (!Eps.IsValidIndex(StartPair * 2) || !Eps.IsValidIndex(GoalPair * 2 + 1))
+	{
+		return TEXT("bad pair index");
+	}
+	if (ActiveTerminal->GetCircuitActivePath() != INDEX_NONE)
+	{
+		// 그리던 회로가 있으면 먼저 지운다
+		Interact();
+	}
+	const TArray<int32> Route = ActiveTerminal->DebugCircuitRoute(Eps[StartPair * 2], Eps[GoalPair * 2 + 1]);
+	if (Route.Num() < 2)
+	{
+		return FString::Printf(TEXT("no free route | %s"), *GetCircuitDebugState());
+	}
+	DebugCircuitTrace(Route);
+	return GetCircuitDebugState();
+}
+
+FString USisterHackComponent::DebugCircuitSolveByInput()
+{
+	if (!IsCircuitSession() || !GetOwner()->HasAuthority())
+	{
+		return TEXT("no circuit session (server only)");
+	}
+	// 1) 그려진 회로 모두 지우기(확인 입력)
+	for (int32 Guard = 0; Guard < 16 && IsCircuitSession() && ActiveTerminal->GetCircuitPaths().Num() > 0; ++Guard)
+	{
+		if (ActiveTerminal->GetCircuitActivePath() == INDEX_NONE)
+		{
+			DebugCircuitMoveCursor(ActiveTerminal->GetCircuitPaths()[0].Cells[0]);
+		}
+		Interact();
+	}
+	// 2) 정답 회로를 짝마다 입력으로 그리기
+	const TArray<int32> Flat = ActiveTerminal->DebugCircuitSolution();
+	TArray<int32> Cells;
+	for (int32 i = 0; i <= Flat.Num() && IsCircuitSession(); ++i)
+	{
+		if (i == Flat.Num() || Flat[i] == INDEX_NONE)
+		{
+			DebugCircuitTrace(Cells);
+			Cells.Reset();
+			continue;
+		}
+		Cells.Add(Flat[i]);
+	}
+	return GetCircuitDebugState();
 }

@@ -76,3 +76,12 @@ class CommandResponse(BaseModel):
     heard: Optional[str] = None
     # LLM 대신 mock 키워드 판별로 처리했으면 true(mock 모드 또는 모든 모델 한도 초과). UE HUD에 작게 표시.
     mock: bool = False
+
+
+class SttPartialResponse(BaseModel):
+    """POST /stt/partial — 실시간 자막(로컬 faster-whisper). 못 받아 적으면 text=None."""
+    text: Optional[str] = None
+    # 서버 처리 시간(ms)
+    ms: int = 0
+    # ready / loading / disabled / error / busy / idle
+    state: str = "ready"
