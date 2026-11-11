@@ -18,7 +18,8 @@ from app.config import load_settings  # noqa: E402
 @pytest.fixture
 def settings(tmp_path):
     # 비용은 기획 4-3절 값으로 고정(로컬 .env 값과 무관하게)
-    return replace(load_settings(), mock_mode=True, api_token="",
+    # 실제 API 키는 테스트에 들어오지 않게 가짜 키로 덮는다(실패 출력에 키가 찍히는 사고 방지)
+    return replace(load_settings(), mock_mode=True, api_token="", gemini_api_key="test-dummy-key",
                    log_path=tmp_path / "jemini.jsonl",
                    cost_reload=5, cost_hack_terminal=20, cost_hack_enemy=20, cost_pulse_attack=50,
                    cost_damage_boost=10, cost_heal=30, cost_decoy=15, cost_quick_reboot=30,
