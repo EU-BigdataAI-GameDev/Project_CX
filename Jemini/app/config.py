@@ -86,9 +86,9 @@ def load_settings() -> Settings:
     return Settings(
         gemini_api_key=api_key,
         # 버전 고정(별칭 gemini-flash-latest는 가리키는 모델이 바뀔 수 있음)
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
         # 기본 모델이 한도 초과(429)면 순서대로 시도. 쉼표로 구분, 비우면 예비 없음.
-        fallback_models=tuple(m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.1-flash-lite").split(",") if m.strip()),
+        fallback_models=tuple(m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",") if m.strip()),
         max_output_tokens=_int("LLM_MAX_OUTPUT_TOKENS", 400),
         # 키가 없으면 자동으로 모의 모드
         mock_mode=_bool("MOCK_MODE", default=not api_key),

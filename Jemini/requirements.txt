@@ -4,9 +4,9 @@ pydantic>=2.7
 google-genai>=1.0
 python-dotenv>=1.0
 python-multipart>=0.0.9
-# 실시간 자막(POST /stt/partial) — 로컬 faster-whisper small int8 CPU. 모델은 tools/download_stt_model.py
+# live captions (POST /stt/partial): local faster-whisper small int8 CPU. model: tools/download_stt_model.py
 faster-whisper>=1.1
 numpy>=1.24
-# 테스트
+# tests
 pytest>=8.0
 httpx>=0.27
