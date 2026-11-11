@@ -100,6 +100,20 @@ void UCXPlayerLifeComponent::BeginPlay()
 		// 이 컴포넌트가 이동보다 먼저 틱 → 이전 프레임 위치로 낙사 판정
 		Character->GetCharacterMovement()->AddTickPrerequisiteComponent(this);
 	}
+
+	// 카메라 가림 수정(2026-11-12): 두 사람이 카메라 방향으로 앞뒤로 붙으면 앞쪽 캐릭터의 캡슐·메시가 뒤쪽 캐릭터의
+	// 스프링 암 프로브(Camera 채널)를 막아 뒤쪽 카메라가 캐릭터 안으로 끌려 들어가 화면이 가려졌다.
+	// 오빠·여동생 몸(캡슐·메시·무기 등)은 Camera 채널을 무시한다. 이동·총알·상호작용 충돌은 그대로.
+	// (카메라 자체 — 거리·위치·스프링 암 — 는 건드리지 않는다.)
+	if (AActor* Owner = GetOwner())
+	{
+		TArray<UPrimitiveComponent*> Primitives;
+		Owner->GetComponents<UPrimitiveComponent>(Primitives);
+		for (UPrimitiveComponent* Primitive : Primitives)
+		{
+			Primitive->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+		}
+	}
 }
 
 void UCXPlayerLifeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
