@@ -153,7 +153,8 @@ def validate_action(req: ValidateRequest, settings: Settings = Depends(get_setti
 
 async def _persuade(settings: Settings, acquired: list[str], session: str, *, kind: str,
                     text: Optional[str], audio: Optional[bytes], audio_sec: Optional[float],
-                    transcribe: Optional[Callable[[], Awaitable[Optional[str]]]] = None) -> PersuadeResponse:
+                    transcribe: Optional[Callable[[], Awaitable[Optional[str]]]] = None,
+                    credited: Optional[list[str]] = None) -> PersuadeResponse:
     """텍스트: text. 음성: audio(LLM이 직접 듣는다) + transcribe(오프라인 폴백 때만 부르는 로컬 받아 적기/mock_text)."""
     start = time.perf_counter()
     raw: Optional[dict[str, Any]] = None
@@ -168,26 +169,29 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
         if transcribe is not None:
             stt_text = await transcribe()
         return stt_text
-    prompt = persuasion.build_prompt(text if kind == "text" else None, acquired)
+    credited = [e for e in persuasion.normalize_evidence(credited or []) if e in acquired]
+    prompt = persuasion.build_prompt(text if kind == "text" else None, acquired, credited)
     if not persuasion.try_begin_attempt(session, settings.persuade_cooldown_sec):
-        response = persuasion.simple_response("cooldown", "RATE_LIMITED", acquired)
+        response = persuasion.simple_response("cooldown", "RATE_LIMITED", acquired, credited=credited)
     else:
         try:
             if use_mock:
                 offline_text = await offline_input()
                 if not offline_text:
-                    response = persuasion.simple_response("rejected", "NO_SPEECH", acquired, mock=True)
+                    response = persuasion.simple_response("rejected", "NO_SPEECH", acquired, mock=True, credited=credited)
                 else:
-                    checklist, reply = persuasion.judge_offline(offline_text, acquired)
+                    checklist, reply = persuasion.judge_offline(offline_text, acquired, credited)
                     response = persuasion.build_response(checklist, reply, acquired, mock=True,
-                                                         heard=stt_text if kind == "voice" else None)
+                                                         heard=stt_text if kind == "voice" else None,
+                                                         credited=credited)
             else:
                 try:
                     out, model = await warden_fn(settings, prompt, audio=audio if kind == "voice" else None)
                     raw = {**out.model_dump(), "model": model}
                     checklist = persuasion.map_llm_checklist(out.model_dump(), acquired)
                     heard = (out.heard.strip() or None) if kind == "voice" else None
-                    response = persuasion.build_response(checklist, out.reply, acquired, mock=False, heard=heard)
+                    response = persuasion.build_response(checklist, out.reply, acquired, mock=False, heard=heard,
+                                                         credited=credited)
                 except llm.RateLimitError as e:
                     # 모든 모델 한도 초과 → 키워드 판정(시연 안전장치). 음성은 로컬 받아 적기가 있을 때만.
                     offline_text = await offline_input() if settings.mock_on_rate_limit else None
@@ -195,12 +199,13 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
                         raise
                     error = f"{e} -> mock"
                     use_mock = True
-                    checklist, reply = persuasion.judge_offline(offline_text, acquired)
+                    checklist, reply = persuasion.judge_offline(offline_text, acquired, credited)
                     response = persuasion.build_response(checklist, reply, acquired, mock=True,
-                                                         heard=stt_text if kind == "voice" else None)
+                                                         heard=stt_text if kind == "voice" else None,
+                                                         credited=credited)
         except llm.LlmError as e:
             error = str(e)
-            response = persuasion.simple_response("fallback", "LLM_ERROR", acquired)
+            response = persuasion.simple_response("fallback", "LLM_ERROR", acquired, credited=credited)
 
     write_log(settings.log_path, {
         "kind": f"persuade_{kind}",
@@ -208,6 +213,7 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
         "stt_text": stt_text,
         "audio_sec": audio_sec,
         "evidence": acquired,
+        "credited_in": credited,
         "session": session,
         "mock": use_mock,
         "model_raw": raw,
@@ -225,7 +231,7 @@ async def persuade(req: PersuadeRequest, settings: Settings = Depends(get_settin
     """WARDEN 설득 판정(기능 B). 판정은 체크리스트 + 서버 규칙(persuasion.decide)."""
     acquired = persuasion.normalize_evidence(req.evidence)
     return await _persuade(settings, acquired, req.session, kind="text", text=req.text, audio=None,
-                           audio_sec=None)
+                           audio_sec=None, credited=req.credited)
 
 
 @app.post("/persuade/voice", response_model=PersuadeResponse, dependencies=[Depends(check_token)])
@@ -258,7 +264,7 @@ async def persuade_voice(audio: UploadFile = File(...), meta: str = Form(...),
 
     acquired = persuasion.normalize_evidence(info.evidence)
     return await _persuade(settings, acquired, info.session, kind="voice", text=None, audio=data,
-                           audio_sec=round(seconds, 2), transcribe=transcribe)
+                           audio_sec=round(seconds, 2), transcribe=transcribe, credited=info.credited)
 
 
 def _wav_seconds(data: bytes) -> float:

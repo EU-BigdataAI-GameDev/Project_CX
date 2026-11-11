@@ -40,10 +40,25 @@ namespace CoopHUDLayout
 	constexpr float Margin = 28.0f;
 	// HUD 전체 배율(2026-11-10 글자 +3pt 요청): 글자를 약 1.3배(8→11pt, 10→13pt) 키우면서
 	// 패널·여백·줄 간격도 같은 비율로 키워 글자와 레이아웃 비율을 그대로 둔다. S()에 곱해진다.
-	constexpr float HudGrow = 1.3f;
+	// 2026-11-12 QA: 글자 -1pt와 함께 전체 UI를 약 8% 줄임(1.3 → 1.2)
+	constexpr float HudGrow = 1.2f;
+	// 좌하단 피스톨/해킹 패널은 더 줄인다(HudGrow 위에 추가로)
+	constexpr float BottomLeftScale = 0.82f;
 	// Canvas 글자 배율. 폰트 크기 자체를 +3pt(GameFont/SysFont)로 올렸으므로 1.45(예전 8/10pt 기준)를 HudGrow로 나눈다
 	// → 화면 글자 = 폰트pt × 1.45 × 칸 배율(예전 8pt Tiny 대비 11pt, 10pt 대비 13pt).
 	constexpr float TextScale = 1.45f / HudGrow;
+}
+
+namespace
+{
+	/** 범위 안에서만 HUD 배율(UIScale)을 곱한다(좌하단 패널 축소용). */
+	struct FScopedHudScale
+	{
+		float& Ref;
+		float Saved;
+		FScopedHudScale(float& InRef, float Factor) : Ref(InRef), Saved(InRef) { Ref *= Factor; }
+		~FScopedHudScale() { Ref = Saved; }
+	};
 }
 
 ACoopHUD::ACoopHUD()
@@ -449,6 +464,10 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		const float RightX = Canvas->ClipX - CoopHUDLayout::Margin * S();
 		const float MaxW = 460.0f * S();
 		float RowY = InfoY + 32.0f * S();
+		if (EvidencePanelBottom > 0.0f)
+		{
+			RowY = FMath::Max(RowY, EvidencePanelBottom + 6.0f * S());	// 증거 노트가 있으면 그 아래부터
+		}
 		const TArray<FCXJeminiRule>& Rules = RuleComp->GetRules();
 		for (int32 i = 0; i < Rules.Num(); ++i)
 		{
@@ -495,7 +514,7 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 	// 4) 오빠: 탄약 0 → 제미니에게 재장전 요청(자동 재장전 없음)
 	if (!bIsSister && MyCombat && MyCombat->NeedsJeminiReload())
 	{
-		const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - 96.0f * S() - 30.0f * S();
+		const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - (96.0f * CoopHUDLayout::BottomLeftScale + 30.0f) * S();
 		Label(Battery >= 5 ? TEXT("NO AMMO  //  ASK JEMINI TO RELOAD") : TEXT("NO AMMO  //  JEMINI BATTERY LOW"),
 			CoopHUDLayout::Margin * S(), Y, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(4.0f)), GameFont(ECXHudFont::Small), 1.0f);
 	}
@@ -525,6 +544,7 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 
 void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 {
+	EvidencePanelBottom = 0.0f;
 	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
 	if (!Warden || !Canvas)
 	{
@@ -566,14 +586,15 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 		bNear = FVector2D(P.Y - T.Y, P.Z - T.Z).Size() <= Warden->GetShowRange();
 	}
 
-	// 1) 증거 노트(왼쪽, 태그·체력 아래). 획득한 것만 한 줄씩.
+	// 1) 증거 노트(오른쪽, 제미니 "TALK" 안내 바로 아래). 규칙 목록은 이 패널 아래로 밀린다(EvidencePanelBottom). 획득한 것만 한 줄씩.
 	//    본문은 자기가 찾은 증거만(단말기 근처 또는 획득 직후) — 상대가 찾은 것은 제목만 보이고 내용은 말로 전해 들어야 한다.
 	if (Warden->GetEvidenceNum() > 0 && !bDead)
 	{
 		UFont* BodyFont = SysFont(ECXHudFont::Tiny);
 		const float W = 390.0f * S();
-		const float X = CoopHUDLayout::Margin * S();
-		const float Y = 168.0f * S();
+		// 제미니 안내 줄(InfoY, DrawJemini와 같은 식) 한 줄 아래, 오른쪽 정렬
+		const float X = Canvas->ClipX - CoopHUDLayout::Margin * S() - W;
+		const float Y = CoopHUDLayout::Margin * S() + 88.0f * S() + 28.0f * S();
 		struct FRow
 		{
 			FString Text;
@@ -581,7 +602,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 			bool bHeader;
 		};
 		TArray<FRow> Rows;
-		Rows.Add({ FString::Printf(TEXT("EVIDENCE  //  %d"), Warden->GetEvidenceNum()), Gold.CopyWithNewOpacity(0.9f), true });
+		Rows.Add({ FString::Printf(TEXT("EVIDENCE  //  %d      CONFIRMED  %d/%d"), Warden->GetEvidenceNum(), Warden->GetCreditedNum(), CXWarden::EvidenceCount), Gold.CopyWithNewOpacity(0.9f), true });
 		for (int32 i = 0; i < CXWarden::EvidenceCount; ++i)
 		{
 			if (!Warden->HasEvidence(i))
@@ -591,7 +612,8 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 			const CXWarden::FEvidenceInfo& Info = CXWarden::GetInfo(i);
 			const bool bMine = Info.Finder == MyRole;
 			const TCHAR* Who = Info.Finder == ECoopCharacterRole::Brother ? TEXT("오빠") : TEXT("여동생");
-			Rows.Add({ bMine ? FString::Printf(TEXT("■ %s"), Info.Title) : FString::Printf(TEXT("□ %s  (%s가 확보)"), Info.Title, Who),
+			const bool bConfirmed = (Warden->GetCreditedMask() & (1 << i)) != 0;
+			Rows.Add({ bMine ? FString::Printf(TEXT("■ %s%s"), Info.Title, bConfirmed ? TEXT("  [확인됨]") : TEXT("")) : FString::Printf(TEXT("□ %s  (%s 획득)"), Info.Title, Who),
 				FLinearColor::White.CopyWithNewOpacity(0.9f), false });
 			const bool bFresh = i == EvidenceToastIndex && Now - EvidenceToastTime < 8.0f;
 			if (bMine && (bNear || bFresh))
@@ -612,6 +634,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 			Label(Rows[r].Text, X + Pad, Y + Pad * 0.7f + r * LineH, Rows[r].Color, Rows[r].bHeader ? GameFont(ECXHudFont::Tiny) : BodyFont, 1.0f);
 		}
 		AddBlocker(X, Y, W, H);
+		EvidencePanelBottom = Y + H;
 	}
 
 	// 2) 새 증거 알림(가운데 위쪽, 3.5초, 두 칸 모두)
@@ -684,7 +707,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 	RowY += SmallH + 4.0f * S();
 	if (bShowPlayer)
 	{
-		Label(FString::Printf(TEXT("SISTER >  \"%s\""), *PlayerText), X + Pad, RowY, SisterColor.CopyWithNewOpacity(0.85f), SmallFont, 1.0f);
+		Label(FString::Printf(TEXT("PLAYER >  \"%s\""), *PlayerText), X + Pad, RowY, SisterColor.CopyWithNewOpacity(0.85f), SmallFont, 1.0f);
 		RowY += SmallH + 6.0f * S();
 	}
 	for (int32 i = 0; i < Lines.Num(); ++i)
@@ -803,6 +826,7 @@ void ACoopHUD::DrawPlayerTag(const FLinearColor& Color, const FString& SlotText,
 
 void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 {
+	FScopedHudScale Shrink(UIScale, CoopHUDLayout::BottomLeftScale);
 	const int32 MaxAmmo = FMath::Max(1, Combat.GetMaxAmmo());
 	const int32 Ammo = FMath::Clamp(Combat.CurrentAmmo, 0, MaxAmmo);
 	const bool bLow = !Combat.bIsReloading && Ammo <= FMath::CeilToInt(MaxAmmo * LowAmmoRatio);
@@ -866,6 +890,7 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 
 void ACoopHUD::DrawSisterHackLink()
 {
+	FScopedHudScale Shrink(UIScale, CoopHUDLayout::BottomLeftScale);
 	// 가장 가까운 해킹 단말기
 	const APawn* MyPawn = GetOwningPawn();
 	const AActor* Nearest = nullptr;
@@ -2419,10 +2444,10 @@ UFont* ACoopHUD::GameFont(ECXHudFont Size)
 	// Oxanium: 예전 엔진 Roboto(Tiny 8 / 그 외 10pt)에서 +3pt. 단계마다 굵기로 위계를 준다
 	switch (Size)
 	{
-	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::Game, 11, TEXT("Medium"));
-	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("Medium"));
-	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("SemiBold"));
-	default: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("Bold"));
+	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::Game, 10, TEXT("Medium"));
+	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::Game, 12, TEXT("Medium"));
+	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::Game, 12, TEXT("SemiBold"));
+	default: return UCXUIFonts::Canvas(ECXFontRole::Game, 12, TEXT("Bold"));
 	}
 }
 
@@ -2494,10 +2519,10 @@ UFont* ACoopHUD::SysFont(ECXHudFont Size)
 	// IBM Plex Mono: 고정폭이라 Roboto보다 6~30% 넓다 → Small은 한 단계 작게. 8/9/10pt에서 +3pt
 	switch (Size)
 	{
-	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::System, 11, TEXT("Regular"));
-	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::System, 12, TEXT("Medium"));
-	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::System, 13, TEXT("Regular"));
-	default: return UCXUIFonts::Canvas(ECXFontRole::System, 13, TEXT("SemiBold"));
+	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::System, 10, TEXT("Regular"));
+	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::System, 11, TEXT("Medium"));
+	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::System, 12, TEXT("Regular"));
+	default: return UCXUIFonts::Canvas(ECXFontRole::System, 12, TEXT("SemiBold"));
 	}
 }
 

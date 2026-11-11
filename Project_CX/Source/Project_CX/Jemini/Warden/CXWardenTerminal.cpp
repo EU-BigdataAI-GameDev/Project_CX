@@ -38,7 +38,7 @@ namespace CXWardenLook
 	constexpr int32 StripeCount = 7;
 
 	const TCHAR* IntroLine = TEXT("사고 대응 중. 냉각 구역 출입을 봉쇄합니다. 용건을 말씀하십시오.");
-	const TCHAR* HintLine = TEXT("잠금 해제에는 근거가 필요합니다. 확인된 기록으로 말씀하십시오.");
+	const TCHAR* HintLine = TEXT("잠금 해제에는 근거가 필요합니다. 기록은 하나씩 말씀하셔도 누적해 확인합니다.");
 	const TCHAR* CooldownLine = TEXT("처리 중입니다. 잠시 후 다시 말씀하십시오.");
 	const TCHAR* SolvedLine = TEXT("판단을 갱신합니다. 생명 위협이 확인되어 규정에 따라 잠금을 해제합니다.");
 }
@@ -304,6 +304,29 @@ int32 ACXWardenTerminal::GetEvidenceNum() const
 	return Num;
 }
 
+int32 ACXWardenTerminal::GetCreditedNum() const
+{
+	int32 Num = 0;
+	for (int32 i = 0; i < CXWarden::EvidenceCount; ++i)
+	{
+		Num += (CreditedMask & (1 << i)) != 0 ? 1 : 0;
+	}
+	return Num;
+}
+
+TArray<FString> ACXWardenTerminal::GetCreditedIds() const
+{
+	TArray<FString> Ids;
+	for (int32 i = 0; i < CXWarden::EvidenceCount; ++i)
+	{
+		if ((CreditedMask & (1 << i)) != 0 && HasEvidence(i))
+		{
+			Ids.Add(CXWarden::GetInfo(i).Id);
+		}
+	}
+	return Ids;
+}
+
 TArray<FString> ACXWardenTerminal::GetEvidenceIds() const
 {
 	TArray<FString> Ids;
@@ -331,7 +354,8 @@ FString ACXWardenTerminal::GetSessionId() const
 
 ACXWardenTerminal* ACXWardenTerminal::FindTalkTarget(const APawn* Pawn)
 {
-	if (!Pawn || UCoopInteractComponent::GetPawnRole(Pawn) != ECoopCharacterRole::Sister || !Pawn->GetWorld())
+	// 2026-11-11: 오빠·여동생 모두 단말기 근처에서는 WARDEN과 말한다
+	if (!Pawn || !Pawn->GetWorld() || !UCXPlayerLifeComponent::IsPawnAlive(Pawn))
 	{
 		return nullptr;
 	}
@@ -356,7 +380,7 @@ ACXWardenTerminal* ACXWardenTerminal::FindTalkTarget(const APawn* Pawn)
 
 bool ACXWardenTerminal::CanInteract(const APawn* Pawn) const
 {
-	if (bSolved || !Pawn || UCoopInteractComponent::GetPawnRole(Pawn) != ECoopCharacterRole::Sister || !UCXPlayerLifeComponent::IsPawnAlive(Pawn))
+	if (bSolved || !Pawn || !UCXPlayerLifeComponent::IsPawnAlive(Pawn))
 	{
 		return false;
 	}
@@ -444,7 +468,7 @@ bool ACXWardenTerminal::SubmitText(APawn* From, const FString& Text)
 	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 	CXJemini::FEndpoint Endpoint = Drone ? Drone->GetEndpoint() : CXJemini::FEndpoint{ ACXJeminiDrone::GetConfiguredServerUrl(), FString(), 12.0f };
 	TWeakObjectPtr<ACXWardenTerminal> WeakThis(this);
-	CXWardenClient::SendText(Endpoint, Clean, GetEvidenceIds(), GetSessionId(), FOnCXWardenResponse::CreateLambda([WeakThis](const FCXWardenResponse& Response)
+	CXWardenClient::SendText(Endpoint, Clean, GetEvidenceIds(), GetCreditedIds(), GetSessionId(), FOnCXWardenResponse::CreateLambda([WeakThis](const FCXWardenResponse& Response)
 	{
 		if (ACXWardenTerminal* Self = WeakThis.Get())
 		{
@@ -466,7 +490,7 @@ bool ACXWardenTerminal::SubmitVoice(APawn* From, const TArray<uint8>& Wav)
 	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 	CXJemini::FEndpoint Endpoint = Drone ? Drone->GetEndpoint() : CXJemini::FEndpoint{ ACXJeminiDrone::GetConfiguredServerUrl(), FString(), 12.0f };
 	TWeakObjectPtr<ACXWardenTerminal> WeakThis(this);
-	CXWardenClient::SendVoice(Endpoint, Wav, GetEvidenceIds(), GetSessionId(), FOnCXWardenResponse::CreateLambda([WeakThis](const FCXWardenResponse& Response)
+	CXWardenClient::SendVoice(Endpoint, Wav, GetEvidenceIds(), GetCreditedIds(), GetSessionId(), FOnCXWardenResponse::CreateLambda([WeakThis](const FCXWardenResponse& Response)
 	{
 		if (ACXWardenTerminal* Self = WeakThis.Get())
 		{
@@ -484,6 +508,20 @@ void ACXWardenTerminal::HandleResponse(const FCXWardenResponse& Response)
 	const FString Player = !Response.Heard.IsEmpty() ? Response.Heard : (PendingPlayerText.IsEmpty() ? PlayerLine : PendingPlayerText);
 	UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN -> %s reason=%s mock=%d [%s] \"%s\""), *Response.Status, *Response.Reason, Response.bMock ? 1 : 0,
 		*Response.ChecklistDebug, *Response.Reply);
+	if (Response.bHasCredited)
+	{
+		uint8 NewMask = 0;
+		for (const FString& Id : Response.Credited)
+		{
+			const int32 Index = CXWarden::IndexOf(Id);
+			if (Index != INDEX_NONE && HasEvidence(Index))
+			{
+				NewMask |= static_cast<uint8>(1 << Index);
+			}
+		}
+		CreditedMask = NewMask;
+		ForceNetUpdate();
+	}
 	SetLine(Response.Reply, Player, Response.Status);
 	// 제미니 조언 힌트용(기능 C). 시도 간격·연결 실패는 판정이 아니므로 이전 사유 유지.
 	if (Response.Status == TEXT("rejected"))
@@ -572,6 +610,7 @@ void ACXWardenTerminal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ACXWardenTerminal, EvidenceMask);
+	DOREPLIFETIME(ACXWardenTerminal, CreditedMask);
 	DOREPLIFETIME(ACXWardenTerminal, bSolved);
 	DOREPLIFETIME(ACXWardenTerminal, bRequestPending);
 	DOREPLIFETIME(ACXWardenTerminal, WardenLine);

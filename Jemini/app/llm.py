@@ -249,7 +249,8 @@ MIN_ATTEMPT_SEC = 1.5
 
 
 async def _generate(settings: Settings, parts: list[types.Part], config: types.GenerateContentConfig,
-                    timeout: float) -> tuple[types.GenerateContentResponse, str]:
+                    timeout: float, *, retry_primary: bool = False,
+                    total_sec: float = 0.0) -> tuple[types.GenerateContentResponse, str]:
     """기본 모델 → 예비 모델 순서로 호출. (응답, 모델명).
 
     일시 오류(429 한도 초과, 5xx·UNAVAILABLE 과부하, 타임아웃, 연결 끊김)면 다음 모델로 넘어간다.
@@ -258,10 +259,16 @@ async def _generate(settings: Settings, parts: list[types.Part], config: types.G
     모두 실패: 한 번이라도 429가 있었으면 RateLimitError(텍스트는 mock 판별로 대신), 아니면 LlmError.
     """
     budget = min(timeout * 2, settings.llm_total_timeout_sec) if settings.llm_total_timeout_sec > 0 else timeout * 2
+    if total_sec > 0:
+        budget = total_sec
     deadline = time.monotonic() + budget
     failures: list[str] = []
     rate_limited = False
-    for model in _models(settings):
+    models = _models(settings)
+    if retry_primary and models:
+        # 응답이 멈춘(타임아웃) 호출은 같은 모델에 다시 보내면 곧 성공하는 일이 많다 → 기본 모델을 한 번 더
+        models = [models[0], *models]
+    for model in models:
         remaining = deadline - time.monotonic()
         if failures and remaining < MIN_ATTEMPT_SEC:
             failures.append(f"budget exhausted before {model}")
@@ -356,8 +363,11 @@ async def call_warden(settings: Settings, prompt: str, *, audio: Optional[bytes]
         parts.append(types.Part.from_bytes(data=audio, mime_type="audio/wav"))
     parts.append(types.Part.from_text(text=prompt))
     # 체크리스트 JSON은 함수 호출보다 조금 오래 걸린다(실측 1~4초, 가끔 5초 초과) → 텍스트도 음성 타임아웃을 쓴다
-    timeout = max(settings.llm_timeout_sec, settings.voice_timeout_sec)
-    response, model = await _generate(settings, parts, _warden_config(settings), timeout)
+    # 2026-11-11: 8초 + 3초 구성은 기본 모델이 멈추면 예비 모델(느림)에 3초밖에 못 줘서 '통신 지연'이 잦았다
+    # → 시도당 5초, 기본 모델 재시도 포함, 전체 15초(UE WARDEN 요청 타임아웃 17초)
+    timeout = max(settings.llm_timeout_sec, min(settings.voice_timeout_sec, 5.0))
+    response, model = await _generate(settings, parts, _warden_config(settings), timeout,
+                                      retry_primary=True, total_sec=15.0)
     try:
         data = json.loads(response.text or "")
         return WardenLlmOutput.model_validate(data), model

@@ -49,7 +49,9 @@ namespace CXJeminiInput
 class SCXJeminiChatBox : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SCXJeminiChatBox) {}
+	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false) {}
+		/** 위아래 분할이면 두 칸 경계(화면 세로 중앙)에 놓는다. 좌우 분할은 아래쪽 가운데. */
+		SLATE_ARGUMENT(bool, bVerticalCenter)
 	SLATE_END_ARGS()
 
 	TFunction<void(const FString&)> OnSubmit;
@@ -59,16 +61,17 @@ public:
 	{
 		// 제미니 단말 입력줄 — 시스템 폰트(IBM Plex Mono, 한글은 서브 폰트)
 		// 2026-11-10 게임 화면 글자 +3pt(17/16 → 20/19), 입력창 폭 760 → 900
-		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 20, TEXT("Regular"));
-		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("SemiBold"));
+		// 2026-11-12 QA: 글자 -1pt(19/18), 폭 900 → 840
+		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("Regular"));
+		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 18, TEXT("SemiBold"));
 
 		ChildSlot
 		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(0.0f, 0.0f, 0.0f, 150.0f))
+		.VAlign(InArgs._bVerticalCenter ? VAlign_Center : VAlign_Bottom)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, InArgs._bVerticalCenter ? 0.0f : 150.0f))
 		[
 			SNew(SBox)
-			.WidthOverride(900.0f)
+			.WidthOverride(840.0f)
 			[
 				SNew(SBorder)
 				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -377,7 +380,10 @@ void UCXJeminiInputComponent::OpenChat()
 		return;
 	}
 
-	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox);
+	// 2026-11-12 QA: 2인 분할이면 채팅창을 두 칸 경계(화면 정가운데)에 놓는다. 좌우 분할 = 가로 중앙·아래쪽, 위아래 분할 = 세로 중앙.
+	const ESplitScreenType::Type Split = Viewport->GetCurrentSplitscreenConfiguration();
+	const bool bSplit = Split == ESplitScreenType::TwoPlayer_Vertical || Split == ESplitScreenType::TwoPlayer_Horizontal;
+	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox).bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal);
 	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
 	Box->OnSubmit = [WeakThis](const FString& Text)
 	{
@@ -397,8 +403,16 @@ void UCXJeminiInputComponent::OpenChat()
 	ChatContainer = Box;
 	++OpenChatCount;
 
-	// 자기 분할 칸에만 표시 + 입력 중 이 폰의 게임 입력 끄기(게임 자체는 계속 진행)
-	Viewport->AddViewportWidgetForPlayer(LocalPlayer, Box, 50);
+	// 분할이면 전체 화면 위(두 칸 경계 가운데), 아니면 자기 칸에만 표시 + 입력 중 이 폰의 게임 입력 끄기(게임 자체는 계속 진행)
+	bChatGlobal = bSplit;
+	if (bSplit)
+	{
+		Viewport->AddViewportWidgetContent(Box, 50);
+	}
+	else
+	{
+		Viewport->AddViewportWidgetForPlayer(LocalPlayer, Box, 50);
+	}
 	PC->FlushPressedKeys();
 	Pawn->DisableInput(PC);
 	FSlateApplication::Get().SetKeyboardFocus(Box->GetFocusTarget(), EFocusCause::SetDirectly);
@@ -419,10 +433,15 @@ void UCXJeminiInputComponent::CloseChat()
 	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	UWorld* World = GetWorld();
 	UGameViewportClient* Viewport = World ? World->GetGameViewport() : nullptr;
-	if (Viewport && PC && PC->GetLocalPlayer() && Widget.IsValid())
+	if (Viewport && Widget.IsValid() && bChatGlobal)
+	{
+		Viewport->RemoveViewportWidgetContent(Widget.ToSharedRef());
+	}
+	else if (Viewport && PC && PC->GetLocalPlayer() && Widget.IsValid())
 	{
 		Viewport->RemoveViewportWidgetForPlayer(PC->GetLocalPlayer(), Widget.ToSharedRef());
 	}
+	bChatGlobal = false;
 	if (Pawn && PC)
 	{
 		// 쓰러진 채 채팅했으면 폰 입력은 계속 꺼 둔다(부활할 때 UCXPlayerLifeComponent가 켠다)

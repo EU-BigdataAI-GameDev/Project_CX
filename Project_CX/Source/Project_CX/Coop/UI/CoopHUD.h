@@ -280,6 +280,8 @@ private:
 	FTimerHandle HackRefreshTimer;
 
 	float UIScale = 1.0f;
+	/** 이번 프레임 증거 노트 패널의 아래 끝 Y(없으면 0). 제미니 규칙 목록이 이 아래로 밀린다. */
+	float EvidencePanelBottom = 0.0f;
 
 	/**
 	 *  이번 프레임 이 칸에 떠 있는 큰 패널(해킹 퍼즐·중계 패널) 영역(픽셀). DrawHUD 시작 때 비운다.

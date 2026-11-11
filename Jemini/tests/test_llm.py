@@ -231,7 +231,7 @@ def test_warden_falls_back_on_unavailable_and_timeout(settings, monkeypatch):
     monkeypatch.setattr(llm, "MIN_ATTEMPT_SEC", 0.05)
     s = _s(settings, llm_timeout_sec=0.2, voice_timeout_sec=0.2, llm_total_timeout_sec=0)
     out, model = asyncio.run(llm.call_warden(s, "prompt"))
-    assert called == ["m1", "m2"] and model == "m2" and out.demand_only
+    assert called == ["m1", "m1", "m2"] and model == "m2" and out.demand_only  # 기본 모델 재시도 포함
     called = _fake_client(monkeypatch, {"m1": _Unavailable("503"), "m2": _warden_ok()})
     assert asyncio.run(llm.call_warden(_s(settings), "prompt"))[1] == "m2"
 

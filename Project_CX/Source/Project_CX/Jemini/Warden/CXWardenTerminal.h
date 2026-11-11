@@ -22,7 +22,7 @@ struct FCXWardenResponse;
  *
  *  - 서버 권위(listen server): 증거 획득 상태(EvidenceMask), 해결 여부, WARDEN 대사, 요청 중 여부를 복제한다.
  *    증거는 이 액터가 보관한다(맵에 하나). 획득 경로 = 오빠의 증거 픽업(ACXEvidencePickup), 단말기 해킹 보상(AHackTerminal::RewardEvidenceId), 콘솔.
- *  - 여동생이 TalkRange 안에 있으면 그 사람의 채팅(Enter)·음성(Y)은 제미니 대신 WARDEN으로 간다(UCXJeminiInputComponent가 FindTalkTarget으로 고른다).
+ *  - 살아 있는 플레이어(오빠·여동생)가 TalkRange 안에 있으면 그 사람의 채팅(Enter)·음성(Y)은 제미니 대신 WARDEN으로 간다(UCXJeminiInputComponent가 FindTalkTarget으로 고른다).
  *    서버가 POST /persuade(/voice)에 획득 증거 id만 보내고, 서버의 판정(solved)만 믿는다. 시도 간격 3초(게임에서도 막는다).
  *  - solved → 문이 말려 올라가며(ACXCoopExitDoor 셔터 방식) 충돌 상자(COL 역할, 보이지 않음)를 끈다. 이후 진행.
  *  - 비주얼은 엔진 큐브 + M_NeonEmissive(CXShapeKit). 로컬 -X = 카메라 쪽. 원점 = 단말기 바닥 가운데.
@@ -63,6 +63,9 @@ public:
 	// ---------------------------------------------------------------- 조회(HUD — 복제값)
 	bool HasEvidence(int32 Index) const { return Index >= 0 && Index < CXWarden::EvidenceCount && (EvidenceMask & (1 << Index)) != 0; }
 	uint8 GetEvidenceMask() const { return EvidenceMask; }
+	/** 누적 인정된 증거(WARDEN이 이미 인정한 것). HUD 진행 표시와 다음 요청에 쓴다. */
+	uint8 GetCreditedMask() const { return CreditedMask; }
+	int32 GetCreditedNum() const;
 	int32 GetEvidenceNum() const;
 	bool IsSolved() const { return bSolved; }
 	bool IsRequestPending() const { return bRequestPending; }
@@ -149,6 +152,7 @@ private:
 	void Solve(const FString& Why);
 	void CheckApproach();
 	TArray<FString> GetEvidenceIds() const;
+	TArray<FString> GetCreditedIds() const;
 	FString GetSessionId() const;
 
 	UFUNCTION() void OnRep_Solved();
@@ -156,6 +160,10 @@ private:
 
 	UPROPERTY(Replicated)
 	uint8 EvidenceMask = 0;
+
+	/** 누적 인정(2026-11-11): 이전 시도에서 맞게 말한 증거. 서버(/persuade) 응답 credited로 갱신, 인젝션이면 비워진다. */
+	UPROPERTY(Replicated)
+	uint8 CreditedMask = 0;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Solved)
 	bool bSolved = false;

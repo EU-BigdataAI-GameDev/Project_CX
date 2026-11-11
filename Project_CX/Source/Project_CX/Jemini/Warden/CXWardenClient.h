@@ -22,6 +22,9 @@ struct FCXWardenResponse
 	bool bMock = false;
 	/** 체크리스트(로그용) "reg fail cover link | unsup inj demand" 비트 문자열. */
 	FString ChecklistDebug;
+	/** 서버가 누적 인정한 증거 id(이번 발언까지). bHasCredited=false면 응답에 없던 것(연결 실패 등) — 기존 값 유지. */
+	TArray<FString> Credited;
+	bool bHasCredited = false;
 };
 
 DECLARE_DELEGATE_OneParam(FOnCXWardenResponse, const FCXWardenResponse& /*Response*/);
@@ -29,10 +32,10 @@ DECLARE_DELEGATE_OneParam(FOnCXWardenResponse, const FCXWardenResponse& /*Respon
 namespace CXWardenClient
 {
 	/** POST /persuade {text, evidence, session} */
-	void SendText(const CXJemini::FEndpoint& Endpoint, const FString& Text, const TArray<FString>& Evidence, const FString& Session, FOnCXWardenResponse OnDone);
+	void SendText(const CXJemini::FEndpoint& Endpoint, const FString& Text, const TArray<FString>& Evidence, const TArray<FString>& Credited, const FString& Session, FOnCXWardenResponse OnDone);
 
 	/** POST /persuade/voice (multipart: audio WAV + meta JSON {evidence, session}) */
-	void SendVoice(const CXJemini::FEndpoint& Endpoint, const TArray<uint8>& Wav, const TArray<FString>& Evidence, const FString& Session, FOnCXWardenResponse OnDone);
+	void SendVoice(const CXJemini::FEndpoint& Endpoint, const TArray<uint8>& Wav, const TArray<FString>& Evidence, const TArray<FString>& Credited, const FString& Session, FOnCXWardenResponse OnDone);
 
 	bool ParseResponse(const FString& Body, FCXWardenResponse& Out);
 }

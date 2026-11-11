@@ -179,6 +179,8 @@ class PersuadeRequest(BaseModel):
     """POST /persuade — 여동생이 WARDEN 단말기 앞에서 한 말 + 팀이 획득한 증거 id(UE 권위)."""
     text: str = Field(min_length=1, max_length=200)
     evidence: list[EvidenceId] = Field(default_factory=list, max_length=3)
+    # 이전 시도에서 이미 인정받은 증거(UE가 응답의 credited를 보관했다가 다시 보낸다 — 누적 인정)
+    credited: list[EvidenceId] = Field(default_factory=list, max_length=3)
     # 시도 간격 제한 단위(맵·단말기). UE는 "<맵>:<단말기 이름>"을 보낸다.
     session: str = Field(default="default", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.:\-]+$")
 
@@ -186,6 +188,7 @@ class PersuadeRequest(BaseModel):
 class PersuadeMeta(BaseModel):
     """POST /persuade/voice 의 meta 폼 필드(JSON)."""
     evidence: list[EvidenceId] = Field(default_factory=list, max_length=3)
+    credited: list[EvidenceId] = Field(default_factory=list, max_length=3)
     session: str = Field(default="default", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.:\-]+$")
 
 
@@ -225,6 +228,8 @@ class PersuadeResponse(BaseModel):
     checklist: Optional[PersuadeChecklist] = None
     # 서버가 인정한 획득 증거(중복 제거·정렬)
     evidence: list[EvidenceId] = Field(default_factory=list)
+    # 누적 인정된 증거(이번 발언까지). 인젝션이면 비움. UE가 보관했다가 다음 요청에 credited로 보낸다.
+    credited: list[EvidenceId] = Field(default_factory=list)
     heard: Optional[str] = None
     mock: bool = False
 

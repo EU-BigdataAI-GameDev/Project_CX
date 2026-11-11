@@ -29,7 +29,7 @@ namespace CXWardenClient
 			Out.Append(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length());
 		}
 
-		TSharedRef<FJsonObject> MetaObject(const TArray<FString>& Evidence, const FString& Session)
+		TSharedRef<FJsonObject> MetaObject(const TArray<FString>& Evidence, const TArray<FString>& Credited, const FString& Session)
 		{
 			TSharedRef<FJsonObject> Obj = MakeShared<FJsonObject>();
 			TArray<TSharedPtr<FJsonValue>> Ids;
@@ -38,6 +38,12 @@ namespace CXWardenClient
 				Ids.Add(MakeShared<FJsonValueString>(Id));
 			}
 			Obj->SetArrayField(TEXT("evidence"), Ids);
+			TArray<TSharedPtr<FJsonValue>> CreditedIds;
+			for (const FString& Id : Credited)
+			{
+				CreditedIds.Add(MakeShared<FJsonValueString>(Id));
+			}
+			Obj->SetArrayField(TEXT("credited"), CreditedIds);
 			Obj->SetStringField(TEXT("session"), Session.IsEmpty() ? TEXT("default") : Session);
 			return Obj;
 		}
@@ -50,7 +56,7 @@ namespace CXWardenClient
 			Request->SetURL(Base + Path);
 			Request->SetVerb(TEXT("POST"));
 			// 판정 JSON은 최대 8초(서버 타임아웃) + 여유
-			Request->SetTimeout(FMath::Max(12.0f, Endpoint.TimeoutSec));
+			Request->SetTimeout(FMath::Max(17.0f, Endpoint.TimeoutSec));
 			if (!Endpoint.ApiToken.IsEmpty())
 			{
 				Request->SetHeader(TEXT("X-API-Key"), Endpoint.ApiToken);
@@ -126,6 +132,19 @@ namespace CXWardenClient
 		Out.Reason = GetStringOrEmpty(Root, TEXT("reason"));
 		Out.Heard = GetStringOrEmpty(Root, TEXT("heard")).Left(200);
 		Root->TryGetBoolField(TEXT("mock"), Out.bMock);
+		const TArray<TSharedPtr<FJsonValue>>* CreditedArray = nullptr;
+		if (Root->TryGetArrayField(TEXT("credited"), CreditedArray) && CreditedArray)
+		{
+			Out.bHasCredited = true;
+			for (const TSharedPtr<FJsonValue>& V : *CreditedArray)
+			{
+				FString Id;
+				if (V.IsValid() && V->TryGetString(Id))
+				{
+					Out.Credited.Add(Id);
+				}
+			}
+		}
 		const TSharedPtr<FJsonObject>* Check = nullptr;
 		if (Root->TryGetObjectField(TEXT("checklist"), Check) && Check && Check->IsValid())
 		{
@@ -137,9 +156,9 @@ namespace CXWardenClient
 		return !Out.Reply.IsEmpty();
 	}
 
-	void SendText(const CXJemini::FEndpoint& Endpoint, const FString& Text, const TArray<FString>& Evidence, const FString& Session, FOnCXWardenResponse OnDone)
+	void SendText(const CXJemini::FEndpoint& Endpoint, const FString& Text, const TArray<FString>& Evidence, const TArray<FString>& Credited, const FString& Session, FOnCXWardenResponse OnDone)
 	{
-		TSharedRef<FJsonObject> Body = MetaObject(Evidence, Session);
+		TSharedRef<FJsonObject> Body = MetaObject(Evidence, Credited, Session);
 		Body->SetStringField(TEXT("text"), Text.Left(200));
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = MakeRequest(Endpoint, TEXT("/persuade"));
 		Request->SetHeader(TEXT("Content-Type"), TEXT("application/json; charset=utf-8"));
@@ -149,13 +168,13 @@ namespace CXWardenClient
 		Dispatch(Request, MoveTemp(OnDone));
 	}
 
-	void SendVoice(const CXJemini::FEndpoint& Endpoint, const TArray<uint8>& Wav, const TArray<FString>& Evidence, const FString& Session, FOnCXWardenResponse OnDone)
+	void SendVoice(const CXJemini::FEndpoint& Endpoint, const TArray<uint8>& Wav, const TArray<FString>& Evidence, const TArray<FString>& Credited, const FString& Session, FOnCXWardenResponse OnDone)
 	{
 		const FString Boundary = FString::Printf(TEXT("----CXWarden%08x%08x"), FMath::Rand(), FMath::Rand());
 		TArray<uint8> Body;
 		Body.Reserve(Wav.Num() + 512);
 		AppendUtf8(Body, FString::Printf(TEXT("--%s\r\nContent-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json; charset=utf-8\r\n\r\n"), *Boundary));
-		AppendUtf8(Body, ToJson(MetaObject(Evidence, Session)));
+		AppendUtf8(Body, ToJson(MetaObject(Evidence, Credited, Session)));
 		AppendUtf8(Body, FString::Printf(TEXT("\r\n--%s\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\nContent-Type: audio/wav\r\n\r\n"), *Boundary));
 		Body.Append(Wav);
 		AppendUtf8(Body, FString::Printf(TEXT("\r\n--%s--\r\n"), *Boundary));
