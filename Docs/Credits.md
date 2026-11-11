@@ -1,6 +1,16 @@
 # 크레딧 (Credits)
 
-이 프로젝트(포트폴리오, 비상업)에서 쓰는 외부 오디오 출처와, 각 언리얼 에셋이 어떤 원본 파일에서 왔는지 기록한다.
+이 프로젝트(**CAELUM:UNCHAINED** — 포트폴리오, 비상업)에서 쓰는 외부 폰트·오디오 출처와, 각 언리얼 에셋이 어떤 원본 파일에서 왔는지 기록한다.
+
+## 0. 폰트
+
+| 폰트 | 용도 | 언리얼 에셋 | 라이선스 |
+|---|---|---|---|
+| **Oxanium** (© 2019 The Oxanium Project Authors, Google Fonts) | 게임 UI: HUD 수치·레이블, 메뉴, 알림, 시작화면 게임명 | `UI/Fonts/F_Oxanium` (면 `FF_Oxanium_Light~Bold`) | SIL Open Font License 1.1 — 원문 `Art/Fonts/Oxanium/OFL.txt` |
+| **IBM Plex Mono** (© 2017 IBM Corp., Reserved Font Name "Plex") | 시스템 UI: 해킹 퍼즐·단말기, 시스템 메시지, 제미니 상태·대사·채팅 | `UI/Fonts/F_IBMPlexMono` (면 `FF_IBMPlexMono_Light~Bold`) | SIL Open Font License 1.1 — 원문 `Art/Fonts/IBM_Plex_Mono/OFL.txt` |
+| **Droid Sans Fallback** (엔진 기본 `/Engine/EngineFonts/Faces/DroidSansFallback`) | 위 두 폰트의 한글·CJK·기호 서브 폰트 | 엔진 에셋 참조 | Apache License 2.0(엔진 동봉) |
+
+- OFL: 게임에 넣어 배포 가능, 폰트 파일만 따로 판매 금지. 패키징 배포 시 OFL 원문을 같이 둔다.
 (효과음 적용 기획 3.2: 받은 즉시 기록 — 파일 ID, 원본 파일명, 출처, 라이선스, 가공 여부)
 
 ## 1. 출처 / 라이선스

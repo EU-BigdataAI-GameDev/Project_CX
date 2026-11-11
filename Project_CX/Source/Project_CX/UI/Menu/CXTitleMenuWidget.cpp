@@ -54,6 +54,10 @@ namespace CXTitle
 	constexpr float IntroEnd = 2.0f;
 	constexpr float ShortIntro = 0.3f;
 
+	// 게임명 글자 크기·자간(16자라 예전 PROJECT_CX 96/180보다 줄여 1920 기준 좌측 2/3 안에 들어가게)
+	constexpr int32 TitleSize = 84;
+	constexpr int32 TitleSpacing = 100;
+
 	constexpr float DevicePromptTime = 2.6f;
 	constexpr float GamepadPollInterval = 0.5f;
 
@@ -116,10 +120,27 @@ void UCXTitleMenuWidget::BuildMenu()
 		S->SetAutoSize(true);
 		S->SetPosition(FVector2D(150.0f, 200.0f));
 	}
-	TitleText = MakeText(TEXT("PROJECT_CX"), 96, TEXT("Bold"), 180, FLinearColor(0.88f, 1.0f, 1.0f, 1.0f));
-	TitleText->SetShadowOffset(FVector2D(2.5f, 2.5f));
-	TitleText->SetShadowColorAndOpacity(CXMenuStyle::Brother.CopyWithNewOpacity(0.55f));
-	TitleBlock->AddChildToVerticalBox(TitleText);
+	// 게임명 CAELUM:UNCHAINED — Oxanium Bold. 글자는 오빠 청록 네온 그림자, 가운데 콜론만 여동생 마젠타(두 사람 색 체계)
+	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleRow"));
+	{
+		const FLinearColor TitleColor(0.88f, 1.0f, 1.0f, 1.0f);
+		auto AddTitlePart = [&](const TCHAR* Str, const FLinearColor& Color, const FLinearColor& Glow, float PadL, float PadR)
+		{
+			UTextBlock* Part = MakeText(Str, CXTitle::TitleSize, TEXT("Bold"), CXTitle::TitleSpacing, Color);
+			Part->SetShadowOffset(FVector2D(2.5f, 2.5f));
+			Part->SetShadowColorAndOpacity(Glow);
+			if (UHorizontalBoxSlot* S = TitleRow->AddChildToHorizontalBox(Part))
+			{
+				S->SetVerticalAlignment(VAlign_Center);
+				S->SetPadding(FMargin(PadL, 0.0f, PadR, 0.0f));
+			}
+		};
+		AddTitlePart(TEXT("CAELUM"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
+		AddTitlePart(TEXT(":"), CXMenuStyle::Sister, CXMenuStyle::Sister.CopyWithNewOpacity(0.45f), 4.0f, 10.0f);
+		AddTitlePart(TEXT("UNCHAINED"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
+	}
+	TitleText = TitleRow;
+	TitleBlock->AddChildToVerticalBox(TitleRow);
 
 	UHorizontalBox* SubRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	if (UVerticalBoxSlot* S = TitleBlock->AddChildToVerticalBox(SubRow))

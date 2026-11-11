@@ -5,6 +5,7 @@
 #include "CXJeminiClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
+#include "CXUIFonts.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -54,8 +55,10 @@ public:
 
 	void Construct(const FArguments& InArgs)
 	{
-		FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle("Regular", 18);
-		FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 16);
+		// 제미니 단말 입력줄 — 시스템 폰트(IBM Plex Mono, 한글은 서브 폰트)
+		// 2026-11-10 게임 화면 글자 +3pt(17/16 → 20/19), 입력창 폭 760 → 900
+		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 20, TEXT("Regular"));
+		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("SemiBold"));
 
 		ChildSlot
 		.HAlign(HAlign_Center)
@@ -63,7 +66,7 @@ public:
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 150.0f))
 		[
 			SNew(SBox)
-			.WidthOverride(760.0f)
+			.WidthOverride(900.0f)
 			[
 				SNew(SBorder)
 				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))

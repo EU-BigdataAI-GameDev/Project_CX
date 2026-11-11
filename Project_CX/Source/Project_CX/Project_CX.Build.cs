@@ -55,6 +55,7 @@ public class Project_CX : ModuleRules
 			"Project_CX/Core",
 			"Project_CX/Jemini",
 			"Project_CX/Title",
+			"Project_CX/UI",
 			"Project_CX/UI/Menu"
 		});
 

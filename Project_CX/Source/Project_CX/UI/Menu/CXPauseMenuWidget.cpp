@@ -32,7 +32,7 @@ namespace CXPause
 	const FName Settings = TEXT("Settings");
 	const FName QuitToTitle = TEXT("QuitToTitle");
 
-	constexpr float PanelWidth = 520.0f;
+	constexpr float PanelWidth = 600.0f;	// 게임 화면 글자 +3pt로 정보줄이 길어져 520 → 600
 	constexpr float PanelHeight = 400.0f;
 	constexpr int32 ItemFontSize = 28;
 	constexpr float TagPollInterval = 0.5f;
@@ -186,6 +186,7 @@ void UCXPauseMenuWidget::BuildMenu()
 
 	// 하단 정보줄: 현재 구역명(세이브포인트 시스템이 생기면 "마지막 저장" 추가)
 	InfoText = MakeText(TEXT(""), 15, TEXT("Regular"), 160, CXMenuStyle::TextDim);
+	InfoText->SetFont(CXMenuStyle::MonoFont(17, TEXT("Regular"), 40));	// 시스템 정보줄(구역·저장) — 고정폭
 	Column->AddChildToVerticalBox(InfoText);
 
 	// 3) 화면 하단: 플레이어 장치 태그(좌) + 조작 힌트(우). 아래 HUD 패널과 겹쳐도 읽히게 어두운 띠 위에 둔다.
@@ -217,17 +218,18 @@ void UCXPauseMenuWidget::BuildMenu()
 			S->SetVerticalAlignment(VAlign_Center);
 			S->SetPadding(FMargin(i == 0 ? 0.0f : 56.0f, 0.0f, 10.0f, 0.0f));
 		}
-		if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(MakeText(TagNames[i], 16, TEXT("Bold"), 200, Color)))
+		if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(MakeText(TagNames[i], 19, TEXT("Bold"), 200, Color)))
 		{
 			S->SetVerticalAlignment(VAlign_Center);
 		}
 		UTextBlock* DeviceText = MakeText(TEXT(""), 16, TEXT("Regular"), 160, CXMenuStyle::Text);
+		DeviceText->SetFont(CXMenuStyle::MonoFont(18, TEXT("Regular"), 40));	// 장치 이름 — 고정폭
 		if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(DeviceText))
 		{
 			S->SetVerticalAlignment(VAlign_Center);
 			S->SetPadding(FMargin(18.0f, 0.0f, 0.0f, 0.0f));
 		}
-		UTextBlock* StatusText = MakeText(TEXT(""), 16, TEXT("Bold"), 160, CXMenuStyle::TextDim);
+		UTextBlock* StatusText = MakeText(TEXT(""), 19, TEXT("Bold"), 160, CXMenuStyle::TextDim);
 		if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(StatusText))
 		{
 			S->SetVerticalAlignment(VAlign_Center);
@@ -241,7 +243,7 @@ void UCXPauseMenuWidget::BuildMenu()
 	{
 		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	}
-	if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(MakeText(TEXT("[A / ENTER]  SELECT        [B / ESC]  BACK"), 14, TEXT("Regular"), 160, CXMenuStyle::TextDim)))
+	if (UHorizontalBoxSlot* S = Footer->AddChildToHorizontalBox(MakeText(TEXT("[A / ENTER]  SELECT        [B / ESC]  BACK"), 17, TEXT("Regular"), 160, CXMenuStyle::TextDim)))
 	{
 		S->SetVerticalAlignment(VAlign_Center);
 	}

@@ -62,9 +62,9 @@
 ---
 
 ## 남은 자잘한 것
-- [ ] 게임명 `CAELUM:UNCHAINED`로 확정. 게임 화면에 반영
-- [ ] 게임 아이콘 추가(실행 파일 / 창 아이콘)
-- [ ] 폰트 에셋 적용
+- [x] 게임명 `CAELUM:UNCHAINED`로 확정. 게임 화면에 반영 — 시작화면 게임명(Oxanium Bold, 콜론만 마젠타), `DefaultGame.ini` ProjectName/ProjectDisplayedTitle(창 제목·exe 제품명). 모듈·uproject·콘텐츠 경로는 `Project_CX` 유지 (`.claude/Plans/UI 폰트·게임명 적용.md`)
+- [x] 게임 아이콘 추가(실행 파일 / 창 아이콘) — `Build/Windows/Application.ico`(16~256 7종), 에디터 프로젝트 썸네일 `Project_CX.png`. 패키징 exe에서 아이콘 실제 표시 미확인
+- [x] 폰트 에셋 적용 — Oxanium(게임 정보) / IBM Plex Mono(해킹·시스템·제미니), `UI/Fonts/F_*`, 한글 서브 폰트(DroidSansFallback), 공용 `UCXUIFonts`. PIE `Docs/Screenshots/UIFonts/`. 월드 TextRender(출구 문·세이브포인트·숫자 단서)는 엔진 기본 폰트 그대로
 - [x] 실시간 STT 반영 안되는 버그 수정
 - [x] Map2 배경음 제작(Suno) 및 적용 — `District 5 - Undercurrent` → `SW_BGM_Map2`(SCl_BGM), 101.29bpm, 인트로 0~19.07초 1회 + 반복 19.07~194.41초(73마디), 크로스페이드 1마디 2.37초. `MapMusic["Map2_SoulCity2"]`. 에디터를 다시 켜야 `BP_GameMode`에 반영(Live Coding은 C++ CDO만 갱신). 반복 이음새 귀로 미확인(`Docs/배경음_제작기록.md` 4장)
 - [x] Map2 계단 그래픽 ↔ 콜라이더 맞춤(`맵2 개선 기획.md` 2장) — 계단 아트 9곳 전수 조사, 불일치 8곳 모두 수정: 계단 5곳(경사를 계단 코 선으로 + 계단참·첫 단 상자), 마지막 단말기 아래 바위 A(평평한 220 → 211→7 계단)·바위 B(경사), 메모리 게이트 막대·COL 아래 끝을 새 바닥까지. 바위 구덩이는 아트대로면 진행 불가라 아트를 평평한 `SM_Slums_Wall_02k`로 교체(COL 77 유지), 메모리 단말기를 계단 경사 위(Z 220 → 146.4)로 내림. `Tools/LevelBuild/fix_map2_stairs.py`(백업·undo), 트레이스 |dz| 최대 211 → 0, 표 `Docs/LevelManifests/map2_stairs_audit.md`, PIE `Docs/Screenshots/Map2Stairs/`. 실제로 걸어 보기 미확인

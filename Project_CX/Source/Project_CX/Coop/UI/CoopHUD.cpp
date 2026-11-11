@@ -17,6 +17,7 @@
 #include "CXSavePoint.h"
 #include "CXLevelExit.h"
 #include "CXSfx.h"
+#include "CXUIFonts.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -35,8 +36,12 @@ namespace CoopHUDLayout
 	constexpr float RefWidth = 1920.0f;
 	constexpr float RefHeight = 540.0f;
 	constexpr float Margin = 28.0f;
-	// 엔진 기본 Canvas 폰트가 작아서 분할 화면에서 읽히도록 키우는 배율
-	constexpr float TextScale = 1.45f;
+	// HUD 전체 배율(2026-11-10 글자 +3pt 요청): 글자를 약 1.3배(8→11pt, 10→13pt) 키우면서
+	// 패널·여백·줄 간격도 같은 비율로 키워 글자와 레이아웃 비율을 그대로 둔다. S()에 곱해진다.
+	constexpr float HudGrow = 1.3f;
+	// Canvas 글자 배율. 폰트 크기 자체를 +3pt(GameFont/SysFont)로 올렸으므로 1.45(예전 8/10pt 기준)를 HudGrow로 나눈다
+	// → 화면 글자 = 폰트pt × 1.45 × 칸 배율(예전 8pt Tiny 대비 11pt, 10pt 대비 13pt).
+	constexpr float TextScale = 1.45f / HudGrow;
 }
 
 ACoopHUD::ACoopHUD()
@@ -115,7 +120,8 @@ void ACoopHUD::DrawHUD()
 		return;
 	}
 
-	UIScale = FMath::Clamp(FMath::Min(Canvas->ClipX / CoopHUDLayout::RefWidth, Canvas->ClipY / CoopHUDLayout::RefHeight), 0.5f, 2.0f);
+	UIScale = FMath::Clamp(FMath::Min(Canvas->ClipX / CoopHUDLayout::RefWidth, Canvas->ClipY / CoopHUDLayout::RefHeight), 0.5f, 2.0f) * CoopHUDLayout::HudGrow;
+	FrameBlockers.Reset();
 
 	APawn* MyPawn = GetOwningPawn();
 	const bool bIsSister = Cast<ASisterCharacter>(MyPawn) != nullptr;
@@ -244,19 +250,19 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		const float X = Canvas->ClipX - CoopHUDLayout::Margin * S() - W;
 		const float Y = CoopHUDLayout::Margin * S();
 		Panel(X, Y, W, H, Accent);
-		Label(TEXT("JEMINI  //  DRONE"), X + Pad, Y + 6.0f * S(), JeminiColor.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
+		Label(TEXT("JEMINI  //  DRONE"), X + Pad, Y + 6.0f * S(), JeminiColor.CopyWithNewOpacity(0.8f), GameFont(ECXHudFont::Tiny), 1.0f);
 		// 서버가 LLM 대신 mock 키워드 판별로 처리 중(한도 초과 등) — 제목 옆에 작게
 		if (Drone->IsServerMock())
 		{
 			float HW = 0.0f, HH = 0.0f;
-			GetTextSize(TEXT("JEMINI  //  DRONE"), HW, HH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
-			Label(TEXT("[MOCK]"), X + Pad + HW + 6.0f * S(), Y + 6.0f * S(), WarningColor.CopyWithNewOpacity(0.7f), GEngine->GetTinyFont(), 1.0f);
+			GetTextSize(TEXT("JEMINI  //  DRONE"), HW, HH, GameFont(ECXHudFont::Tiny), S() * CoopHUDLayout::TextScale);
+			Label(TEXT("[MOCK]"), X + Pad + HW + 6.0f * S(), Y + 6.0f * S(), WarningColor.CopyWithNewOpacity(0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
 		}
 		const FString Percent = FString::Printf(TEXT("%3d%%"), Battery);
 		float TW = 0.0f, TH = 0.0f;
-		GetTextSize(Percent, TW, TH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+		GetTextSize(Percent, TW, TH, GameFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 		Label(Percent, X + W - Pad - TW, Y + 4.0f * S(), bLowBattery ? WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(4.0f)) : FLinearColor::White,
-			GEngine->GetSmallFont(), 1.0f);
+			GameFont(ECXHudFont::Small), 1.0f);
 		DrawSegmentBar(X + Pad, Y + 30.0f * S(), W - 2.0f * Pad, 12.0f * S(), 10, Battery / 100.0f, Accent, 2.0f * S());
 
 		// 상태 한 줄(패널 아래)
@@ -272,7 +278,7 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 			case ECXJeminiAction::FlyToReload: Status = TEXT("RELOAD SUPPORT >>"); break;
 			case ECXJeminiAction::HackAssist: Status = TEXT("HACK ASSIST >>"); break;
 			case ECXJeminiAction::TerminalHack: Status = TEXT("TERMINAL HACK >>"); break;
-			case ECXJeminiAction::TerminalHacking: Status = TEXT("TERMINAL HACK  //  BREACHING"); break;
+			case ECXJeminiAction::TerminalHacking: Status = TEXT("TERMINAL HACK // BREACHING"); break;
 			case ECXJeminiAction::EnemyHack: Status = TEXT("ENEMY HACK >>"); break;
 			case ECXJeminiAction::PulseAttack: Status = TEXT("PULSE >>"); break;
 			case ECXJeminiAction::BoostFly: Status = TEXT("DAMAGE BOOST >>"); break;
@@ -289,15 +295,15 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		float StatusY = Y + H + 4.0f * S();
 		if (!Status.IsEmpty())
 		{
-			Label(Status, X + Pad, StatusY, JeminiColor.CopyWithNewOpacity(0.5f + 0.5f * Pulse(5.0f)), GEngine->GetTinyFont(), 1.0f);
+			Label(Status, X + Pad, StatusY, JeminiColor.CopyWithNewOpacity(0.5f + 0.5f * Pulse(5.0f)), SysFont(ECXHudFont::Tiny), 1.0f);
 		}
 		// 배터리 20% 이하: 게이지 경고색(위) + LOW BATTERY 깜빡임(두 칸 모두 — 제미니 기능 기획 5-6). 상태 줄과 겹치지 않게 오른쪽 정렬.
 		if (bLowBattery)
 		{
 			const FString LowText = Battery <= 0 ? TEXT("BATTERY EMPTY") : TEXT("LOW BATTERY");
 			float LW = 0.0f, LH = 0.0f;
-			GetTextSize(LowText, LW, LH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
-			Label(LowText, X + W - Pad - LW, StatusY, WarningColor.CopyWithNewOpacity(FMath::Fmod(Now * 2.0f, 1.0f) < 0.6f ? 1.0f : 0.25f), GEngine->GetTinyFont(), 1.0f);
+			GetTextSize(LowText, LW, LH, GameFont(ECXHudFont::Tiny), S() * CoopHUDLayout::TextScale);
+			Label(LowText, X + W - Pad - LW, StatusY, WarningColor.CopyWithNewOpacity(FMath::Fmod(Now * 2.0f, 1.0f) < 0.6f ? 1.0f : 0.25f), GameFont(ECXHudFont::Tiny), 1.0f);
 		}
 	}
 
@@ -322,16 +328,60 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		const FLinearColor BubbleAccent = StatusName == TEXT("rejected") ? WarningColor
 			: (StatusName == TEXT("fallback") ? FLinearColor(0.6f, 0.6f, 0.65f, 1.0f) : JeminiColor);
 		const FString Text = DialogueLines[LineIndex].TrimStartAndEnd();
-		const float TextScale = 1.0f;
-		float TW = 0.0f, TH = 0.0f;
-		GetTextSize(Text, TW, TH, GEngine->GetMediumFont(), TextScale * S() * CoopHUDLayout::TextScale);
-		const float W = FMath::Clamp(TW + 2.0f * Pad + 90.0f * S(), 360.0f * S(), Canvas->ClipX - 80.0f * S());
-		const float H = 50.0f * S();
-		const float X = (Canvas->ClipX - W) * 0.5f;
-		const float Y = 96.0f * S();
+		UFont* BodyFont = SysFont(ECXHudFont::Medium);
+		const float BodyScale = S() * CoopHUDLayout::TextScale;
+
+		// 가로 자리: 위쪽 가운데. 왼쪽은 플레이어 태그·체력 바 + HP 글자(~420), 오른쪽은 배터리 열(250)을 비운다.
+		// 오른쪽에 세로로 긴 패널(오빠 중계 패널)이 있으면 그 왼쪽까지만 쓴다.
+		float AreaL = 430.0f * S();
+		float AreaR = Canvas->ClipX - (CoopHUDLayout::Margin + 250.0f + 16.0f) * S();
+		for (const FBox2D& B : FrameBlockers)
+		{
+			if (B.Min.X > Canvas->ClipX * 0.5f && B.GetSize().Y > Canvas->ClipY * 0.5f)
+			{
+				AreaR = FMath::Min(AreaR, static_cast<float>(B.Min.X) - 12.0f * S());
+			}
+		}
+		const float LabelW = 84.0f * S();	// "JEMINI" 칸
+		const float MaxTextW = FMath::Max(120.0f * S(), AreaR - AreaL - 2.0f * Pad - LabelW);
+		const TArray<FString> Lines = WrapText(Text, BodyFont, BodyScale, MaxTextW, 3);
+		float TextW = 0.0f, LineH = 0.0f;
+		for (const FString& Line : Lines)
+		{
+			float LW = 0.0f, LH = 0.0f;
+			GetTextSize(Line, LW, LH, BodyFont, BodyScale);
+			TextW = FMath::Max(TextW, LW);
+			LineH = FMath::Max(LineH, LH);
+		}
+		const float W = FMath::Clamp(TextW + 2.0f * Pad + LabelW, 360.0f * S(), AreaR - AreaL);
+		const float H = FMath::Max(50.0f * S(), Lines.Num() * LineH + 2.0f * 10.0f * S());
+		const float X = FMath::Clamp((Canvas->ClipX - W) * 0.5f, AreaL, AreaR - W);
+
+		// 세로 자리: 기본 96. 해킹 패널과 겹치면 패널 위(칸 안에 들면) 아니면 패널 아래로.
+		float Y = 96.0f * S();
+		for (int32 Try = 0; Try < 3 && IsBlocked(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H))); ++Try)
+		{
+			for (const FBox2D& B : FrameBlockers)
+			{
+				if (!B.Intersect(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H))))
+				{
+					continue;
+				}
+				const float Above = B.Min.Y - H - 8.0f * S();
+				Y = Above >= CoopHUDLayout::Margin * S() ? Above : B.Max.Y + 8.0f * S();
+				break;
+			}
+		}
+		if (Y + H > Canvas->ClipY - CoopHUDLayout::Margin * S())
+		{
+			Y = CoopHUDLayout::Margin * S();	// 자리가 없으면 맨 위(말풍선이 패널 위에 그려짐)
+		}
 		Panel(X, Y, W, H, BubbleAccent.CopyWithNewOpacity(Fade));
-		Label(TEXT("JEMINI"), X + Pad, Y + 8.0f * S(), BubbleAccent.CopyWithNewOpacity(0.85f * Fade), GEngine->GetTinyFont(), 1.0f);
-		Label(Text, X + Pad + 70.0f * S(), Y + 12.0f * S(), FLinearColor::White.CopyWithNewOpacity(Fade), GEngine->GetMediumFont(), TextScale);
+		Label(TEXT("JEMINI"), X + Pad, Y + 10.0f * S(), BubbleAccent.CopyWithNewOpacity(0.85f * Fade), SysFont(ECXHudFont::Tiny), 1.0f);
+		for (int32 i = 0; i < Lines.Num(); ++i)
+		{
+			Label(Lines[i], X + Pad + LabelW, Y + 10.0f * S() + i * LineH, FLinearColor::White.CopyWithNewOpacity(Fade), BodyFont, 1.0f);
+		}
 	}
 
 	// 3) 음성 STT 말풍선: 말한 플레이어 머리 위에 알아들은 문장(Heard)을 띄운다(두 칸 모두, 월드 위치를 각 칸 화면으로 투영)
@@ -344,26 +394,28 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 
 	// 3) 자기 입력 상태(우상단 패널 아래쪽) — 녹음 중 / 막힘 / 안내. 쓰러진 칸에서도 보인다(쓰러진 사람도 말할 수 있다).
 	const float InfoX = Canvas->ClipX - CoopHUDLayout::Margin * S() - 250.0f * S();
-	const float InfoY = CoopHUDLayout::Margin * S() + 80.0f * S();
+	// 배터리 패널(56) 아래 상태 줄(+4, Tiny 한 줄) 다음 — 글자 +3pt로 상태 줄이 길어져 80 → 88
+	const float InfoY = CoopHUDLayout::Margin * S() + 88.0f * S();
 	if (const UCXJeminiInputComponent* Input = MyPawn->FindComponentByClass<UCXJeminiInputComponent>())
 	{
 		if (Input->IsRecording())
 		{
 			const float Sec = Input->GetRecordSeconds();
 			Label(FString::Printf(TEXT("● REC  %.1fs / %.0fs"), Sec, Input->GetMaxVoiceSeconds()), InfoX, InfoY,
-				DangerColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), GEngine->GetSmallFont(), 1.0f);
+				DangerColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), SysFont(ECXHudFont::Small), 1.0f);
 			DrawSegmentBar(InfoX, InfoY + 20.0f * S(), 250.0f * S(), 6.0f * S(), 16, Sec / FMath::Max(0.1f, Input->GetMaxVoiceSeconds()), DangerColor, 1.0f * S());
 		}
 		else if (Now - Input->GetLastBlockedTime() < 1.5f)
 		{
-			Label(TEXT("JEMINI BUSY"), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), GEngine->GetSmallFont(), 1.0f);
+			Label(TEXT("JEMINI BUSY"), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), SysFont(ECXHudFont::Small), 1.0f);
 		}
 		else if (!Input->GetNotice().IsEmpty() && Now - Input->GetNoticeTime() < 2.5f)
 		{
-			Label(Input->GetNotice(), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), GEngine->GetSmallFont(), 1.0f);
+			Label(Input->GetNotice(), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), SysFont(ECXHudFont::Small), 1.0f);
 		}
-		else if (!Input->IsChatOpen())
+		else if (!Input->IsChatOpen() && !IsBlocked(FBox2D(FVector2D(InfoX, InfoY), FVector2D(InfoX + 250.0f * S(), InfoY + 22.0f * S()))))
 		{
+			// (해킹 패널이 이 자리를 덮으면 평소 안내는 숨긴다 — 녹음/막힘/알림은 그대로)
 			// 장치별 안내: 키보드 = Enter 채팅, 게임패드 = Y 누르고 말하기
 			bool bGamepad = bIsSister;
 			const ULocalPlayer* LocalPlayer = PlayerOwner ? PlayerOwner->GetLocalPlayer() : nullptr;
@@ -372,7 +424,7 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 				bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
 			}
 			Label(bGamepad ? TEXT("[Y] HOLD TO TALK") : TEXT("[ENTER] TALK TO JEMINI"), InfoX, InfoY,
-				JeminiColor.CopyWithNewOpacity(Input->CanTalkNow() ? 0.55f : 0.25f), GEngine->GetTinyFont(), 1.0f);
+				JeminiColor.CopyWithNewOpacity(Input->CanTalkNow() ? 0.55f : 0.25f), SysFont(ECXHudFont::Tiny), 1.0f);
 		}
 	}
 
@@ -386,7 +438,7 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 	{
 		const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - 96.0f * S() - 30.0f * S();
 		Label(Battery >= 5 ? TEXT("NO AMMO  //  ASK JEMINI TO RELOAD") : TEXT("NO AMMO  //  JEMINI BATTERY LOW"),
-			CoopHUDLayout::Margin * S(), Y, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(4.0f)), GEngine->GetSmallFont(), 1.0f);
+			CoopHUDLayout::Margin * S(), Y, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(4.0f)), GameFont(ECXHudFont::Small), 1.0f);
 	}
 
 	// 5) 여동생: 해킹 대행 진행도
@@ -395,10 +447,16 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		if (const USisterHackComponent* Hack = MyPawn->FindComponentByClass<USisterHackComponent>(); Hack && Hack->IsJeminiAssisting())
 		{
 			const float W = 360.0f * S();
-			const float X = (Canvas->ClipX - W) * 0.5f;
-			const float Y = Canvas->ClipY - 70.0f * S();
-			Label(FString::Printf(TEXT("JEMINI ASSIST  %3d%%"), FMath::RoundToInt(Hack->GetJeminiAssistProgress() * 100.0f)), Canvas->ClipX * 0.5f, Y - 20.0f * S(),
-				JeminiColor, GEngine->GetSmallFont(), 1.0f, true);
+			float X = (Canvas->ClipX - W) * 0.5f;
+			float Y = Canvas->ClipY - 70.0f * S();
+			// 해킹 패널(아래 가운데)과 겹치면 왼쪽 아래 해킹 링크 패널(400x96) 바로 위로
+			if (IsBlocked(FBox2D(FVector2D(X, Y - 30.0f * S()), FVector2D(X + W, Y + 8.0f * S()))))
+			{
+				X = CoopHUDLayout::Margin * S();
+				Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - 96.0f * S() - 20.0f * S();
+			}
+			Label(FString::Printf(TEXT("JEMINI ASSIST  %3d%%"), FMath::RoundToInt(Hack->GetJeminiAssistProgress() * 100.0f)), X + W * 0.5f, Y - 26.0f * S(),
+				JeminiColor, SysFont(ECXHudFont::Small), 1.0f, true);
 			DrawSegmentBar(X, Y, W, 8.0f * S(), 20, Hack->GetJeminiAssistProgress(), JeminiColor, 1.0f * S());
 		}
 	}
@@ -431,7 +489,7 @@ void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLin
 
 	const float CX = W * 0.5f;
 	const float CY = H * 0.46f;
-	Label(TEXT("SIGNAL LOST"), CX, CY - 150.0f * S(), WarningColor.CopyWithNewOpacity(0.75f + 0.25f * Pulse(5.0f)), GEngine->GetLargeFont(), 1.3f, true);
+	Label(TEXT("SIGNAL LOST"), CX, CY - 150.0f * S(), WarningColor.CopyWithNewOpacity(0.75f + 0.25f * Pulse(5.0f)), GameFont(ECXHudFont::Large), 1.3f, true);
 
 	if (Life.GetLifeState() != ECXLifeState::AwaitingRespawn)
 	{
@@ -461,8 +519,8 @@ void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLin
 	LastTickSecond = Seconds;
 	const FString Num = FString::Printf(TEXT("%02d"), Seconds);
 	float TW = 0.0f, TH = 0.0f;
-	GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), NumScale * S() * 1.45f);
-	Label(Num, CX, CY - 10.0f * S() - TH * 0.5f, Color.CopyWithNewOpacity(NumAlpha), GEngine->GetLargeFont(), NumScale, true);
+	GetTextSize(Num, TW, TH, GameFont(ECXHudFont::Large), NumScale * S() * CoopHUDLayout::TextScale);
+	Label(Num, CX, CY - 10.0f * S() - TH * 0.5f, Color.CopyWithNewOpacity(NumAlpha), GameFont(ECXHudFont::Large), NumScale, true);
 
 	// 진행 바(채워진 쪽 = 지난 시간)
 	const float BarW = 520.0f * S();
@@ -474,7 +532,7 @@ void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLin
 	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.12f), BarX, BarY, BarW, BarH);
 	DrawRect(Color.CopyWithNewOpacity(0.9f), BarX, BarY, BarW * Progress, BarH);
 
-	Label(FString::Printf(TEXT("REBOOTING IN %ds"), Seconds), CX, BarY + 16.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.8f), GEngine->GetSmallFont(), 1.0f, true);
+	Label(FString::Printf(TEXT("REBOOTING IN %ds"), Seconds), CX, BarY + 16.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.8f), SysFont(ECXHudFont::Small), 1.0f, true);
 
 	// 제미니 빠른 재부팅 중(이 칸의 쓰러진 사람이 대상)
 	if (const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
@@ -482,7 +540,7 @@ void ACoopHUD::DrawRespawnOverlay(const UCXPlayerLifeComponent& Life, const FLin
 		const ECXJeminiAction Action = Drone->GetAction();
 		if ((Action == ECXJeminiAction::Reboot || Action == ECXJeminiAction::RebootBeam) && Drone->GetActionTarget() == Life.GetOwner())
 		{
-			Label(TEXT("JEMINI REBOOTING..."), CX, BarY + 40.0f * S(), FLinearColor(0.1f, 0.95f, 1.0f, 0.6f + 0.4f * Pulse(6.0f)), GEngine->GetMediumFont(), 1.0f, true);
+			Label(TEXT("JEMINI REBOOTING..."), CX, BarY + 40.0f * S(), FLinearColor(0.1f, 0.95f, 1.0f, 0.6f + 0.4f * Pulse(6.0f)), SysFont(ECXHudFont::Medium), 1.0f, true);
 		}
 	}
 }
@@ -495,7 +553,7 @@ void ACoopHUD::DrawRebooted(const UCXPlayerLifeComponent& Life, const FLinearCol
 		return;
 	}
 	const float Alpha = 1.0f - FMath::Clamp((Since - RebootedShowTime * 0.6f) / (RebootedShowTime * 0.4f), 0.0f, 1.0f);
-	Label(TEXT("REBOOTED"), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f - 130.0f * S(), Color.CopyWithNewOpacity(Alpha), GEngine->GetLargeFont(), 1.3f, true);
+	Label(TEXT("REBOOTED"), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f - 130.0f * S(), Color.CopyWithNewOpacity(Alpha), GameFont(ECXHudFont::Large), 1.3f, true);
 }
 
 // ---------------------------------------------------------------- 요소
@@ -507,9 +565,9 @@ void ACoopHUD::DrawPlayerTag(const FLinearColor& Color, const FString& SlotText,
 
 	// 세로 네온 바 + 슬롯 번호 + 이름 + 역할
 	DrawRect(Color, X, Y, 4.0f * S(), 66.0f * S());
-	Label(SlotText, X + 14.0f * S(), Y - 4.0f * S(), Color, GEngine->GetSmallFont(), 1.0f);
-	Label(DisplayName, X + 14.0f * S(), Y + 13.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.05f);
-	Label(RoleText, X + 14.0f * S(), Y + 50.0f * S(), Color.CopyWithNewOpacity(0.75f), GEngine->GetTinyFont(), 1.0f);
+	Label(SlotText, X + 14.0f * S(), Y - 4.0f * S(), Color, GameFont(ECXHudFont::Small), 1.0f);
+	Label(DisplayName, X + 14.0f * S(), Y + 13.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.05f);
+	Label(RoleText, X + 14.0f * S(), Y + 50.0f * S(), Color.CopyWithNewOpacity(0.75f), GameFont(ECXHudFont::Tiny), 1.0f);
 }
 
 void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
@@ -527,7 +585,7 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 
 	const float Pad = 16.0f * S();
 	DrawPistolIcon(X + W - Pad - 46.0f * S(), Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.9f));
-	Label(TEXT("RAIL PISTOL"), X + Pad, Y + 8.0f * S(), Accent.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
+	Label(TEXT("RAIL PISTOL"), X + Pad, Y + 8.0f * S(), Accent.CopyWithNewOpacity(0.8f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	// 제미니 공격력 강화: 패널 위에 DMG x2 nn s 카운트다운 + 탄 눈금 색 강조
 	const float BoostRemaining = Combat.GetDamageBoostRemaining();
@@ -536,14 +594,14 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 	{
 		const float Blink = BoostRemaining <= 5.0f ? 0.45f + 0.55f * Pulse(6.0f) : 1.0f;
 		Label(FString::Printf(TEXT("DMG x%.0f  %ds"), Combat.GetDamageMultiplier(), FMath::CeilToInt(BoostRemaining)), X + Pad, Y - 24.0f * S(),
-			BoostColor.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+			BoostColor.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
 	}
 	const FLinearColor PipColor = BoostRemaining > 0.0f && !bLow ? BoostColor : Accent;
 
 	// 큰 탄약 숫자 + 최대치
 	const FString AmmoText = FString::Printf(TEXT("%02d"), Ammo);
-	Label(AmmoText, X + Pad, Y + 22.0f * S(), Combat.bIsReloading ? Accent.CopyWithNewOpacity(0.35f) : FLinearColor::White, GEngine->GetLargeFont(), 1.9f);
-	Label(FString::Printf(TEXT("/ %d"), MaxAmmo), X + Pad + 70.0f * S(), Y + 50.0f * S(), Accent.CopyWithNewOpacity(0.7f), GEngine->GetSmallFont(), 1.0f);
+	Label(AmmoText, X + Pad, Y + 22.0f * S(), Combat.bIsReloading ? Accent.CopyWithNewOpacity(0.35f) : FLinearColor::White, GameFont(ECXHudFont::Large), 1.9f);
+	Label(FString::Printf(TEXT("/ %d"), MaxAmmo), X + Pad + 70.0f * S(), Y + 50.0f * S(), Accent.CopyWithNewOpacity(0.7f), GameFont(ECXHudFont::Small), 1.0f);
 
 	// 오른쪽: 탄약 눈금 또는 장전 게이지
 	const float BarX = X + 140.0f * S();
@@ -556,7 +614,7 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 		DrawRect(Accent, BarX, BarY, BarW * Progress, 14.0f * S());
 		const float Blink = 0.45f + 0.55f * Pulse(6.0f);
 		Label(FString::Printf(TEXT("RECHARGING  %3d%%"), FMath::RoundToInt(Progress * 100.0f)), BarX, BarY + 20.0f * S(),
-		      Accent.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+		      Accent.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
 	}
 	else
 	{
@@ -570,7 +628,7 @@ void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)
 		}
 		if (bLow)
 		{
-			Label(TEXT("LOW CHARGE"), BarX, BarY + 28.0f * S(), WarningColor.CopyWithNewOpacity(0.5f + 0.5f * Pulse(4.0f)), GEngine->GetTinyFont(), 1.0f);
+			Label(TEXT("LOW CHARGE"), BarX, BarY + 28.0f * S(), WarningColor.CopyWithNewOpacity(0.5f + 0.5f * Pulse(4.0f)), GameFont(ECXHudFont::Tiny), 1.0f);
 		}
 	}
 }
@@ -627,32 +685,33 @@ void ACoopHUD::DrawSisterHackLink()
 	Panel(X, Y, W, H, Accent);
 
 	const float Pad = 16.0f * S();
-	Label(TEXT("HACK LINK"), X + Pad, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.8f), GEngine->GetTinyFont(), 1.0f);
+	Label(TEXT("HACK LINK"), X + Pad, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.8f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	if (bEnemyLink)
 	{
 		// 적 해킹 중: 패널은 상태만(퍼즐은 칸 위쪽 가운데 패널)
 		const ICXHackTarget* EnemyTarget = Cast<ICXHackTarget>(Hack->GetActiveEnemy());
-		Label(TEXT("OVERRIDE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.1f);
-		Label(FString::Printf(TEXT("BYPASS SEQUENCE  //  %s"), EnemyTarget ? *EnemyTarget->GetHackTargetName() : TEXT("TARGET")),
-			X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("OVERRIDE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.1f);
+		// 고정폭 — 오른쪽 신호 막대와 겹치지 않게 짧게
+		Label(FString::Printf(TEXT("BYPASS  //  %s"), EnemyTarget ? *EnemyTarget->GetHackTargetName() : TEXT("TARGET")),
+			X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 	}
 	else if (bActive)
 	{
 		// 단말기 활성화: 큰 상태 문구 + 입력 안내, 패널 전체가 맥박처럼 밝아져 시선을 끈다
 		const float Blink = 0.5f + 0.5f * Pulse(7.0f);
 		DrawRect(SisterColor.CopyWithNewOpacity(0.22f * Blink), X, Y, W, H);
-		Label(TEXT("TERMINAL ONLINE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.1f);
-		Label(FString::Printf(TEXT("%s  BREACH"), *HackKeyHint), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("TERMINAL ONLINE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.1f);
+		Label(FString::Printf(TEXT("%s  BREACH"), *HackKeyHint), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
 	}
 	else if (bInSignal)
 	{
-		Label(TEXT("SIGNAL DETECTED"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.0f);
-		Label(FString::Printf(TEXT("TERMINAL  %.1fm"), NearestDist / 100.0f), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("SIGNAL DETECTED"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.0f);
+		Label(FString::Printf(TEXT("TERMINAL  %.1fm"), NearestDist / 100.0f), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 	}
 	else
 	{
-		Label(TEXT("SCANNING"), X + Pad, Y + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetLargeFont(), 1.1f);
+		Label(TEXT("SCANNING"), X + Pad, Y + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GameFont(ECXHudFont::Large), 1.1f);
 	}
 
 	// 신호 막대: 단말기에 가까울수록 많이 켜진다. 신호가 없으면 스캔 애니메이션.
@@ -674,8 +733,8 @@ void ACoopHUD::DrawSisterHackLink()
 		const float Remain = Hack->GetEnemyHackCooldownRemaining();
 		const FString Text = FString::Printf(TEXT("ENEMY RELINK  %.1fs"), Remain);
 		float TW = 0.0f, TH = 0.0f;
-		GetTextSize(Text, TW, TH, GEngine->GetTinyFont(), S() * CoopHUDLayout::TextScale);
-		Label(Text, X + W - Pad - TW, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.7f), GEngine->GetTinyFont(), 1.0f);
+		GetTextSize(Text, TW, TH, SysFont(ECXHudFont::Tiny), S() * CoopHUDLayout::TextScale);
+		Label(Text, X + W - Pad - TW, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
 		const float Frac = Hack->GetEnemyHackCooldown() > 0.0f ? FMath::Clamp(Remain / Hack->GetEnemyHackCooldown(), 0.0f, 1.0f) : 0.0f;
 		DrawRect(SisterColor.CopyWithNewOpacity(0.6f), X, Y + H - 3.0f * S(), W * Frac, 3.0f * S());
 	}
@@ -723,11 +782,11 @@ void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, floa
 	if (bActive)
 	{
 		DrawRect(C, P.X - 3.0f * S(), P.Y - 3.0f * S(), 6.0f * S(), 6.0f * S());
-		Label(FString::Printf(TEXT("%s HACK"), *HackKeyHint), P.X, P.Y - R - 20.0f * S(), C, GEngine->GetSmallFont(), 1.0f, true);
+		Label(FString::Printf(TEXT("%s HACK"), *HackKeyHint), P.X, P.Y - R - 20.0f * S(), C, GameFont(ECXHudFont::Small), 1.0f, true);
 	}
 	else
 	{
-		Label(InactiveText.IsEmpty() ? FString::Printf(TEXT("%.0fm"), DistM) : InactiveText, P.X, P.Y - R - 16.0f * S(), C, GEngine->GetTinyFont(), 1.0f, true);
+		Label(InactiveText.IsEmpty() ? FString::Printf(TEXT("%.0fm"), DistM) : InactiveText, P.X, P.Y - R - 16.0f * S(), C, SysFont(ECXHudFont::Tiny), 1.0f, true);
 	}
 }
 
@@ -762,7 +821,7 @@ void ACoopHUD::DrawInteractPrompt(const APawn& MyPawn, const FLinearColor& Color
 	// 버튼을 감싸는 펄스 브래킷 + 위쪽 안내 문구
 	const float Half = (14.0f + 3.0f * Pulse(6.0f)) * S();
 	Bracket(FVector2D(P.X, P.Y), Half, 6.0f * S(), Color, 2.0f);
-	Label(Text, P.X, P.Y - Half - 22.0f * S(), Color, GEngine->GetSmallFont(), 1.0f, true);
+	Label(Text, P.X, P.Y - Half - 22.0f * S(), Color, GameFont(ECXHudFont::Small), 1.0f, true);
 }
 
 void ACoopHUD::DrawTargetMarker(const UBrotherCombatComponent& Combat)
@@ -801,7 +860,7 @@ void ACoopHUD::DrawTargetMarker(const UBrotherCombatComponent& Combat)
 	const APawn* MyPawn = GetOwningPawn();
 	const float DistM = MyPawn ? FVector::Dist(MyPawn->GetActorLocation(), Target->GetActorLocation()) / 100.0f : 0.0f;
 	Label(FString::Printf(TEXT("%s  %.1fm"), bLocked ? TEXT("LOCK") : TEXT("AUTO"), DistM),
-	      Screen.X + HalfSize + 6.0f * S(), Screen.Y - HalfSize, Color, GEngine->GetTinyFont(), 1.0f);
+	      Screen.X + HalfSize + 6.0f * S(), Screen.Y - HalfSize, Color, GameFont(ECXHudFont::Tiny), 1.0f);
 }
 
 void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Color, const FString& PartnerName, const UCXHealthComponent* PartnerHealth)
@@ -838,7 +897,7 @@ void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Co
 		DrawLine(P.X - Size, P.Y - Size, P.X + Size, P.Y - Size, Color, 2.0f);
 		DrawLine(P.X - Size, P.Y - Size, P.X, P.Y, Color, 2.0f);
 		DrawLine(P.X + Size, P.Y - Size, P.X, P.Y, Color, 2.0f);
-		Label(PartnerName, P.X, P.Y - Size - 18.0f * S(), Color, GEngine->GetTinyFont(), 1.0f, true);
+		Label(PartnerName, P.X, P.Y - Size - 18.0f * S(), Color, GameFont(ECXHudFont::Tiny), 1.0f, true);
 		if (PartnerHealth)
 		{
 			// 이름 위 작은 체력 바(분할 화면에서 서로 상태 파악 — 전투 시스템 기획 9.2)
@@ -879,7 +938,7 @@ void ACoopHUD::DrawPartnerIndicator(const APawn& Partner, const FLinearColor& Co
 
 	// 글자는 화살표 안쪽(화면 중심 쪽)에 둔다
 	const FVector2D TextPos = Base - Dir * (26.0f * S());
-	Label(Text, TextPos.X, TextPos.Y - 8.0f * S(), Color, GEngine->GetTinyFont(), 1.0f, true);
+	Label(Text, TextPos.X, TextPos.Y - 8.0f * S(), Color, GameFont(ECXHudFont::Tiny), 1.0f, true);
 	if (PartnerHealth)
 	{
 		const float BarW = 56.0f * S();
@@ -908,7 +967,7 @@ void ACoopHUD::DrawPlayerHealth(const UCXHealthComponent& Health, const FLinearC
 	DrawSegmentBar(X, Y, BarW, BarH, PlayerHealthSegments, Pct, BarColor, 3.0f * S());
 
 	const FString Text = FString::Printf(TEXT("HP %d/%d"), FMath::CeilToInt(Health.GetHealth()), FMath::RoundToInt(Health.GetMaxHealth()));
-	Label(Text, X + BarW + 12.0f * S(), Y - 5.0f * S(), bLow ? BarColor : FLinearColor::White, GEngine->GetSmallFont(), 1.0f);
+	Label(Text, X + BarW + 12.0f * S(), Y - 5.0f * S(), bLow ? BarColor : FLinearColor::White, GameFont(ECXHudFont::Small), 1.0f);
 }
 
 void ACoopHUD::DrawHeardBubble(const ACXJeminiDrone& Drone, float Age)
@@ -986,7 +1045,7 @@ void ACoopHUD::DrawSpeakerBubble(const APawn* Speaker, const FString& InText, fl
 	const int32 DotCount = Style == ECXSpeakerBubble::Listening ? 1 + FMath::FloorToInt(Now * 4.0f) % 3 : 1 + FMath::FloorToInt(Now * 2.0f) % 3;
 	const FString Dots = bDots ? FString::ChrN(DotCount, TEXT('.')) : FString();
 
-	UFont* Font = GEngine->GetMediumFont();
+	UFont* Font = SysFont(ECXHudFont::Medium);
 	const float Scale = S() * CoopHUDLayout::TextScale;
 	float TW = 0.0f, TH = 0.0f, DW = 0.0f, DH = 0.0f;
 	GetTextSize(Body, TW, TH, Font, Scale);
@@ -999,7 +1058,18 @@ void ACoopHUD::DrawSpeakerBubble(const APawn* Speaker, const FString& InText, fl
 	const float H = TH + 2.0f * Pad * 0.75f;
 	const float Tail = 10.0f * S();
 	const float X = FMath::Clamp(Screen.X - W * 0.5f, 8.0f * S(), Canvas->ClipX - W - 8.0f * S());
-	const float Y = FMath::Clamp(Screen.Y - H - Tail, 8.0f * S(), Canvas->ClipY - H - Tail - 8.0f * S());
+	float Y = FMath::Clamp(Screen.Y - H - Tail, 8.0f * S(), Canvas->ClipY - H - Tail - 8.0f * S());
+	// 해킹 패널 위에 머리가 걸리면 말풍선을 패널 아래(안 되면 위)로 비킨다
+	for (const FBox2D& B : FrameBlockers)
+	{
+		if (B.Intersect(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H + Tail))))
+		{
+			const float Below = static_cast<float>(B.Max.Y) + 8.0f * S();
+			const float Above = static_cast<float>(B.Min.Y) - H - Tail - 8.0f * S();
+			Y = (Below + H + Tail <= Canvas->ClipY - 8.0f * S()) ? Below : FMath::Max(8.0f * S(), Above);
+			break;
+		}
+	}
 
 	// 듣는 중은 테두리가 숨 쉬듯 깜빡(마이크가 들어가는 중), 대기는 흐리게
 	const float BorderAlpha = Style == ECXSpeakerBubble::Listening ? 0.55f + 0.45f * Pulse(3.0f) : (Style == ECXSpeakerBubble::Pending ? 0.6f : 1.0f);
@@ -1041,7 +1111,7 @@ void ACoopHUD::DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UC
 	if (PopupAge >= 0.0f && PopupAge < 1.0f && HealPopupAmount > 0)
 	{
 		Label(FString::Printf(TEXT("+%d"), HealPopupAmount), X + 120.0f * S(), Y - 26.0f * S() - PopupAge * 14.0f * S(),
-			HealColor.CopyWithNewOpacity(1.0f - PopupAge), GEngine->GetMediumFont(), 1.0f);
+			HealColor.CopyWithNewOpacity(1.0f - PopupAge), GameFont(ECXHudFont::Medium), 1.0f);
 	}
 
 	// 보호막 남은 시간(체력 바 아래)
@@ -1049,7 +1119,7 @@ void ACoopHUD::DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UC
 	if (Shield > 0.0f && bAlive)
 	{
 		const float Blink = Shield <= 1.0f ? 0.4f + 0.6f * Pulse(8.0f) : 1.0f;
-		Label(FString::Printf(TEXT("SHIELD %ds"), FMath::CeilToInt(Shield)), X, Y + 16.0f * S(), ShieldColor.CopyWithNewOpacity(Blink), GEngine->GetSmallFont(), 1.0f);
+		Label(FString::Printf(TEXT("SHIELD %ds"), FMath::CeilToInt(Shield)), X, Y + 16.0f * S(), ShieldColor.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
 	}
 }
 
@@ -1217,7 +1287,7 @@ void ACoopHUD::DrawEnemyStunMarkers()
 		const float BoxY = P.Y - BoxH * 0.5f;
 		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.6f), CX - BoxW * 0.5f, BoxY, BoxW, BoxH);
 		DrawRect(C.CopyWithNewOpacity(0.9f), CX - BoxW * 0.5f, BoxY, 3.0f * S(), BoxH);
-		Label(TEXT("SYSTEM DOWN"), CX, BoxY + 3.0f * S(), FLinearColor::White, GEngine->GetSmallFont(), 0.85f, true);
+		Label(TEXT("SYSTEM DOWN"), CX, BoxY + 3.0f * S(), FLinearColor::White, SysFont(ECXHudFont::Small), 0.85f, true);
 
 		const float Duration = FMath::Max(0.1f, Target->GetHackStunDuration());
 		const float Frac = FMath::Clamp(Remaining / Duration, 0.0f, 1.0f);
@@ -1226,7 +1296,7 @@ void ACoopHUD::DrawEnemyStunMarkers()
 		const float BarY = BoxY + BoxH - 11.0f * S();
 		DrawRect(C.CopyWithNewOpacity(0.2f), BarX, BarY, BarW, 5.0f * S());
 		DrawRect(C, BarX, BarY, BarW * Frac, 5.0f * S());
-		Label(FString::Printf(TEXT("%.1fs"), Remaining), BarX + BarW + 18.0f * S(), BarY - 6.0f * S(), C, GEngine->GetTinyFont(), 0.9f, true);
+		Label(FString::Printf(TEXT("%.1fs"), Remaining), BarX + BarW + 18.0f * S(), BarY - 6.0f * S(), C, SysFont(ECXHudFont::Tiny), 0.9f, true);
 
 		// 글리치 띠
 		if (Glitch.FRand() < 0.4f)
@@ -1257,14 +1327,16 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 	// 빗나가면 좌우 흔들림(단말기 패널과 같은 연출)
 	const float Shake = bMiss ? FMath::Sin(FeedbackAge * 70.0f) * (1.0f - FeedbackAge / 0.45f) * 10.0f * S() : 0.0f;
 
-	const float W = 780.0f * S();
+	// 폭 750: 왼쪽 위 태그·HP 글자(~430)와 오른쪽 위 배터리 열(250) 사이에 들어가게(HUD 배율 1.3)
+	const float W = 750.0f * S();
 	const float H = 196.0f * S();
-	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	const float X = FMath::Clamp((Canvas->ClipX - W) * 0.5f, 430.0f * S(), Canvas->ClipX - (CoopHUDLayout::Margin + 250.0f + 12.0f) * S() - W) + Shake;
 	// 전투 중이라 화면 위쪽 가운데(캐릭터·거미는 칸 아래쪽에 서 있어 하단 패널이면 가려진다 — 단말기 패널과 다른 점)
 	const float Y = CoopHUDLayout::Margin * S() + 12.0f * S();
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선·안내가 피해 감(패널 위 결과 문구는 잠깐이라 제외)
 
 	const int32 Seed = static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f);
 	FRandomStream Glitch(Seed);
@@ -1276,9 +1348,9 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 	// 헤더: OVERRIDE // 대상 + 커서, 오른쪽 BYPASS n/5
 	const float Pad = 20.0f * S();
 	const FString Header = FString::Printf(TEXT("OVERRIDE  //  %s"), Target ? *Target->GetHackTargetName() : TEXT("TARGET"));
-	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	float HW = 0.0f, HH = 0.0f;
-	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	GetTextSize(Header, HW, HH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 	if (Pulse(9.0f) > 0.5f)
 	{
 		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
@@ -1289,8 +1361,8 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 	const int32 Done = bGranted ? Count : Hack.GetArrowIndex();
 	const FString Right = FString::Printf(TEXT("BYPASS  %d / %d"), Done, Count);
 	float RW = 0.0f, RH = 0.0f;
-	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	GetTextSize(Right, RW, RH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
+	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 
 	// 본체: 화살표 칸(단말기 화살표 패널과 같은 문법 — 완료 채움 / 현재 펄스 / 대기 흐림)
 	const float BarW = W - Pad * 2.0f;
@@ -1305,7 +1377,7 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), X + Pad, FootY - 10.0f * S(), BarW, 4.0f * S());
 	DrawRect(TimeColor, X + Pad, FootY - 10.0f * S(), BarW * TimeFrac, 4.0f * S());
 	Label(FString::Printf(TEXT("D-PAD  ENTER SEQUENCE        [B]  ABORT        %.1fs"), TimeLeft),
-		X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f, true);
+		X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f, true);
 
 	// 판정 연출(패널 아래) — 칸마다 정답 플래시는 생략(5칸 빠른 입력이라 시끄럽다), 소리만
 	if (bMiss || bGranted || bFailed)
@@ -1314,7 +1386,7 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 		const FLinearColor MsgColor = (bMiss || bFailed) ? DeniedColor : GrantedColor;
 		const float Fade = (bGranted || bFailed) ? 1.0f : 1.0f - FeedbackAge / 0.45f;
 		DrawRect(MsgColor.CopyWithNewOpacity(0.16f * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y + H + 10.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), (bGranted || bFailed) ? 1.4f : 1.1f, true);
+		Label(Msg, X + W * 0.5f, Y + H + 10.0f * S(), MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Large), (bGranted || bFailed) ? 1.4f : 1.1f, true);
 	}
 }
 
@@ -1377,7 +1449,7 @@ void ACoopHUD::DrawFreqLockBar(const USisterHackComponent& Hack, float BarX, flo
 	DrawRect(ZoneColor.CopyWithNewOpacity(bInside ? 0.45f : 0.24f), ZoneX, BarY, ZoneW, BarH);
 	DrawLine(ZoneX, BarY - 6.0f * S(), ZoneX, BarY + BarH + 6.0f * S(), ZoneColor, 2.5f);
 	DrawLine(ZoneX + ZoneW, BarY - 6.0f * S(), ZoneX + ZoneW, BarY + BarH + 6.0f * S(), ZoneColor, 2.5f);
-	Label(TEXT("LOCK"), ZoneX + ZoneW * 0.5f, BarY - 22.0f * S(), ZoneColor, GEngine->GetTinyFont(), 1.0f, true);
+	Label(TEXT("LOCK"), ZoneX + ZoneW * 0.5f, BarY - 22.0f * S(), ZoneColor, SysFont(ECXHudFont::Tiny), 1.0f, true);
 
 	// 커서(흰 세로선 + 위아래 삼각) — 구간 안이면 굵게
 	const float CursorX = BarX + Cursor * BarW;
@@ -1403,11 +1475,11 @@ void ACoopHUD::DrawZoneBanner()
 	const float CX = Canvas->ClipX * 0.5f;
 	const float Y = 34.0f * S();
 
-	Label(TEXT("DISTRICT 5"), CX, Y, FLinearColor(0.7f, 0.8f, 1.0f, 0.7f * Alpha), GEngine->GetSmallFont(), 1.0f, true);
-	Label(ZoneTitle, CX, Y + 22.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, Alpha), GEngine->GetLargeFont(), 1.3f, true);
+	Label(TEXT("DISTRICT 5"), CX, Y, FLinearColor(0.7f, 0.8f, 1.0f, 0.7f * Alpha), GameFont(ECXHudFont::Small), 1.0f, true);
+	Label(ZoneTitle, CX, Y + 22.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, Alpha), GameFont(ECXHudFont::Large), 1.3f, true);
 
 	float TW = 0.0f, TH = 0.0f;
-	GetTextSize(ZoneTitle, TW, TH, GEngine->GetLargeFont(), 1.3f * S() * CoopHUDLayout::TextScale);
+	GetTextSize(ZoneTitle, TW, TH, GameFont(ECXHudFont::Large), 1.3f * S() * CoopHUDLayout::TextScale);
 	const float LineY = Y + 22.0f * S() + TH * 0.55f;
 	const float LineLen = 120.0f * S() * Alpha;
 	const FLinearColor LineColor = FLinearColor(0.7f, 0.8f, 1.0f, 0.6f * Alpha);
@@ -1449,8 +1521,8 @@ void ACoopHUD::DrawFlowNotices(const APawn* MyPawn, bool bDead)
 			const float SweepX = X + W * (LatestAge / 0.4f);
 			DrawRect(SaveColor.CopyWithNewOpacity(0.35f * Alpha), SweepX, Y, 18.0f * S(), H);
 		}
-		Label(FString::Printf(TEXT("SAVE POINT  //  %s"), *Latest->ResolveZoneName()), CX, Y + 6.0f * S(), SaveColor.CopyWithNewOpacity(0.85f * Alpha), GEngine->GetSmallFont(), 1.0f, true);
-		Label(TEXT("PROGRESS SAVED"), CX, Y + 24.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, Alpha), GEngine->GetLargeFont(), 1.15f, true);
+		Label(FString::Printf(TEXT("SAVE POINT  //  %s"), *Latest->ResolveZoneName()), CX, Y + 6.0f * S(), SaveColor.CopyWithNewOpacity(0.85f * Alpha), GameFont(ECXHudFont::Small), 1.0f, true);
+		Label(TEXT("PROGRESS SAVED"), CX, Y + 24.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, Alpha), GameFont(ECXHudFont::Large), 1.15f, true);
 	}
 
 	// 2) NEXT AREA OFFLINE — 다음 맵이 아직 없는 출구에 전원이 들어왔을 때(두 칸 모두)
@@ -1469,8 +1541,8 @@ void ACoopHUD::DrawFlowNotices(const APawn* MyPawn, bool bDead)
 		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX - W * 0.5f, Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
 		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX + W * 0.5f - 4.0f * S(), Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
 		const float Blink = 0.7f + 0.3f * Pulse(6.0f);
-		Label(TEXT("NEXT AREA OFFLINE"), CX, Y, DangerColor.CopyWithNewOpacity(Alpha * Blink), GEngine->GetLargeFont(), 1.2f, true);
-		Label(TEXT("ROUTE NOT CONNECTED  //  HOLD POSITION"), CX, Y + 40.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f * Alpha), GEngine->GetTinyFont(), 1.0f, true);
+		Label(TEXT("NEXT AREA OFFLINE"), CX, Y, DangerColor.CopyWithNewOpacity(Alpha * Blink), GameFont(ECXHudFont::Large), 1.2f, true);
+		Label(TEXT("ROUTE NOT CONNECTED  //  HOLD POSITION"), CX, Y + 40.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f * Alpha), SysFont(ECXHudFont::Tiny), 1.0f, true);
 		break;
 	}
 
@@ -1486,10 +1558,10 @@ void ACoopHUD::DrawFlowNotices(const APawn* MyPawn, bool bDead)
 			}
 			const float Y = Canvas->ClipY - 96.0f * S();
 			float TW = 0.0f, TH = 0.0f;
-			GetTextSize(Wait, TW, TH, GEngine->GetMediumFont(), S() * CoopHUDLayout::TextScale);
+			GetTextSize(Wait, TW, TH, GameFont(ECXHudFont::Medium), S() * CoopHUDLayout::TextScale);
 			const float W = TW + 60.0f * S();
 			DrawRect(PanelColor, CX - W * 0.5f, Y - 6.0f * S(), W, TH + 12.0f * S());
-			Label(Wait, CX, Y, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(3.0f)), GEngine->GetMediumFont(), 1.0f, true);
+			Label(Wait, CX, Y, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(3.0f)), GameFont(ECXHudFont::Medium), 1.0f, true);
 			break;
 		}
 	}
@@ -1571,11 +1643,13 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 
 	const float W = 780.0f * S();
 	const float H = 230.0f * S();
-	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	// 아래 가운데 — 왼쪽 아래 해킹 링크 패널(400)과 겹치지 않게 그 오른쪽으로 민다(HUD 배율 1.3에서 칸이 좁아짐)
+	const float X = FMath::Max((Canvas->ClipX - W) * 0.5f, (CoopHUDLayout::Margin + 400.0f + 24.0f) * S()) + Shake;
 	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선·안내가 피해 감(패널 위 결과 문구는 잠깐이라 제외)
 
 	// 글리치 스캔 라인: 0.08초마다 위치가 바뀌는 가로 띠 3개
 	const int32 Seed = static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f);
@@ -1588,9 +1662,9 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 	// 헤더: BREACHING // 이름 + 깜빡이는 커서, 오른쪽 라운드
 	const float Pad = 20.0f * S();
 	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal->TerminalName);
-	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	float HW = 0.0f, HH = 0.0f;
-	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	GetTextSize(Header, HW, HH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 	if (Pulse(9.0f) > 0.5f)
 	{
 		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
@@ -1599,7 +1673,7 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 	const int32 FreqDone = bGranted ? FreqSteps : Hack.GetFreqStep();
 	const FString Right = bFreq ? FString::Printf(TEXT("FREQ LOCK  %d / %d"), FreqDone, FreqSteps) : FString(TEXT("PASSCODE  4-DIGIT"));
 	float RW = 0.0f, RH = 0.0f;
-	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	GetTextSize(Right, RW, RH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 	float RightX = X + W - Pad - RW;
 	if (bFreq)
 	{
@@ -1626,7 +1700,7 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 		}
 		RightX -= FreqSteps * (Pip + PipGap) + 10.0f * S();
 	}
-	Label(Right, RightX, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	Label(Right, RightX, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 
 	const float BodyY = Y + 58.0f * S();
 	if (bFreq)
@@ -1650,7 +1724,7 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 			DrawRect(Accent.CopyWithNewOpacity(bCursor ? 0.22f : 0.08f), BX, BodyY + 8.0f * S(), BoxW, BoxH);
 			DrawLine(BX, BodyY + 8.0f * S() + BoxH, BX + BoxW, BodyY + 8.0f * S() + BoxH, BoxColor, bCursor ? 3.0f : 1.5f);
 			const FString D = Digits.IsValidIndex(i) ? FString::FromInt(Digits[i]) : FString(TEXT("-"));
-			Label(D, BX + BoxW * 0.5f, BodyY + 22.0f * S(), FLinearColor::White, GEngine->GetLargeFont(), 1.9f, true);
+			Label(D, BX + BoxW * 0.5f, BodyY + 22.0f * S(), FLinearColor::White, SysFont(ECXHudFont::Large), 1.9f, true);
 			if (bCursor)
 			{
 				DrawArrowGlyph(FVector2D(BX + BoxW * 0.5f, BodyY - 4.0f * S()), 8.0f * S(), EHackArrow::Up, Accent);
@@ -1678,7 +1752,7 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 	const FString Hint = bFreq
 		? FString::Printf(TEXT("%s  LOCK SIGNAL        [B]  ABORT%s"), *HackKeyHint, *TimeText)
 		: FString::Printf(TEXT("D-PAD UP/DOWN  DIGIT      LEFT/RIGHT  MOVE      %s  SUBMIT      [B]  ABORT"), *HackKeyHint);
-	Label(Hint, X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f, true);
+	Label(Hint, X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f, true);
 
 	// 판정 연출
 	if (bDenied || bRoundClear || bGranted || bHitFlash)
@@ -1687,7 +1761,7 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
 		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / (bHitFlash ? 0.3f : 0.6f);
 		DrawRect(MsgColor.CopyWithNewOpacity(0.18f * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), 1.4f, true);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Large), 1.4f, true);
 	}
 }
 
@@ -1749,15 +1823,15 @@ void ACoopHUD::DrawMemoryNode(float X, float Y, float Cell, int32 Node, const FL
 	const FString Num = FString::FromInt(Node + 1);
 	const float Scale = FMath::Clamp(Cell / S() / 40.0f, 0.8f, 2.2f);
 	float TW = 0.0f, TH = 0.0f;
-	GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), Scale * S() * CoopHUDLayout::TextScale);
+	GetTextSize(Num, TW, TH, SysFont(ECXHudFont::Large), Scale * S() * CoopHUDLayout::TextScale);
 	if (Flash > 0.0f)
 	{
 		// 밝은 칸 위에서는 그림자 없는 어두운 숫자가 더 잘 읽힌다
-		DrawText(Num, NumColor, X + (Cell - TW) * 0.5f, Y + (Cell - TH) * 0.5f, GEngine->GetLargeFont(), Scale * S() * CoopHUDLayout::TextScale);
+		DrawText(Num, NumColor, X + (Cell - TW) * 0.5f, Y + (Cell - TH) * 0.5f, SysFont(ECXHudFont::Large), Scale * S() * CoopHUDLayout::TextScale);
 	}
 	else
 	{
-		Label(Num, X + Cell * 0.5f, Y + (Cell - TH) * 0.5f, NumColor, GEngine->GetLargeFont(), Scale, true);
+		Label(Num, X + Cell * 0.5f, Y + (Cell - TH) * 0.5f, NumColor, SysFont(ECXHudFont::Large), Scale, true);
 	}
 }
 
@@ -1776,12 +1850,14 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 
 	const float W = 780.0f * S();
 	const float H = 262.0f * S();
-	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	// 아래 가운데 — 왼쪽 아래 해킹 링크 패널(400)과 겹치지 않게 그 오른쪽으로 민다(HUD 배율 1.3에서 칸이 좁아짐)
+	const float X = FMath::Max((Canvas->ClipX - W) * 0.5f, (CoopHUDLayout::Margin + 400.0f + 24.0f) * S()) + Shake;
 	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
 	const float Pad = 20.0f * S();
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선·안내가 피해 감(패널 위 결과 문구는 잠깐이라 제외)
 	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f));
 	for (int32 i = 0; i < 3; ++i)
 	{
@@ -1790,17 +1866,17 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 
 	// 헤더
 	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal.TerminalName);
-	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	float HW = 0.0f, HH = 0.0f;
-	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	GetTextSize(Header, HW, HH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 	if (Pulse(9.0f) > 0.5f)
 	{
 		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
 	}
 	const FString Right = FString::Printf(TEXT("GHOST ECHO   ROUND %d / %d"), FMath::Min(Terminal.GetMemoryRound() + 1, Terminal.GetMemoryRoundCount()), Terminal.GetMemoryRoundCount());
 	float RW = 0.0f, RH = 0.0f;
-	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	GetTextSize(Right, RW, RH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
+	Label(Right, X + W - Pad - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 
 	// 3x3 숫자판(점멸 없음 — 패턴은 오빠 칸에만). 커서 칸 강조, 방금 보낸 노드는 짧게 채움.
 	const float Cell = 54.0f * S();
@@ -1819,7 +1895,7 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 	const float RX = GX + 3.0f * Cell + 2.0f * Gap + 44.0f * S();
 	const int32 Count = Terminal.GetMemorySequence().Num();
 	const int32 Done = bGranted ? Count : Terminal.GetMemoryInputIndex();
-	Label(TEXT("PATTERN INPUT"), RX, Y + 54.0f * S(), Accent.CopyWithNewOpacity(0.75f), GEngine->GetTinyFont(), 1.0f);
+	Label(TEXT("PATTERN INPUT"), RX, Y + 54.0f * S(), Accent.CopyWithNewOpacity(0.75f), SysFont(ECXHudFont::Tiny), 1.0f);
 	const float Slot = 30.0f * S();
 	for (int32 i = 0; i < Count; ++i)
 	{
@@ -1837,16 +1913,16 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 	const float StatusY = Y + 128.0f * S();
 	if (bGranted)
 	{
-		Label(TEXT("PATTERN ACCEPTED"), RX, StatusY, GrantedColor, GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("PATTERN ACCEPTED"), RX, StatusY, GrantedColor, SysFont(ECXHudFont::Small), 1.0f);
 	}
 	else if (Terminal.IsMemoryRelayActive())
 	{
-		Label(TEXT("PARTNER RELAY  //  LINKED"), RX, StatusY, Accent, GEngine->GetSmallFont(), 1.0f);
-		Label(TEXT("BROTHER SEES THE PATTERN - ENTER HIS NUMBERS IN ORDER"), RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+		Label(TEXT("PARTNER RELAY  //  LINKED"), RX, StatusY, Accent, SysFont(ECXHudFont::Small), 1.0f);
+		Label(TEXT("BROTHER SEES THE PATTERN - ENTER HIS NUMBERS"), RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 	else
 	{
-		Label(TEXT("PARTNER RELAY REQUIRED"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(6.0f)), GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("PARTNER RELAY REQUIRED"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.55f + 0.45f * Pulse(6.0f)), SysFont(ECXHudFont::Small), 1.0f);
 		FString Sub;
 		if (!Relay)
 		{
@@ -1860,7 +1936,7 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 		{
 			Sub = FString::Printf(TEXT("BROTHER %.1fm  -  RELAY RANGE %.0fm"), FVector::Dist(Relay->GetActorLocation(), Terminal.GetActorLocation()) / 100.0f, Terminal.MemoryRelayRange / 100.0f);
 		}
-		Label(Sub, RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+		Label(Sub, RX, StatusY + 30.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 
 	// 하단: 진행 바 + 조작 안내
@@ -1869,7 +1945,7 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 	const float BarW = X + W - Pad - RX;
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), BarX, FootY - 14.0f * S(), BarW, 4.0f * S());
 	DrawRect(Accent, BarX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
-	Label(FString::Printf(TEXT("D-PAD  MOVE      %s  SELECT NODE      [B]  ABORT"), *HackKeyHint), BarX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f);
+	Label(FString::Printf(TEXT("D-PAD  MOVE      %s  SELECT NODE      [B]  ABORT"), *HackKeyHint), BarX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	if (bDenied || bRoundClear || bGranted)
 	{
@@ -1877,7 +1953,7 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
 		const float Fade = bGranted ? 1.0f : 1.0f - FeedbackAge / 0.6f;
 		DrawRect(MsgColor.CopyWithNewOpacity(0.18f * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), 1.4f, true);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Large), 1.4f, true);
 	}
 }
 
@@ -1922,31 +1998,34 @@ void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
 	const FLinearColor Accent = bGranted ? GrantedColor : (bDenied ? DeniedColor : (bLinked ? BrotherColor : WarningColor));
 	const float Shake = bDenied ? FMath::Sin(EventAge * 70.0f) * FMath::Max(0.0f, 1.0f - EventAge / 0.6f) * 8.0f * S() : 0.0f;
 
-	// 패널: 오빠 칸 오른쪽(캐릭터는 칸 가운데 아래에 서 있고, 왼쪽 아래는 탄약 패널).
-	// 오른쪽 가장자리에서 70 띄운다 — 파트너가 화면 밖이면 가장자리에 파트너 표시(SISTER ▶)가 붙는다.
-	const float Cell = 76.0f * S();
+	// 패널: 오빠 칸 오른쪽, 우상단 제미니 배터리 열(250) 왼쪽(캐릭터는 칸 가운데 아래, 왼쪽 아래는 탄약 패널).
+	// HUD 배율 1.3에서 칸 높이가 기준 415라 높이를 내용으로 계산한다: 머리 66 + 격자 + 14 + 아래 두 줄(글자 높이) + 여백.
+	const float Cell = 62.0f * S();
 	const float Gap = 10.0f * S();
 	const float Grid = 3.0f * Cell + 2.0f * Gap;
 	const float W = 330.0f * S();
-	const float H = 392.0f * S();
-	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 70.0f) * S() - W + Shake;
+	float LineW = 0.0f, LineH = 0.0f;
+	GetTextSize(TEXT("0"), LineW, LineH, SysFont(ECXHudFont::Tiny), S() * CoopHUDLayout::TextScale);
+	const float H = 66.0f * S() + Grid + 14.0f * S() + 38.0f * S() + LineH + 14.0f * S();
+	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 250.0f + 16.0f) * S() - W + Shake;
 	const float Y = FMath::Max(CoopHUDLayout::Margin * S(), (Canvas->ClipY - H) * 0.5f);
 	const float Pad = 18.0f * S();
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y - 40.0f * S(), W, H + 40.0f * S());
 	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f) + 17);
 	for (int32 i = 0; i < 2; ++i)
 	{
 		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.08f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 3.0f) * S());
 	}
 
-	Label(TEXT("PATTERN RELAY"), X + Pad, Y + 10.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(TEXT("PATTERN RELAY"), X + Pad, Y + 10.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	const FString Round = FString::Printf(TEXT("R %d/%d"), FMath::Min(Terminal->GetMemoryRound() + 1, Terminal->GetMemoryRoundCount()), Terminal->GetMemoryRoundCount());
 	float RW = 0.0f, RH = 0.0f;
-	GetTextSize(Round, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Round, X + W - Pad - RW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
-	Label(FString::Printf(TEXT("GHOST ECHO  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f);
+	GetTextSize(Round, RW, RH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
+	Label(Round, X + W - Pad - RW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
+	Label(FString::Printf(TEXT("GHOST ECHO  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), SysFont(ECXHudFont::Tiny), 1.0f);
 
 	// 점멸(서버 시각 기준 — 여동생 칸에는 그리지 않는다)
 	int32 Step = INDEX_NONE;
@@ -1983,11 +2062,11 @@ void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
 		// 중계 거리 밖: 패턴은 기다린다(가까이 오면 처음부터 재생)
 		const float Blink = 0.55f + 0.45f * Pulse(6.0f);
 		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), GX, GY + Grid * 0.5f - 44.0f * S(), Grid, 88.0f * S());
-		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + Grid * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetLargeFont(), 1.1f, true);
-		Label(TEXT("SIGNAL WEAK"), X + W * 0.5f, GY + Grid * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f, true);
+		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + Grid * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), SysFont(ECXHudFont::Large), 1.1f, true);
+		Label(TEXT("SIGNAL WEAK"), X + W * 0.5f, GY + Grid * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f, true);
 		const float DistM = FVector::Dist(MyPawn.GetActorLocation(), Terminal->GetActorLocation()) / 100.0f;
-		Label(FString::Printf(TEXT("TERMINAL %.1fm  -  RELAY RANGE %.0fm"), DistM, Terminal->MemoryRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
-		Label(TEXT("SISTER IS WAITING FOR YOUR RELAY"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(FString::Printf(TEXT("TERMINAL %.1fm / RANGE %.0fm"), DistM, Terminal->MemoryRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f, true);
+		Label(TEXT("SISTER IS WAITING FOR RELAY"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 
 		// 월드 마커: 단말기 위 괄호 + 거리(어디로 가야 하는지)
 		FVector Origin, Extent;
@@ -2003,7 +2082,7 @@ void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
 				if (P.X >= 0.0f && P.X <= Canvas->ClipX && P.Y >= 0.0f && P.Y <= Canvas->ClipY)
 				{
 					Bracket(FVector2D(P.X, P.Y), 14.0f * S(), 6.0f * S(), WarningColor.CopyWithNewOpacity(Blink), 2.0f);
-					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetTinyFont(), 1.0f, true);
+					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), SysFont(ECXHudFont::Tiny), 1.0f, true);
 				}
 			}
 		}
@@ -2030,15 +2109,16 @@ void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
 		}
 		else if (Step != INDEX_NONE)
 		{
-			Status = FString::Printf(TEXT("STEP %d / %d  -  CALL OUT THE NUMBERS"), Step + 1, Count);
+			// 패널 폭 330 — 고정폭 Tiny로 약 33자까지
+			Status = FString::Printf(TEXT("STEP %d/%d - CALL OUT NUMBERS"), Step + 1, Count);
 		}
 		else
 		{
 			Status = Wait > 0.0f ? FString::Printf(TEXT("REPLAY IN %.1fs"), Wait) : FString(TEXT("STAND BY"));
 		}
-		Label(Status, X + W * 0.5f, FootY + 14.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(Status, X + W * 0.5f, FootY + 14.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 		const int32 Input = bGranted ? Count : Terminal->GetMemoryInputIndex();
-		Label(FString::Printf(TEXT("SISTER INPUT  %d / %d"), Input, Count), X + W * 0.5f, FootY + 38.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(FString::Printf(TEXT("SISTER INPUT  %d / %d"), Input, Count), X + W * 0.5f, FootY + 38.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 	}
 
 	if (bDenied || bRoundClear || bGranted)
@@ -2047,7 +2127,13 @@ void ACoopHUD::DrawMemoryRelay(const APawn& MyPawn)
 		const FLinearColor MsgColor = bDenied ? DeniedColor : GrantedColor;
 		const float Fade = bGranted ? FMath::Clamp(1.5f - EventAge, 0.0f, 1.0f) : FMath::Clamp(1.0f - EventAge, 0.0f, 1.0f);
 		DrawRect(MsgColor.CopyWithNewOpacity(0.14f * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y - 34.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetSmallFont(), 1.1f, true);
+		// 패널 위가 칸 밖이면(패널이 칸 위 끝에 붙음) 머리줄 위에 어두운 띠를 깔고 그 자리에
+		const float MsgY = Y - 34.0f * S() >= 4.0f * S() ? Y - 34.0f * S() : Y + 6.0f * S();
+		if (MsgY > Y)
+		{
+			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.88f * Fade), X + 2.0f * S(), Y + 2.0f * S(), W - 4.0f * S(), 30.0f * S());
+		}
+		Label(Msg, X + W * 0.5f, MsgY, MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Small), 1.1f, true);
 	}
 }
 
@@ -2095,6 +2181,93 @@ void ACoopHUD::Label(const FString& Text, float X, float Y, const FLinearColor& 
 	// 가독성을 위한 1px 그림자
 	DrawText(Text, FLinearColor(0.0f, 0.0f, 0.0f, Color.A * 0.8f), DrawX + 1.0f, Y + 1.0f, Font, FinalScale);
 	DrawText(Text, Color, DrawX, Y, Font, FinalScale);
+}
+
+UFont* ACoopHUD::GameFont(ECXHudFont Size)
+{
+	// Oxanium: 예전 엔진 Roboto(Tiny 8 / 그 외 10pt)에서 +3pt. 단계마다 굵기로 위계를 준다
+	switch (Size)
+	{
+	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::Game, 11, TEXT("Medium"));
+	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("Medium"));
+	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("SemiBold"));
+	default: return UCXUIFonts::Canvas(ECXFontRole::Game, 13, TEXT("Bold"));
+	}
+}
+
+bool ACoopHUD::IsBlocked(const FBox2D& Rect) const
+{
+	for (const FBox2D& B : FrameBlockers)
+	{
+		if (B.Intersect(Rect))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+TArray<FString> ACoopHUD::WrapText(const FString& Text, UFont* Font, float Scale, float MaxWidth, int32 MaxLines) const
+{
+	TArray<FString> Lines;
+	TArray<FString> Words;
+	Text.ParseIntoArray(Words, TEXT(" "), true);
+	FString Current;
+	auto Width = [this, Font, Scale](const FString& Str)
+	{
+		float TW = 0.0f, TH = 0.0f;
+		GetTextSize(Str, TW, TH, Font, Scale);
+		return TW;
+	};
+	for (int32 i = 0; i < Words.Num(); ++i)
+	{
+		const FString Candidate = Current.IsEmpty() ? Words[i] : Current + TEXT(" ") + Words[i];
+		if (Current.IsEmpty() || Width(Candidate) <= MaxWidth)
+		{
+			Current = Candidate;
+			continue;
+		}
+		Lines.Add(Current);
+		Current = Words[i];
+		if (Lines.Num() == MaxLines - 1)
+		{
+			// 마지막 줄: 남은 단어 전부
+			for (int32 j = i + 1; j < Words.Num(); ++j)
+			{
+				Current += TEXT(" ") + Words[j];
+			}
+			break;
+		}
+	}
+	if (!Current.IsEmpty())
+	{
+		Lines.Add(Current);
+	}
+	// 마지막 줄(또는 띄어쓰기 없는 긴 한 단어)이 넘치면 뒤를 자르고 …
+	for (FString& Line : Lines)
+	{
+		if (Width(Line) > MaxWidth)
+		{
+			while (Line.Len() > 1 && Width(Line + TEXT("…")) > MaxWidth)
+			{
+				Line.LeftChopInline(1);
+			}
+			Line += TEXT("…");
+		}
+	}
+	return Lines;
+}
+
+UFont* ACoopHUD::SysFont(ECXHudFont Size)
+{
+	// IBM Plex Mono: 고정폭이라 Roboto보다 6~30% 넓다 → Small은 한 단계 작게. 8/9/10pt에서 +3pt
+	switch (Size)
+	{
+	case ECXHudFont::Tiny: return UCXUIFonts::Canvas(ECXFontRole::System, 11, TEXT("Regular"));
+	case ECXHudFont::Small: return UCXUIFonts::Canvas(ECXFontRole::System, 12, TEXT("Medium"));
+	case ECXHudFont::Medium: return UCXUIFonts::Canvas(ECXFontRole::System, 13, TEXT("Regular"));
+	default: return UCXUIFonts::Canvas(ECXFontRole::System, 13, TEXT("SemiBold"));
+	}
 }
 
 void ACoopHUD::Bracket(const FVector2D& C, float Half, float Arm, const FLinearColor& Color, float Thickness)
@@ -2272,8 +2445,8 @@ void ACoopHUD::DrawCircuitGrid(const AHackTerminal& Terminal, float GX, float GY
 			const FString Num = FString::FromInt(e / 2 + 1);
 			const float Scale = FMath::Clamp(Cell / U / 34.0f, 0.7f, 1.6f) * U * CoopHUDLayout::TextScale;
 			float TW = 0.0f, TH = 0.0f;
-			GetTextSize(Num, TW, TH, GEngine->GetLargeFont(), Scale);
-			DrawText(Num, bStart ? FLinearColor(0.02f, 0.03f, 0.06f, Dim) : BaseD, Ctr.X - TW * 0.5f, Ctr.Y - TH * 0.5f, GEngine->GetLargeFont(), Scale);
+			GetTextSize(Num, TW, TH, SysFont(ECXHudFont::Large), Scale);
+			DrawText(Num, bStart ? FLinearColor(0.02f, 0.03f, 0.06f, Dim) : BaseD, Ctr.X - TW * 0.5f, Ctr.Y - TH * 0.5f, SysFont(ECXHudFont::Large), Scale);
 		}
 		else if (bStart)
 		{
@@ -2317,14 +2490,16 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	const FLinearColor Accent = bGranted ? GrantedColor : (bMismatch ? DeniedColor : SisterColor);
 	const float Shake = bMismatch ? FMath::Sin(FeedbackAge * 70.0f) * FMath::Max(0.0f, 1.0f - FeedbackAge / 0.6f) * 10.0f * S() : 0.0f;
 
-	const float W = 780.0f * S();
+	const float W = 800.0f * S();	// 글자 +3pt로 아래 조작 안내 줄이 오른쪽 끝에 닿아 780 → 800
 	const float H = 300.0f * S();
-	const float X = (Canvas->ClipX - W) * 0.5f + Shake;
+	// 아래 가운데 — 왼쪽 아래 해킹 링크 패널(400)과 겹치지 않게 그 오른쪽으로 민다(HUD 배율 1.3에서 칸이 좁아짐)
+	const float X = FMath::Max((Canvas->ClipX - W) * 0.5f, (CoopHUDLayout::Margin + 400.0f + 24.0f) * S()) + Shake;
 	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
 	const float Pad = 20.0f * S();
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선·안내가 피해 감(패널 위 결과 문구는 잠깐이라 제외)
 	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f));
 	for (int32 i = 0; i < 3; ++i)
 	{
@@ -2333,9 +2508,9 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 
 	// 헤더: BREACHING // 이름 + 깜빡이는 커서, 오른쪽 CIRCUIT LINK n / m + 짝 칸
 	const FString Header = FString::Printf(TEXT("BREACHING  //  %s"), *Terminal.TerminalName);
-	Label(Header, X + Pad, Y + 12.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(Header, X + Pad, Y + 12.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	float HW = 0.0f, HH = 0.0f;
-	GetTextSize(Header, HW, HH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
+	GetTextSize(Header, HW, HH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
 	if (Pulse(9.0f) > 0.5f)
 	{
 		DrawRect(Accent, X + Pad + HW + 6.0f * S(), Y + 14.0f * S(), 9.0f * S(), HH * 0.8f);
@@ -2365,8 +2540,8 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	}
 	const FString Right = FString::Printf(TEXT("CIRCUIT LINK  %d / %d"), Linked, Pairs);
 	float RW = 0.0f, RH = 0.0f;
-	GetTextSize(Right, RW, RH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Right, PipStart - 10.0f * S() - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
+	GetTextSize(Right, RW, RH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
+	Label(Right, PipStart - 10.0f * S() - RW, Y + 12.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
 
 	// 왼쪽: 격자(짝 정보 없음 — 시작점 모두 파랑, 도착점 모두 초록)
 	const int32 GridW = FMath::Max(1, Terminal.GetCircuitWidth());
@@ -2381,35 +2556,43 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 		const int32 C = Terminal.GetCircuitCursor();
 		const float CX = GX + (C % GridW + 0.5f) * Cell;
 		const float CY = GY + (C / GridW) * Cell;
-		Label(TEXT("BLOCKED"), CX, CY - 18.0f * S(), DeniedColor.CopyWithNewOpacity(1.0f - Hack.GetCircuitStepAge() / 0.45f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(TEXT("BLOCKED"), CX, CY - 18.0f * S(), DeniedColor.CopyWithNewOpacity(1.0f - Hack.GetCircuitStepAge() / 0.45f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 	}
 
 	// 오른쪽: 목표 / 범례 / 중계 상태 / 지금 상태
 	const float RX = GX + GridW * Cell + 44.0f * S();
-	Label(TEXT("LINK EVERY SOURCE TO ITS MATCHING SINK"), RX, Y + 58.0f * S(), Accent.CopyWithNewOpacity(0.9f), GEngine->GetSmallFont(), 0.9f);
+	Label(TEXT("LINK EVERY SOURCE TO ITS MATCHING SINK"), RX, Y + 58.0f * S(), Accent.CopyWithNewOpacity(0.9f), SysFont(ECXHudFont::Small), 0.9f);
 	const float LegY = Y + 90.0f * S();
 	const float Sw = 14.0f * S();
-	DrawRect(FLinearColor(0.18f, 0.5f, 1.0f, 1.0f), RX, LegY + 2.0f * S(), Sw, Sw);
-	Label(TEXT("SOURCE"), RX + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f);
-	DrawRect(FLinearColor(0.2f, 1.0f, 0.45f, 1.0f), RX + 110.0f * S(), LegY + 2.0f * S(), Sw, Sw);
-	Label(TEXT("SINK"), RX + 110.0f * S() + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f);
-	Label(TEXT("PATHS CANNOT CROSS"), RX + 200.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), GEngine->GetTinyFont(), 1.0f);
+	// 범례: 글자 폭을 재서 이어 붙인다(글자 +3pt)
+	const float LegScale = S() * CoopHUDLayout::TextScale;
+	float LegW = 0.0f, LegH = 0.0f;
+	float LegX = RX;
+	DrawRect(FLinearColor(0.18f, 0.5f, 1.0f, 1.0f), LegX, LegY + 3.0f * S(), Sw, Sw);
+	Label(TEXT("SOURCE"), LegX + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f);
+	GetTextSize(TEXT("SOURCE"), LegW, LegH, SysFont(ECXHudFont::Tiny), LegScale);
+	LegX += Sw + 8.0f * S() + LegW + 22.0f * S();
+	DrawRect(FLinearColor(0.2f, 1.0f, 0.45f, 1.0f), LegX, LegY + 3.0f * S(), Sw, Sw);
+	Label(TEXT("SINK"), LegX + Sw + 8.0f * S(), LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f);
+	GetTextSize(TEXT("SINK"), LegW, LegH, SysFont(ECXHudFont::Tiny), LegScale);
+	LegX += Sw + 8.0f * S() + LegW + 22.0f * S();
+	Label(TEXT("PATHS CANNOT CROSS"), LegX, LegY, FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), SysFont(ECXHudFont::Tiny), 1.0f);
 
 	const APawn* Relay = Terminal.FindRelayPawn();
 	const UCXPlayerLifeComponent* RelayLife = Relay ? Relay->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
 	const float StatusY = Y + 122.0f * S();
 	if (bGranted)
 	{
-		Label(TEXT("ALL CIRCUITS LINKED"), RX, StatusY, GrantedColor, GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("ALL CIRCUITS LINKED"), RX, StatusY, GrantedColor, SysFont(ECXHudFont::Small), 1.0f);
 	}
 	else if (Terminal.IsCircuitRelayActive())
 	{
-		Label(TEXT("PARTNER RELAY  //  PAIR MAP LINKED"), RX, StatusY, Accent, GEngine->GetSmallFont(), 1.0f);
-		Label(TEXT("BROTHER SEES THE PAIRS - ASK HIM"), RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
+		Label(TEXT("PARTNER RELAY  //  PAIR MAP LINKED"), RX, StatusY, Accent, SysFont(ECXHudFont::Small), 1.0f);
+		Label(TEXT("BROTHER SEES THE PAIRS - ASK HIM"), RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 	else
 	{
-		Label(TEXT("PAIR MAP OFFLINE"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(4.0f)), GEngine->GetSmallFont(), 1.0f);
+		Label(TEXT("PAIR MAP OFFLINE"), RX, StatusY, WarningColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(4.0f)), SysFont(ECXHudFont::Small), 1.0f);
 		FString Sub;
 		if (!Relay)
 		{
@@ -2423,8 +2606,8 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 		{
 			Sub = FString::Printf(TEXT("BROTHER %.1fm  -  RELAY RANGE %.0fm"), FVector::Dist(Relay->GetActorLocation(), Terminal.GetActorLocation()) / 100.0f, Terminal.CircuitRelayRange / 100.0f);
 		}
-		Label(Sub, RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), GEngine->GetTinyFont(), 1.0f);
-		Label(TEXT("BRING HIM CLOSER - OR SOLVE BY TRIAL AND ERROR"), RX, StatusY + 48.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), GEngine->GetTinyFont(), 1.0f);
+		Label(Sub, RX, StatusY + 28.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f), SysFont(ECXHudFont::Tiny), 1.0f);
+		Label(TEXT("BRING HIM CLOSER - OR TRIAL AND ERROR"), RX, StatusY + 48.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.5f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 
 	// 지금 상태: 그리는 중 / 틀린 짝 있음
@@ -2436,15 +2619,15 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	const float StateY = Y + 200.0f * S();
 	if (!bGranted && Terminal.GetCircuitActivePath() != INDEX_NONE)
 	{
-		Label(TEXT("DRAWING  -  STEP BACK TO UNDO"), RX, StateY, SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f);
+		Label(TEXT("DRAWING  -  STEP BACK TO UNDO"), RX, StateY, SisterColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 	else if (!bGranted && Mismatches > 0)
 	{
-		Label(FString::Printf(TEXT("%d MISMATCHED - %s ON A PATH TO CUT IT"), Mismatches, *HackKeyHint), RX, StateY, DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), GEngine->GetTinyFont(), 1.0f);
+		Label(FString::Printf(TEXT("%d MISMATCHED - %s ON A PATH TO CUT IT"), Mismatches, *HackKeyHint), RX, StateY, DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 	else if (!bGranted)
 	{
-		Label(FString::Printf(TEXT("%s ON A SOURCE OR SINK TO START A PATH"), *HackKeyHint), RX, StateY, FLinearColor(1.0f, 1.0f, 1.0f, 0.6f), GEngine->GetTinyFont(), 1.0f);
+		Label(FString::Printf(TEXT("%s ON A SOURCE OR SINK TO START A PATH"), *HackKeyHint), RX, StateY, FLinearColor(1.0f, 1.0f, 1.0f, 0.6f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 
 	// 하단: 진행 바(이어진 짝 / 전체) + 조작 안내
@@ -2452,7 +2635,7 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	const float BarW = X + W - Pad - RX;
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), RX, FootY - 14.0f * S(), BarW, 4.0f * S());
 	DrawRect(Accent, RX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
-	Label(FString::Printf(TEXT("D-PAD  MOVE / DRAW      %s  START / CUT      [B]  ABORT"), *HackKeyHint), RX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GEngine->GetTinyFont(), 1.0f);
+	Label(FString::Printf(TEXT("D-PAD  MOVE / DRAW      %s  START / CUT      [B]  ABORT"), *HackKeyHint), RX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	// 판정 연출: 짝 연결 / MISMATCH / 성공
 	if (bMismatch || bLinkFlash || bGranted)
@@ -2461,7 +2644,7 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 		const FLinearColor MsgColor = bMismatch ? DeniedColor : GrantedColor;
 		const float Fade = bGranted ? 1.0f : FMath::Clamp(1.0f - FeedbackAge / (bMismatch ? 0.8f : 0.6f), 0.0f, 1.0f);
 		DrawRect(MsgColor.CopyWithNewOpacity((bLinkFlash ? 0.08f : 0.18f) * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetLargeFont(), bLinkFlash ? 1.1f : 1.4f, true);
+		Label(Msg, X + W * 0.5f, Y - 46.0f * S(), MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Large), bLinkFlash ? 1.1f : 1.4f, true);
 	}
 }
 
@@ -2506,33 +2689,35 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 	const FLinearColor Accent = bGranted ? GrantedColor : (bMismatch ? DeniedColor : (bLinked ? BrotherColor : WarningColor));
 	const float Shake = bMismatch ? FMath::Sin(EventAge * 70.0f) * FMath::Max(0.0f, 1.0f - EventAge / 0.6f) * 8.0f * S() : 0.0f;
 
-	// 패널: 메모리 패턴 중계와 같은 자리(오빠 칸 오른쪽, 파트너 표시 자리 70 띄움)
+	// 패널: 메모리 패턴 중계와 같은 자리(우상단 제미니 배터리 열 왼쪽). 높이 = 머리 68 + 격자 + 18 + 아래 세 줄(글자 높이) + 여백.
 	const int32 GridW = FMath::Max(1, Terminal->GetCircuitWidth());
 	const int32 GridH = FMath::Max(1, Terminal->GetCircuitHeight());
-	const float Cell = FMath::Min(250.0f / GridW, 200.0f / GridH) * S();
+	const float Cell = FMath::Min(250.0f / GridW, 190.0f / GridH) * S();
 	const float W = 330.0f * S();
-	const float H = 360.0f * S();
-	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 70.0f) * S() - W + Shake;
-	// 위쪽 136 = 제미니 배터리 패널 + 말하기 안내(우상단) 아래
-	const float Y = FMath::Max(136.0f * S(), (Canvas->ClipY - H) * 0.5f);
+	float LineW = 0.0f, LineH = 0.0f;
+	GetTextSize(TEXT("0"), LineW, LineH, SysFont(ECXHudFont::Tiny), S() * CoopHUDLayout::TextScale);
+	const float H = 68.0f * S() + GridH * Cell + 18.0f * S() + 40.0f * S() + LineH + 14.0f * S();
+	const float X = Canvas->ClipX - (CoopHUDLayout::Margin + 250.0f + 16.0f) * S() - W + Shake;
+	const float Y = FMath::Max(CoopHUDLayout::Margin * S(), (Canvas->ClipY - H) * 0.5f);
 	const float Pad = 18.0f * S();
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f), X, Y, W, H);
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y - 40.0f * S(), W, H + 40.0f * S());
 	FRandomStream Glitch(static_cast<int32>(GetWorld()->GetTimeSeconds() / 0.08f) + 29);
 	for (int32 i = 0; i < 2; ++i)
 	{
 		DrawRect(Accent.CopyWithNewOpacity(Glitch.FRandRange(0.03f, 0.08f)), X, Y + Glitch.FRandRange(0.0f, H), W, Glitch.FRandRange(1.0f, 3.0f) * S());
 	}
 
-	Label(TEXT("CIRCUIT RELAY"), X + Pad, Y + 10.0f * S(), Accent, GEngine->GetSmallFont(), 1.0f);
+	Label(TEXT("CIRCUIT RELAY"), X + Pad, Y + 10.0f * S(), Accent, SysFont(ECXHudFont::Small), 1.0f);
 	const int32 Pairs = FMath::Max(1, Terminal->GetCircuitPairCount());
 	const int32 Done = bGranted ? Pairs : Terminal->GetCircuitLinkedCount();
 	const FString Count = FString::Printf(TEXT("%d/%d"), Done, Pairs);
 	float CW = 0.0f, CH = 0.0f;
-	GetTextSize(Count, CW, CH, GEngine->GetSmallFont(), S() * CoopHUDLayout::TextScale);
-	Label(Count, X + W - Pad - CW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f);
-	Label(FString::Printf(TEXT("PAIR MAP  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f);
+	GetTextSize(Count, CW, CH, SysFont(ECXHudFont::Small), S() * CoopHUDLayout::TextScale);
+	Label(Count, X + W - Pad - CW, Y + 10.0f * S(), Accent.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f);
+	Label(FString::Printf(TEXT("PAIR MAP  //  %s"), *Terminal->TerminalName), X + Pad, Y + 38.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), SysFont(ECXHudFont::Tiny), 1.0f);
 
 	const float GridPixW = GridW * Cell;
 	const float GridPixH = GridH * Cell;
@@ -2547,11 +2732,11 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 	{
 		const float Blink = 0.55f + 0.45f * Pulse(6.0f);
 		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), GX, GY + GridPixH * 0.5f - 44.0f * S(), GridPixW, 88.0f * S());
-		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + GridPixH * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetLargeFont(), 1.1f, true);
-		Label(TEXT("PAIR MAP OFFLINE"), X + W * 0.5f, GY + GridPixH * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), GEngine->GetSmallFont(), 1.0f, true);
+		Label(TEXT("MOVE CLOSER"), X + W * 0.5f, GY + GridPixH * 0.5f - 38.0f * S(), WarningColor.CopyWithNewOpacity(Blink), SysFont(ECXHudFont::Large), 1.1f, true);
+		Label(TEXT("PAIR MAP OFFLINE"), X + W * 0.5f, GY + GridPixH * 0.5f + 8.0f * S(), WarningColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Small), 1.0f, true);
 		const float DistM = FVector::Dist(MyPawn.GetActorLocation(), Terminal->GetActorLocation()) / 100.0f;
-		Label(FString::Printf(TEXT("TERMINAL %.1fm  -  RELAY RANGE %.0fm"), DistM, Terminal->CircuitRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
-		Label(TEXT("SISTER CAN'T SEE THE PAIRS"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), GEngine->GetTinyFont(), 1.0f, true);
+		Label(FString::Printf(TEXT("TERMINAL %.1fm / RANGE %.0fm"), DistM, Terminal->CircuitRelayRange / 100.0f), X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f, true);
+		Label(TEXT("SISTER CAN'T SEE THE PAIRS"), X + W * 0.5f, FootY + 26.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 
 		// 월드 마커: 단말기 위 괄호 + 거리(메모리 패턴 중계와 같은 문법)
 		FVector Origin, Extent;
@@ -2567,7 +2752,7 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 				if (P.X >= 0.0f && P.X <= Canvas->ClipX && P.Y >= 0.0f && P.Y <= Canvas->ClipY)
 				{
 					Bracket(FVector2D(P.X, P.Y), 14.0f * S(), 6.0f * S(), WarningColor.CopyWithNewOpacity(Blink), 2.0f);
-					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), GEngine->GetTinyFont(), 1.0f, true);
+					Label(FString::Printf(TEXT("RELAY  %.0fm"), DistM), P.X, P.Y - 36.0f * S(), WarningColor.CopyWithNewOpacity(Blink), SysFont(ECXHudFont::Tiny), 1.0f, true);
 				}
 			}
 		}
@@ -2584,8 +2769,8 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 			DrawRect(CircuitPairColor(i), SX, FootY, Chip, Chip * 0.5f);
 		}
 		Label(bGranted ? FString(TEXT("RELAY COMPLETE")) : FString(TEXT("CALL OUT THE PAIRS")), X + W * 0.5f, FootY + 16.0f * S(),
-			FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), GEngine->GetTinyFont(), 1.0f, true);
-		Label(FString::Printf(TEXT("SISTER LINKS  %d / %d"), Done, Pairs), X + W * 0.5f, FootY + 40.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), GEngine->GetTinyFont(), 1.0f, true);
+			FLinearColor(1.0f, 1.0f, 1.0f, 0.75f), SysFont(ECXHudFont::Tiny), 1.0f, true);
+		Label(FString::Printf(TEXT("SISTER LINKS  %d / %d"), Done, Pairs), X + W * 0.5f, FootY + 40.0f * S(), SisterColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Tiny), 1.0f, true);
 	}
 
 	if (bMismatch || bLinkFlash || bGranted)
@@ -2594,6 +2779,12 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 		const FLinearColor MsgColor = bMismatch ? DeniedColor : GrantedColor;
 		const float Fade = bGranted ? FMath::Clamp(1.5f - EventAge, 0.0f, 1.0f) : FMath::Clamp(1.0f - EventAge, 0.0f, 1.0f);
 		DrawRect(MsgColor.CopyWithNewOpacity((bLinkFlash ? 0.07f : 0.14f) * Fade), X, Y, W, H);
-		Label(Msg, X + W * 0.5f, Y - 34.0f * S(), MsgColor.CopyWithNewOpacity(Fade), GEngine->GetSmallFont(), 1.1f, true);
+		// 패널 위가 칸 밖이면(패널이 칸 위 끝에 붙음) 머리줄 위에 어두운 띠를 깔고 그 자리에
+		const float MsgY = Y - 34.0f * S() >= 4.0f * S() ? Y - 34.0f * S() : Y + 6.0f * S();
+		if (MsgY > Y)
+		{
+			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.88f * Fade), X + 2.0f * S(), Y + 2.0f * S(), W - 4.0f * S(), 30.0f * S());
+		}
+		Label(Msg, X + W * 0.5f, MsgY, MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Small), 1.1f, true);
 	}
 }

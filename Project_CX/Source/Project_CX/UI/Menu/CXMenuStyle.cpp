@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CXMenuStyle.h"
+#include "CXUIFonts.h"
 #include "Styling/CoreStyle.h"
 #include "Rendering/DrawElements.h"
 #include "Layout/Geometry.h"
@@ -14,9 +15,12 @@ namespace CXMenuStyle
 
 	FSlateFontInfo Font(int32 Size, FName Typeface, int32 LetterSpacing)
 	{
-		FSlateFontInfo Info = FCoreStyle::GetDefaultFontStyle(Typeface, Size);
-		Info.LetterSpacing = LetterSpacing;
-		return Info;
+		return UCXUIFonts::Slate(ECXFontRole::Game, Size, Typeface, LetterSpacing);
+	}
+
+	FSlateFontInfo MonoFont(int32 Size, FName Typeface, int32 LetterSpacing)
+	{
+		return UCXUIFonts::Slate(ECXFontRole::System, Size, Typeface, LetterSpacing);
 	}
 
 	const FSlateBrush* WhiteBrush()

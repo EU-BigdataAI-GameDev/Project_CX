@@ -14,6 +14,9 @@ class USoundBase;
 class UCXPlayerLifeComponent;
 class UCXHealthComponent;
 
+/** HUD 글자 단계(예전 엔진 Tiny/Small/Medium/Large 폰트 자리). 실제 크기·굵기는 ACoopHUD::GameFont/SysFont가 정한다. */
+enum class ECXHudFont : uint8 { Tiny, Small, Medium, Large };
+
 /** 제미니 음성 말풍선 스타일: 최종 Heard(따옴표, 흰색) / 실시간 자막 듣는 중(글자 + 점) / 뗀 뒤 최종 대기(흐린 글자 + 느린 점). */
 enum class ECXSpeakerBubble : uint8 { Final, Listening, Pending };
 
@@ -245,6 +248,13 @@ private:
 
 	void Panel(float X, float Y, float W, float H, const FLinearColor& Accent);
 	void Label(const FString& Text, float X, float Y, const FLinearColor& Color, UFont* Font, float Scale, bool bCenterX = false);
+
+	/**
+	 *  UI 폰트(UCXUIFonts). GameFont = Oxanium — 플레이어에게 주는 게임 정보(태그·체력·탄약·배너·알림).
+	 *  SysFont = IBM Plex Mono — 게임 세계 시스템 출력(해킹 퍼즐·단말기 마커·SYSTEM DOWN·제미니 상태/대사·음성 자막).
+	 */
+	static UFont* GameFont(ECXHudFont Size);
+	static UFont* SysFont(ECXHudFont Size);
 	void Bracket(const FVector2D& Center, float HalfSize, float Arm, const FLinearColor& Color, float Thickness);
 
 	/** 다른 로컬 플레이어의 폰(파트너). 없으면 nullptr. */
@@ -260,6 +270,17 @@ private:
 	FTimerHandle HackRefreshTimer;
 
 	float UIScale = 1.0f;
+
+	/**
+	 *  이번 프레임 이 칸에 떠 있는 큰 패널(해킹 퍼즐·중계 패널) 영역(픽셀). DrawHUD 시작 때 비운다.
+	 *  제미니 대사 말풍선·말하기 안내·해킹 대행 진행 바가 이 영역을 피해 배치된다.
+	 */
+	TArray<FBox2D> FrameBlockers;
+	void AddBlocker(float X, float Y, float W, float H) { FrameBlockers.Add(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H))); }
+	bool IsBlocked(const FBox2D& Rect) const;
+
+	/** Text를 MaxWidth(픽셀) 안에 들도록 단어 단위로 줄바꿈(최대 MaxLines줄, 넘치면 마지막 줄 끝을 …). */
+	TArray<FString> WrapText(const FString& Text, UFont* Font, float Scale, float MaxWidth, int32 MaxLines) const;
 	float StartTime = 0.0f;
 	FString ZoneTitle;
 	/** 메모리 패턴 점멸 틱 중복 방지(마지막으로 소리를 낸 재생 회차·순번). */

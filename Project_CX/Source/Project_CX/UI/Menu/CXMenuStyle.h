@@ -67,8 +67,11 @@ namespace CXMenuStyle
 	/** 플레이어 슬롯 색(0 = 오빠 청록, 1 = 여동생 마젠타). */
 	FLinearColor PlayerColor(int32 PlayerIndex);
 
-	/** 엔진 기본 폰트(Roboto). Typeface: Regular / Bold / Light. */
+	/** 게임 UI 폰트(Oxanium — 메뉴 제목·버튼·알림). Typeface: Light / Regular / Medium / SemiBold / Bold. */
 	FSlateFontInfo Font(int32 Size, FName Typeface = TEXT("Regular"), int32 LetterSpacing = 0);
+
+	/** 시스템 출력 폰트(IBM Plex Mono — 세이브 요약·버전·장치 상태 같은 데이터 줄). */
+	FSlateFontInfo MonoFont(int32 Size, FName Typeface = TEXT("Regular"), int32 LetterSpacing = 0);
 
 	const FSlateBrush* WhiteBrush();
 
