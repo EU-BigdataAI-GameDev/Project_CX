@@ -20,11 +20,13 @@
 #include "Materials/MaterialInterface.h"
 #include "Camera/PlayerCameraManager.h"
 #include "CXJeminiFx.h"
+#include "CXJeminiRuleComponent.h"
 #include "CXHackTarget.h"
 #include "CXSfx.h"
 #include "CombatDamageable.h"
 #include "HackTerminal.h"
 #include "SpiderBot.h"
+#include "CXWardenTerminal.h"
 #include "GameFramework/DamageType.h"
 #include "Sound/SoundBase.h"
 
@@ -108,6 +110,9 @@ ACXJeminiDrone::ACXJeminiDrone()
 
 	// 미끼 경고음: 해킹 감지음 재사용(새 에셋 없음)
 	DecoyBeepSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Sister/SW_Hack_Detect.SW_Hack_Detect"));
+
+	// 조건부 지시 규칙(기능 A): 보관·감시·발동, 목록은 복제(HUD)
+	RuleComponent = CreateDefaultSubobject<UCXJeminiRuleComponent>(TEXT("Rules"));
 }
 
 // ---------------------------------------------------------------- 외형·표정
@@ -1174,6 +1179,24 @@ FCXJeminiState ACXJeminiDrone::GatherState(const APawn* Speaker) const
 		{
 			// 퍼즐 중이 아니면 null(비밀번호 퍼즐은 진행도가 항상 0이라 진행도로 구분하지 않는다)
 			State.bHasPuzzle = Hack->GetJeminiPuzzleState(State.PuzzleType, State.PuzzleProgress);
+			// 기능 C 힌트용 퍼즐 종류(여동생 화면에 보이는 종류만 — 정답·짝·순서는 보내지 않는다)
+			if (State.bHasPuzzle)
+			{
+				if (State.PuzzleType == TEXT("enemy"))
+				{
+					State.PuzzleKind = TEXT("arrow");
+				}
+				else if (const AHackTerminal* Terminal = Hack->GetActiveTerminal())
+				{
+					switch (Terminal->PuzzleType)
+					{
+					case EHackPuzzleType::Passcode: State.PuzzleKind = TEXT("passcode"); break;
+					case EHackPuzzleType::MemoryPattern: State.PuzzleKind = TEXT("memory"); break;
+					case EHackPuzzleType::CircuitLink: State.PuzzleKind = TEXT("circuit"); break;
+					default: State.PuzzleKind = TEXT("freq"); break;	// FrequencyLock(+ 폐기된 ArrowSequence도 FrequencyLock으로 동작)
+					}
+				}
+			}
 		}
 		if (const UCXHealthComponent* Health = UCXHealthComponent::FindOn(Sister))
 		{
@@ -1199,6 +1222,28 @@ FCXJeminiState ACXJeminiDrone::GatherState(const APawn* Speaker) const
 	State.EnemyActiveCount = Enemies.ActiveCount;
 	State.EnemyNearestDist = Enemies.NearestDistCm >= 0.0f ? Enemies.NearestDistCm / 100.0f : -1.0f;
 	State.TerminalLockedCount = CountLockedTerminals();
+	// 기능 C: WARDEN 힌트용(아직 안 열린 WARDEN이 있을 때만). 팀이 얻은 증거 id·마지막 거절 사유·근처 여부.
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this); Warden && !Warden->IsSolved())
+	{
+		State.bHasWarden = true;
+		for (int32 i = 0; i < CXWarden::EvidenceCount; ++i)
+		{
+			if (Warden->HasEvidence(i))
+			{
+				State.WardenEvidence.Add(CXWarden::GetInfo(i).Id);
+			}
+		}
+		State.WardenLastReason = Warden->GetLastReason();
+		const FVector WardenLoc = Warden->GetActorLocation();
+		for (const APawn* P : { FindBrother(), FindSister() })
+		{
+			State.bWardenNear |= P && FVector::Dist(P->GetActorLocation(), WardenLoc) <= Warden->GetShowRange();
+		}
+	}
+	if (RuleComponent)
+	{
+		RuleComponent->FillState(State);
+	}
 	return State;
 }
 
@@ -1228,9 +1273,23 @@ CXJemini::FEndpoint ACXJeminiDrone::GetEndpoint() const
 bool ACXJeminiDrone::BeginRequest(APawn* From, bool bVoice)
 {
 	// 쓰러진(부활 대기) 플레이어도 말할 수 있다(2026-11-07 결정) — 게임 오버·클리어·이동 중만 CanAcceptRequest가 막는다
-	if (!HasAuthority() || !CanAcceptRequest())
+	if (!HasAuthority())
 	{
 		return false;
+	}
+	if (!CanAcceptRequest())
+	{
+		// 드론 작업 중(Action != Idle)이라도 작전 제안 대기·등록된 규칙이 있으면 플레이어 발화는 받는다 —
+		// "응/아니"·"규칙 취소"를 막지 않기 위해. 실행 함수는 서버 검증기가 drone_busy로 BUSY 거절하고,
+		// HandleResponse도 작업 중 ok는 실행하지 않는다. 규칙 발동(CanAcceptRequest)은 그대로 막힌다.
+		const bool bRuleTalk = !bRequestPending && Action != ECXJeminiAction::Idle && RuleComponent
+			&& (RuleComponent->GetProposal().Num() > 0 || RuleComponent->GetRules().Num() > 0);
+		const ALocalCoopGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALocalCoopGameMode>() : nullptr;
+		const bool bGameBlocked = GameMode && (GameMode->IsGameOver() || GameMode->IsGameCleared() || GameMode->IsTravelling());
+		if (!bRuleTalk || bGameBlocked)
+		{
+			return false;
+		}
 	}
 	bRequestPending = true;
 	RequestSpeaker = From;
@@ -1360,6 +1419,36 @@ void ACXJeminiDrone::HandleResponse(const FCXJeminiResponse& Response)
 	// 응답을 기다리는 사이 게임 오버·클리어·맵 이동이 됐으면 대사만
 	const ALocalCoopGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ALocalCoopGameMode>() : nullptr;
 	const bool bGameBlocked = GameMode && (GameMode->IsGameOver() || GameMode->IsGameCleared() || GameMode->IsTravelling());
+
+	// 기능 C: 상황 조언 + 작전 제안. 실행·배터리 없음. 제안은 등록하지 않고 대답 대기로(빈 제안이면 이전 제안도 지운다).
+	if (Response.IsAdvice())
+	{
+		if (RuleComponent)
+		{
+			RuleComponent->SetProposal(Response.Proposal);
+		}
+		SetDialogue(Response.Dialogue, Response.Heard, TEXT("advice"));
+		ReactEmotion(ECXDroneEmotion::Happy, 1.0f);
+		return;
+	}
+
+	// 기능 A: 규칙 등록·취소·목록(배터리·드론 작업과 무관)
+	if (Response.IsRule())
+	{
+		FString Override;
+		const bool bAccepted = RuleComponent && RuleComponent->HandleRuleResponse(Response, Override);
+		SetDialogue(Override.IsEmpty() ? Response.Dialogue : Override, Response.Heard, bAccepted ? TEXT("rule") : TEXT("rejected"));
+		ReactEmotion(bAccepted ? ECXDroneEmotion::Happy : ECXDroneEmotion::Neutral, bAccepted ? 1.5f : -1.0f);
+		return;
+	}
+
+	// 작업 중에 받은 요청(규칙 대답용으로 허용)이 실행 응답으로 왔으면 실행하지 않는다(서버도 보통 BUSY로 거절한다)
+	if (Response.IsOk() && Action != ECXJeminiAction::Idle)
+	{
+		SetDialogue(TEXT("지금 다른 일 하는 중이에요, 잠깐만요!"), Response.Heard, TEXT("rejected"));
+		ReactEmotion(ECXDroneEmotion::Neutral);
+		return;
+	}
 
 	if (Response.IsOk() && !bGameBlocked)
 	{
@@ -1589,6 +1678,62 @@ bool ACXJeminiDrone::ExecuteCommand(const FCXJeminiResponse& Response)
 	return false;
 }
 
+bool ACXJeminiDrone::ExecuteRuleCommand(const FCXJeminiResponse& Response, int32 ReserveBattery, FString& OutReason)
+{
+	if (!HasAuthority() || !Response.IsOk())
+	{
+		OutReason = Response.Reason.IsEmpty() ? TEXT("REJECTED") : Response.Reason;
+		return false;
+	}
+	// /validate 응답을 기다리는 사이 플레이어 요청·다른 작업이 시작됐으면 다음 기회에
+	if (!CanAcceptRequest())
+	{
+		OutReason = TEXT("BUSY");
+		return false;
+	}
+	// 그 사이 배터리가 바뀌었을 수 있다 → 지금 배터리로 battery_after를 다시 계산
+	const int32 Cost = GetCommandCost(Response.CommandName);
+	if (Cost < 0)
+	{
+		OutReason = TEXT("UNKNOWN_COMMAND");
+		return false;
+	}
+	if (Battery < Cost)
+	{
+		OutReason = TEXT("LOW_BATTERY");
+		return false;
+	}
+	if (Battery - Cost < ReserveBattery)
+	{
+		OutReason = TEXT("RESERVE_BATTERY");
+		return false;
+	}
+	FCXJeminiResponse Adjusted = Response;
+	Adjusted.BatteryAfter = Battery - Cost;
+
+	LastLocalReason.Reset();
+	LastRequestDebug = FString::Printf(TEXT("rule -> %s(%s) battery %d (after %d)"), *Adjusted.CommandName, *Adjusted.CommandTarget, Battery, Adjusted.BatteryAfter);
+	if (!ExecuteCommand(Adjusted))
+	{
+		// 대상이 이미 없음 → 조용히(규칙은 유지되고 재시도), 차감 없음
+		EndAction();
+		OutReason = TEXT("TARGET_LOST");
+		return false;
+	}
+	SetDialogue(Adjusted.Dialogue, FString(), TEXT("ok"));
+	ReactEmotion(Adjusted.CommandName == TEXT("PulseAttack") ? ECXDroneEmotion::Angry : ECXDroneEmotion::Happy,
+		Adjusted.CommandName == TEXT("PulseAttack") ? 1.5f : -1.0f);
+	return true;
+}
+
+void ACXJeminiDrone::SayRuleLine(const FString& Text, const FString& Status)
+{
+	if (HasAuthority())
+	{
+		SetDialogue(Text, FString(), Status);
+	}
+}
+
 void ACXJeminiDrone::FinishReloadFlight()
 {
 	APawn* Brother = Cast<APawn>(ActionTarget);
@@ -1648,5 +1793,6 @@ FString ACXJeminiDrone::GetDebugState() const
 {
 	return FString::Printf(TEXT("emotion=%d battery=%d pending=%d action=%s target=%s pendingBattery=%d reason=%s seq=%d dialogue=\"%s\" heard=\"%s\" | last: %s"),
 		static_cast<int32>(Emotion), Battery, bRequestPending ? 1 : 0, *UEnum::GetValueAsString(Action), *GetNameSafe(ActionTarget), PendingBatteryAfter,
-		*LastLocalReason, DialogueSeq, *Dialogue, *Heard, *LastRequestDebug);
+		*LastLocalReason, DialogueSeq, *Dialogue, *Heard, *LastRequestDebug)
+		+ (RuleComponent ? TEXT(" | ") + RuleComponent->GetDebugState() : FString());
 }

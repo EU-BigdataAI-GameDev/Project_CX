@@ -5,13 +5,16 @@ import random
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from . import advice, rules
 from .config import Settings
 from .schemas import Command, CommandResponse, GameState
 
-# 실행 함수 9개 + Chat. HackAssist는 HackTerminal / HackEnemy로 분리되어 삭제(오면 Chat 처리).
+# 실행 함수 9개 + Chat + 규칙 함수 2개(기능 A) + 조언 1개(기능 C). HackAssist는 HackTerminal / HackEnemy로 분리되어 삭제(오면 Chat 처리).
 ACTIONS = ("ReloadSupport", "HackTerminal", "HackEnemy", "PulseAttack", "DamageBoost",
            "HealSupport", "Decoy", "QuickReboot", "Shield")
-ALLOWED = ACTIONS + ("Chat",)
+RULE_FUNCTIONS = ("RegisterRule", "ManageRules")
+ADVICE_FUNCTIONS = ("Advise",)
+ALLOWED = ACTIONS + ("Chat",) + RULE_FUNCTIONS + ADVICE_FUNCTIONS
 
 PLAYERS = ("brother", "sister")
 
@@ -140,6 +143,10 @@ def _check(name: str, state: GameState, args: dict[str, Any]) -> tuple[Optional[
         return ("NO_ENEMY" if state.enemy_active_count == 0 else None), "enemies"
 
     if name == "QuickReboot":
+        # 규칙 발동(/validate)은 who로 우선 대상을 줄 수 있다. 그 사람이 쓰러져 있지 않으면 쓰러진 쪽.
+        want = _clean(args.get("who")).lower()
+        if want in PLAYERS and not _alive(state, want):
+            return None, want
         for who in PLAYERS:
             if not _alive(state, who):
                 return None, who
@@ -186,6 +193,15 @@ def validate(call: LlmCall, state: GameState, settings: Settings) -> CommandResp
     # 2. Chat은 배터리 차감 없음, 검사 제외(드론 작업 중·쓰러진 사람도 대화 가능)
     if call.name == "Chat":
         return chat(dialogue)
+
+    # 2-1. 규칙 등록·취소·목록(기능 A): 배터리 차감 없음, 드론 작업 중에도 가능
+    if call.name == "RegisterRule":
+        return rules.register_rule(call.args, state, dialogue, heard)
+    if call.name == "ManageRules":
+        return rules.manage_rules(call.args, state, dialogue, heard)
+    # 2-2. 상황 조언 + 작전 제안(기능 C): 실행·배터리 없음. 제안은 등록하지 않고 UE가 대답 대기로 보관.
+    if call.name == "Advise":
+        return advice.build_advice(call.args, state, dialogue, heard)
 
     # 3. 드론 작업 중이면 어떤 기능도 실행하지 않는다
     if state.drone_busy:

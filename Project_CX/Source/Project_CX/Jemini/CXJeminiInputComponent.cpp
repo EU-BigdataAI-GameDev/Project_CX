@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CXJeminiInputComponent.h"
+#include "CXWardenTerminal.h"
 #include "CXJeminiDrone.h"
+#include "CXJeminiRuleComponent.h"
 #include "CXJeminiClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
@@ -47,7 +49,9 @@ namespace CXJeminiInput
 class SCXJeminiChatBox : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SCXJeminiChatBox) {}
+	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false) {}
+		/** 위아래 분할이면 두 칸 경계(화면 세로 중앙)에 놓는다. 좌우 분할은 아래쪽 가운데. */
+		SLATE_ARGUMENT(bool, bVerticalCenter)
 	SLATE_END_ARGS()
 
 	TFunction<void(const FString&)> OnSubmit;
@@ -57,16 +61,17 @@ public:
 	{
 		// 제미니 단말 입력줄 — 시스템 폰트(IBM Plex Mono, 한글은 서브 폰트)
 		// 2026-11-10 게임 화면 글자 +3pt(17/16 → 20/19), 입력창 폭 760 → 900
-		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 20, TEXT("Regular"));
-		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("SemiBold"));
+		// 2026-11-12 QA: 글자 -1pt(19/18), 폭 900 → 840
+		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("Regular"));
+		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 18, TEXT("SemiBold"));
 
 		ChildSlot
 		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(0.0f, 0.0f, 0.0f, 150.0f))
+		.VAlign(InArgs._bVerticalCenter ? VAlign_Center : VAlign_Bottom)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, InArgs._bVerticalCenter ? 0.0f : 150.0f))
 		[
 			SNew(SBox)
-			.WidthOverride(900.0f)
+			.WidthOverride(840.0f)
 			[
 				SNew(SBorder)
 				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -315,13 +320,26 @@ bool UCXJeminiInputComponent::CanTalkNow() const
 	{
 		return false;
 	}
+	// 기능 B: WARDEN 단말기 앞의 여동생은 제미니 대신 WARDEN과 말한다(드론이 바빠도 된다)
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Pawn))
+	{
+		return Warden->CanAcceptTalk();
+	}
 	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 	if (!Drone)
 	{
 		return false;
 	}
 	// 클라이언트는 게임모드가 없어 복제값(요청 중 / 드론 작업 중)만 본다
-	return GetOwner()->HasAuthority() ? Drone->CanAcceptRequest() : !Drone->IsBusy();
+	if (GetOwner()->HasAuthority() ? Drone->CanAcceptRequest() : !Drone->IsBusy())
+	{
+		return true;
+	}
+	// 드론 작업 중이어도 작전 제안 대기·등록된 규칙이 있으면 말할 수 있다("응/아니"·"규칙 취소").
+	// 최종 판단은 서버 ACXJeminiDrone::BeginRequest(게임 오버 등 포함).
+	const UCXJeminiRuleComponent* Rules = Drone->GetRuleComponent();
+	return !Drone->IsRequestPending() && Drone->GetAction() != ECXJeminiAction::Idle
+		&& Rules && (Rules->GetProposal().Num() > 0 || Rules->GetRules().Num() > 0);
 }
 
 void UCXJeminiInputComponent::MarkBlocked()
@@ -362,7 +380,10 @@ void UCXJeminiInputComponent::OpenChat()
 		return;
 	}
 
-	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox);
+	// 2026-11-12 QA: 2인 분할이면 채팅창을 두 칸 경계(화면 정가운데)에 놓는다. 좌우 분할 = 가로 중앙·아래쪽, 위아래 분할 = 세로 중앙.
+	const ESplitScreenType::Type Split = Viewport->GetCurrentSplitscreenConfiguration();
+	const bool bSplit = Split == ESplitScreenType::TwoPlayer_Vertical || Split == ESplitScreenType::TwoPlayer_Horizontal;
+	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox).bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal);
 	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
 	Box->OnSubmit = [WeakThis](const FString& Text)
 	{
@@ -382,8 +403,16 @@ void UCXJeminiInputComponent::OpenChat()
 	ChatContainer = Box;
 	++OpenChatCount;
 
-	// 자기 분할 칸에만 표시 + 입력 중 이 폰의 게임 입력 끄기(게임 자체는 계속 진행)
-	Viewport->AddViewportWidgetForPlayer(LocalPlayer, Box, 50);
+	// 분할이면 전체 화면 위(두 칸 경계 가운데), 아니면 자기 칸에만 표시 + 입력 중 이 폰의 게임 입력 끄기(게임 자체는 계속 진행)
+	bChatGlobal = bSplit;
+	if (bSplit)
+	{
+		Viewport->AddViewportWidgetContent(Box, 50);
+	}
+	else
+	{
+		Viewport->AddViewportWidgetForPlayer(LocalPlayer, Box, 50);
+	}
 	PC->FlushPressedKeys();
 	Pawn->DisableInput(PC);
 	FSlateApplication::Get().SetKeyboardFocus(Box->GetFocusTarget(), EFocusCause::SetDirectly);
@@ -404,10 +433,15 @@ void UCXJeminiInputComponent::CloseChat()
 	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	UWorld* World = GetWorld();
 	UGameViewportClient* Viewport = World ? World->GetGameViewport() : nullptr;
-	if (Viewport && PC && PC->GetLocalPlayer() && Widget.IsValid())
+	if (Viewport && Widget.IsValid() && bChatGlobal)
+	{
+		Viewport->RemoveViewportWidgetContent(Widget.ToSharedRef());
+	}
+	else if (Viewport && PC && PC->GetLocalPlayer() && Widget.IsValid())
 	{
 		Viewport->RemoveViewportWidgetForPlayer(PC->GetLocalPlayer(), Widget.ToSharedRef());
 	}
+	bChatGlobal = false;
 	if (Pawn && PC)
 	{
 		// 쓰러진 채 채팅했으면 폰 입력은 계속 꺼 둔다(부활할 때 UCXPlayerLifeComponent가 켠다)
@@ -470,6 +504,12 @@ bool UCXJeminiInputComponent::DebugSubmitText(const FString& Text)
 
 void UCXJeminiInputComponent::Server_SubmitText_Implementation(const FString& Text)
 {
+	// 기능 B: WARDEN 단말기 앞이면 설득 대화로(서버가 위치를 다시 확인)
+	if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+	{
+		Warden->SubmitText(Cast<APawn>(GetOwner()), Text.Left(200));
+		return;
+	}
 	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
 	{
 		Drone->SubmitText(Cast<APawn>(GetOwner()), Text.Left(300));
@@ -541,6 +581,10 @@ bool UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
 	}
 	if (GetOwner()->HasAuthority())
 	{
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			return Warden->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
+		}
 		ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 		return Drone && Drone->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
 	}
@@ -564,7 +608,11 @@ void UCXJeminiInputComponent::Server_VoiceChunk_Implementation(const TArray<uint
 	PendingVoice.Append(Chunk);
 	if (bFinal)
 	{
-		if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			Warden->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
+		}
+		else if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
 		{
 			Drone->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
 		}
@@ -669,6 +717,11 @@ void UCXJeminiInputComponent::TickLiveCaption()
 	{
 		const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 		const float Waited = GetWorld()->GetTimeSeconds() - PendingStartTime;
+		// 기능 B: WARDEN에게 말한 경우 — WARDEN 응답이 올 때까지(최대 15초) 마지막 자막 유지
+		if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())); Warden && Warden->IsRequestPending() && Waited <= 15.0f)
+		{
+			return;
+		}
 		// 드론 대사가 바뀜 = 최종 응답 도착(이제 HUD가 Heard 말풍선을 그린다). 요청이 끝났는데 대사가 없거나 너무 오래면 지운다.
 		if (!Drone || Drone->GetDialogueSeq() != PendingDialogueSeq || (!Drone->IsRequestPending() && Waited > 1.0f) || Waited > 15.0f)
 		{

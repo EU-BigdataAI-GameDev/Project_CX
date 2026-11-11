@@ -181,6 +181,8 @@ private:
 
 	TSharedPtr<SCXJeminiChatBox> ChatWidget;
 	TSharedPtr<SWidget> ChatContainer;
+	/** 채팅창을 전체 화면 위(분할 경계)에 올렸는지 — 닫을 때 같은 방식으로 뺀다. */
+	bool bChatGlobal = false;
 
 	FCXJeminiVoiceRecorder Recorder;
 

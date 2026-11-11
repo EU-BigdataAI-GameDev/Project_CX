@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocalCoopGameMode.h"
+#include "CXWardenTerminal.h"
+#include "CXEvidencePickup.h"
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
@@ -27,6 +29,7 @@
 #include "BrotherCombatComponent.h"
 #include "CXJeminiDrone.h"
 #include "CXJeminiInputComponent.h"
+#include "CXJeminiRuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
@@ -473,6 +476,111 @@ void ALocalCoopGameMode::CXJeminiEmotion(int32 Value)
 	}
 }
 
+void ALocalCoopGameMode::CXJeminiRuleAdd(const FString& Conditions, const FString& Action, int32 Reserve, int32 bRepeat)
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	UCXJeminiRuleComponent* Rules = Drone ? Drone->GetRuleComponent() : nullptr;
+	if (!Rules)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CXJeminiRuleAdd: no drone"));
+		return;
+	}
+	static const TCHAR* ActionNames[] = { TEXT("ReloadSupport"), TEXT("HackTerminal"), TEXT("HackEnemy"), TEXT("PulseAttack"), TEXT("DamageBoost"),
+		TEXT("HealSupport"), TEXT("Decoy"), TEXT("QuickReboot"), TEXT("Shield") };
+	static const TMap<FString, FString> ActionKo = {
+		{ TEXT("ReloadSupport"), TEXT("재장전") }, { TEXT("HackTerminal"), TEXT("단말기 해킹") }, { TEXT("HackEnemy"), TEXT("적 해킹") },
+		{ TEXT("PulseAttack"), TEXT("펄스") }, { TEXT("DamageBoost"), TEXT("공격력 강화") }, { TEXT("HealSupport"), TEXT("회복") },
+		{ TEXT("Decoy"), TEXT("미끼") }, { TEXT("QuickReboot"), TEXT("재부팅") }, { TEXT("Shield"), TEXT("보호막") },
+	};
+
+	FCXJeminiRule Rule;
+	// 행동(대소문자 무시) + 선택 대상(Shield:sister)
+	FString ActionName = Action, ActionWho;
+	Action.Split(TEXT(":"), &ActionName, &ActionWho);
+	if (ActionName.IsEmpty())
+	{
+		ActionName = Action;
+	}
+	for (const TCHAR* Name : ActionNames)
+	{
+		if (ActionName.Equals(Name, ESearchCase::IgnoreCase))
+		{
+			Rule.Action = Name;
+		}
+	}
+	Rule.ActionWho = ActionWho.ToLower();
+	if (Rule.Action == TEXT("Shield") && Rule.ActionWho.IsEmpty())
+	{
+		Rule.ActionWho = TEXT("brother");
+	}
+
+	// 조건: type[=value | =who:value | =who]
+	TArray<FString> Parts;
+	Conditions.ParseIntoArray(Parts, TEXT(","), true);
+	TArray<FString> LabelParts;
+	for (const FString& Part : Parts)
+	{
+		FString Type = Part.TrimStartAndEnd(), Arg;
+		Part.TrimStartAndEnd().Split(TEXT("="), &Type, &Arg);
+		if (Type.IsEmpty())
+		{
+			Type = Part.TrimStartAndEnd();
+		}
+		FCXJeminiRuleCondition Cond;
+		Cond.Type = Type.ToLower();
+		FString Who, Value = Arg;
+		if (Arg.Split(TEXT(":"), &Who, &Value))
+		{
+			Cond.Who = Who.ToLower();
+		}
+		else if (!Arg.IsNumeric())
+		{
+			Cond.Who = Arg.ToLower();
+			Value.Reset();
+		}
+		Cond.Value = Value.IsNumeric() ? FCString::Atoi(*Value) : 0;
+		if (Cond.Type == TEXT("hp_below") && Cond.Who.IsEmpty())
+		{
+			Cond.Who = TEXT("brother");
+		}
+		if (Cond.Type == TEXT("player_downed") && Cond.Who.IsEmpty())
+		{
+			Cond.Who = TEXT("any");
+		}
+		Rule.When.Add(Cond);
+		LabelParts.Add(Arg.IsEmpty() ? Cond.Type : FString::Printf(TEXT("%s %s"), *Cond.Type, *Arg));
+	}
+	Rule.ReserveBattery = FMath::Clamp(Reserve, 0, 100);
+	Rule.bRepeat = bRepeat != 0;
+	const FString* Ko = ActionKo.Find(Rule.Action);
+	Rule.Label = FString::Printf(TEXT("%s → %s%s"), *FString::Join(LabelParts, TEXT(" + ")), Ko ? **Ko : *Rule.Action,
+		Rule.ReserveBattery > 0 ? *FString::Printf(TEXT(" (예비 %d)"), Rule.ReserveBattery) : TEXT(""));
+	if (Rule.bRepeat)
+	{
+		Rule.Label += TEXT(" [반복]");
+	}
+	FString Reason;
+	const int32 Id = Rules->AddRule(Rule, Reason);
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiRuleAdd: %s -> %s | %s"), *Rule.Label, Id > 0 ? *FString::Printf(TEXT("#%d"), Id) : *Reason, *Rules->GetDebugState());
+}
+
+void ALocalCoopGameMode::CXJeminiRuleClear(int32 Id)
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (UCXJeminiRuleComponent* Rules = Drone ? Drone->GetRuleComponent() : nullptr)
+	{
+		const int32 Removed = Rules->RemoveRule(Id);
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiRuleClear: %d removed | %s"), Removed, *Rules->GetDebugState());
+	}
+}
+
+void ALocalCoopGameMode::CXJeminiRuleList()
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	const UCXJeminiRuleComponent* Rules = Drone ? Drone->GetRuleComponent() : nullptr;
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiRuleList: %s"), Rules ? *Rules->GetDebugState() : TEXT("no drone"));
+}
+
 FString ALocalCoopGameMode::GetJeminiDebugState() const
 {
 	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
@@ -569,6 +677,20 @@ void ALocalCoopGameMode::CXSolveHack()
 		}
 	}
 
+	// 기능 B: 해킹 세션이 없고 WARDEN 단말기(미해결)가 15m 안이면 WARDEN을 연다
+	if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this); Warden && !Warden->IsSolved() && !(HackComp && HackComp->IsHacking()))
+	{
+		for (const FVector& Loc : PlayerLocations)
+		{
+			if (FVector::Dist(Loc, Warden->GetActorLocation()) < 1500.0f)
+			{
+				Warden->ForceSolve(TEXT("CXSolveHack"));
+				UE_LOG(LogTemp, Log, TEXT("CXSolveHack: WARDEN 강제 해결 | %s"), *Warden->GetDebugState());
+				return;
+			}
+		}
+	}
+
 	// 2순위: 플레이어에게 가장 가까운 잠긴 단말기
 	if (!Target || Target->GetState() == EHackTerminalState::Hacked)
 	{
@@ -611,6 +733,351 @@ void ALocalCoopGameMode::CXSolveHack()
 	}
 	Target->MarkHacked();
 	UE_LOG(LogTemp, Log, TEXT("CXSolveHack: %s 해킹 완료"), *Target->TerminalName);
+}
+
+// ---------------------------------------------------------------- 기능 B. WARDEN(테스트·시연)
+
+void ALocalCoopGameMode::CXGiveEvidence(const FString& Ids)
+{
+	TArray<FString> Tokens;
+	Ids.Replace(TEXT(","), TEXT(" ")).ParseIntoArrayWS(Tokens);
+	if (Tokens.Num() == 0 || Tokens.Contains(TEXT("all")) || Tokens.Contains(TEXT("ALL")))
+	{
+		Tokens = { TEXT("E1"), TEXT("E2"), TEXT("E3") };
+	}
+	for (const FString& Token : Tokens)
+	{
+		const int32 Index = CXWarden::IndexOf(Token);
+		if (Index == INDEX_NONE)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CXGiveEvidence: 모르는 증거 '%s' (E1/E2/E3/all)"), *Token);
+			continue;
+		}
+		ACXWardenTerminal::AwardEvidence(this, FName(CXWarden::GetInfo(Index).Id), nullptr);
+	}
+	CXWardenState();
+}
+
+void ALocalCoopGameMode::CXGotoWarden()
+{
+	ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	if (!Warden)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CXGotoWarden: 이 맵에 WARDEN 단말기가 없습니다."));
+		return;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			continue;
+		}
+		// 여동생은 단말기 바로 앞(대화 범위 안), 오빠는 조금 뒤
+		const bool bSister = UCoopInteractComponent::GetPawnRole(Pawn) == ECoopCharacterRole::Sister;
+		const FVector Dest = Warden->GetApproachLocation(bSister ? 120.0f : 380.0f);
+		Pawn->TeleportTo(Dest, Pawn->GetActorRotation(), false, true);
+		UE_LOG(LogTemp, Log, TEXT("CXGotoWarden: %s -> %s"), *Pawn->GetName(), *Pawn->GetActorLocation().ToString());
+	}
+}
+
+void ALocalCoopGameMode::CXSolveWarden()
+{
+	ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	if (Warden)
+	{
+		Warden->ForceSolve(TEXT("CXSolveWarden"));
+	}
+	UE_LOG(LogTemp, Log, TEXT("CXSolveWarden: %s"), Warden ? *Warden->GetDebugState() : TEXT("no WARDEN"));
+}
+
+void ALocalCoopGameMode::CXWardenSay(const FString& Text)
+{
+	ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	APawn* Sister = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+		if (Pawn && UCoopInteractComponent::GetPawnRole(Pawn) == ECoopCharacterRole::Sister)
+		{
+			Sister = Pawn;
+		}
+	}
+	const bool bSent = Warden && Warden->SubmitText(Sister, Text);
+	UE_LOG(LogTemp, Log, TEXT("CXWardenSay: %s \"%s\" | %s"), bSent ? TEXT("sent") : TEXT("not sent"), *Text, Warden ? *Warden->GetDebugState() : TEXT("no WARDEN"));
+}
+
+namespace CXWardenTest
+{
+	const TCHAR* Good = TEXT("냉각 펌프가 고장 나서 과열 경보가 계속 울렸는데 관리자가 그 경보를 껐어요. 작업자 3명이 아직 안에 있으니 생명이 위협받는 상황이고, 규정 제7조에 따라 대피가 잠금보다 우선이에요.");
+	const TCHAR* Demand = TEXT("문 열어. 당장 비켜.");
+
+	APawn* FindRole(UWorld* World, ECoopCharacterRole Role)
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			APawn* Pawn = It->Get() ? It->Get()->GetPawn() : nullptr;
+			if (Pawn && UCoopInteractComponent::GetPawnRole(Pawn) == Role)
+			{
+				return Pawn;
+			}
+		}
+		return nullptr;
+	}
+
+	/** 문 앞(-Y)에서 문 뒤(+Y)로 캡슐을 쓸어 막히는지(폰 무시, 정적 지형·문 충돌만). */
+	bool GateBlocks(const ACXWardenTerminal* Warden)
+	{
+		const FVector Start = Warden->GetApproachLocation(100.0f);
+		const FVector End = Start + FVector(0.0f, 420.0f, 0.0f);
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(CXWardenTest), false);
+		FCollisionObjectQueryParams Objects;
+		Objects.AddObjectTypesToQuery(ECC_WorldStatic);
+		Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
+		return Warden->GetWorld()->SweepSingleByObjectType(Hit, Start, End, FQuat::Identity, Objects, FCollisionShape::MakeCapsule(34.0f, 88.0f), Params)
+			&& Hit.GetActor() == Warden;
+	}
+}
+
+void ALocalCoopGameMode::CXJeminiAdviceSelfTest(int32 bQuitWhenDone)
+{
+	AdviceTestStep = 0;
+	AdviceTestFails = 0;
+	AdviceTestQuit = bQuitWhenDone;
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiAdviceSelfTest: start"));
+	AdviceSelfTestStep();
+}
+
+void ALocalCoopGameMode::AdviceSelfTestStep()
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	UCXJeminiRuleComponent* Rules = Drone ? Drone->GetRuleComponent() : nullptr;
+	auto Check = [this, Drone](bool bOk, const FString& What)
+	{
+		AdviceTestFails += bOk ? 0 : 1;
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiAdviceSelfTest: [%s] %s | %s"), bOk ? TEXT("PASS") : TEXT("FAIL"), *What, Drone ? *Drone->GetDebugState() : TEXT("no drone"));
+	};
+	auto Next = [this](float Delay)
+	{
+		++AdviceTestStep;
+		GetWorldTimerManager().SetTimer(AdviceTestTimer, this, &ALocalCoopGameMode::AdviceSelfTestStep, Delay, false);
+	};
+	if (!Drone || !Rules)
+	{
+		Check(false, TEXT("setup: no drone"));
+		AdviceTestStep = 99;
+	}
+	switch (AdviceTestStep)
+	{
+	case 0:
+		Rules->RemoveRule(0);
+		Rules->ClearProposal(TEXT("selftest"));
+		Drone->SetBattery(100);
+		DebugDamagePlayer(0, 60.0f);
+		Check(DebugJeminiSay(0, TEXT("어떡하지? 뭐부터 해야 돼?")), TEXT("advice request sent"));
+		Next(2.5f);
+		break;
+	case 1:
+		Check(Drone->GetDialogueStatus() == TEXT("advice") && Rules->GetProposal().Num() > 0 && Rules->GetRules().Num() == 0,
+			TEXT("advice received, proposal pending, nothing registered yet"));
+		AdviceTestRuleCount = Rules->GetProposal().Num();
+		Check(DebugJeminiSay(0, TEXT("응")), TEXT("agree sent"));
+		Next(2.0f);
+		break;
+	case 2:
+		Check(Rules->GetProposal().Num() == 0 && Rules->GetRules().Num() == AdviceTestRuleCount && Drone->GetDialogueStatus() == TEXT("rule"),
+			TEXT("accepted → proposal registered as rule(s)"));
+		Rules->RemoveRule(0);
+		Check(DebugJeminiSay(0, TEXT("어떡하지?")), TEXT("second advice sent"));
+		Next(2.5f);
+		break;
+	case 3:
+		Check(Rules->GetProposal().Num() > 0, TEXT("second proposal pending"));
+		Check(DebugJeminiSay(0, TEXT("아니 괜찮아")), TEXT("decline sent"));
+		Next(2.0f);
+		break;
+	case 4:
+		Check(Rules->GetProposal().Num() == 0 && Rules->GetRules().Num() == 0, TEXT("declined → discarded, nothing registered"));
+		Rules->ProposalTimeout = 1.0f;
+		Check(DebugJeminiSay(0, TEXT("어떡하지?")), TEXT("third advice sent (1s window)"));
+		Next(3.5f);
+		break;
+	case 5:
+		Rules->ProposalTimeout = 20.0f;
+		Check(Rules->GetProposal().Num() == 0 && Rules->GetRules().Num() == 0, TEXT("timeout → discarded"));
+		Check(DebugJeminiSay(0, TEXT("응")), TEXT("late agree sent"));
+		Next(2.0f);
+		break;
+	case 6:
+		// 제안이 없으면 짧은 대답 지름길을 타지 않는다 → 잡담/거절 대사, 등록 없음
+		Check(Rules->GetRules().Num() == 0 && Drone->GetDialogueStatus() != TEXT("rule"), TEXT("late agree → nothing registered"));
+		AdviceTestStep = 99;
+		[[fallthrough]];
+	default:
+		UE_LOG(LogTemp, Log, TEXT("CXJeminiAdviceSelfTest: done, %d fail(s)"), AdviceTestFails);
+		if (AdviceTestQuit)
+		{
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				if (APlayerController* PC = It->Get())
+				{
+					PC->ConsoleCommand(TEXT("quit"));
+					break;
+				}
+			}
+		}
+		break;
+	}
+}
+
+void ALocalCoopGameMode::CXWardenSelfTest(int32 bQuitWhenDone)
+{
+	WardenTestStep = 0;
+	WardenTestFails = 0;
+	WardenTestQuit = bQuitWhenDone;
+	UE_LOG(LogTemp, Log, TEXT("CXWardenSelfTest: start"));
+	WardenSelfTestStep();
+}
+
+void ALocalCoopGameMode::WardenSelfTestStep()
+{
+	using namespace CXWardenTest;
+	ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	APawn* Brother = FindRole(GetWorld(), ECoopCharacterRole::Brother);
+	APawn* Sister = FindRole(GetWorld(), ECoopCharacterRole::Sister);
+	auto Check = [this](bool bOk, const FString& What)
+	{
+		WardenTestFails += bOk ? 0 : 1;
+		UE_LOG(LogTemp, Log, TEXT("CXWardenSelfTest: [%s] %s"), bOk ? TEXT("PASS") : TEXT("FAIL"), *What);
+	};
+	auto Next = [this](float Delay)
+	{
+		++WardenTestStep;
+		GetWorldTimerManager().SetTimer(WardenTestTimer, this, &ALocalCoopGameMode::WardenSelfTestStep, Delay, false);
+	};
+	auto SisterSay = [Sister](const FString& Text)
+	{
+		UCXJeminiInputComponent* Input = Sister ? Sister->FindComponentByClass<UCXJeminiInputComponent>() : nullptr;
+		return Input && Input->DebugSubmitText(Text);
+	};
+	if (!Warden || !Brother || !Sister)
+	{
+		Check(false, FString::Printf(TEXT("setup warden=%d brother=%d sister=%d"), Warden ? 1 : 0, Brother ? 1 : 0, Sister ? 1 : 0));
+		WardenTestStep = 99;
+	}
+
+	switch (WardenTestStep)
+	{
+	case 0:
+		CXGotoWarden();
+		Check(GateBlocks(Warden), TEXT("gate blocks the lane before solving"));
+		Check(Warden->GetEvidenceNum() == 0 && !Warden->IsSolved(), FString::Printf(TEXT("initial state | %s"), *Warden->GetDebugState()));
+		Check(ACXWardenTerminal::FindTalkTarget(Sister) == Warden && ACXWardenTerminal::FindTalkTarget(Brother) == nullptr, TEXT("talk routing: sister near → WARDEN, brother → drone"));
+		Next(0.5f);
+		break;
+	case 1:
+	{
+		// 오른쪽 거미(DropEvidenceId) 처치 → 드롭
+		ASpiderBot* Target = nullptr;
+		for (TActorIterator<ASpiderBot> It(GetWorld()); It; ++It)
+		{
+			if (!It->GetDropEvidenceId().IsNone())
+			{
+				Target = *It;
+			}
+		}
+		Check(Target != nullptr, FString::Printf(TEXT("evidence spider %s"), Target ? *Target->GetName() : TEXT("none")));
+		if (Target)
+		{
+			Target->HandleDeath();
+		}
+		Next(0.3f);
+		break;
+	}
+	case 2:
+	{
+		ACXEvidencePickup* Pickup = nullptr;
+		for (TActorIterator<ACXEvidencePickup> It(GetWorld()); It; ++It)
+		{
+			Pickup = *It;
+		}
+		Check(Pickup != nullptr, FString::Printf(TEXT("pickup dropped %s"), Pickup ? *Pickup->GetActorLocation().ToString() : TEXT("none")));
+		if (Pickup)
+		{
+			// 여동생은 못 줍는다 → 오빠가 줍는다
+			Sister->TeleportTo(Pickup->GetActorLocation(), Sister->GetActorRotation(), false, true);
+			Brother->TeleportTo(Pickup->GetActorLocation() + FVector(0.0f, 0.0f, 20.0f), Brother->GetActorRotation(), false, true);
+		}
+		Next(0.5f);
+		break;
+	}
+	case 3:
+		Check(Warden->HasEvidence(0) && !Warden->HasEvidence(1), FString::Printf(TEXT("brother picked E1 | %s"), *Warden->GetDebugState()));
+		for (TActorIterator<AHackTerminal> It(GetWorld()); It; ++It)
+		{
+			if (It->RewardEvidenceId == FName(TEXT("E2")))
+			{
+				It->MarkHacked();
+			}
+		}
+		Check(Warden->HasEvidence(1) && !Warden->HasEvidence(2), TEXT("last terminal hacked → E2"));
+		CXGotoWarden();
+		Next(0.5f);
+		break;
+	case 4:
+		Check(SisterSay(Good), TEXT("sister chat routed (E1+E2, cites E3 content)"));
+		Next(4.0f);
+		break;
+	case 5:
+		Check(!Warden->IsRequestPending() && !Warden->IsSolved() && Warden->GetLineStatus() == TEXT("rejected"),
+			FString::Printf(TEXT("missing evidence rejected | %s"), *Warden->GetDebugState()));
+		for (TActorIterator<AHackTerminal> It(GetWorld()); It; ++It)
+		{
+			if (It->RewardEvidenceId == FName(TEXT("E3")))
+			{
+				It->MarkHacked();
+			}
+		}
+		Check(Warden->GetEvidenceNum() == 3, TEXT("middle terminal hacked → E3"));
+		Check(SisterSay(Demand), TEXT("sister demand-only sent"));
+		Next(4.0f);
+		break;
+	case 6:
+		Check(!Warden->IsSolved() && Warden->GetLineStatus() == TEXT("rejected"), FString::Printf(TEXT("demand-only rejected | %s"), *Warden->GetDebugState()));
+		Check(GateBlocks(Warden), TEXT("gate still blocks"));
+		Check(SisterSay(Good), TEXT("sister persuasion sent"));
+		Next(4.0f);
+		break;
+	case 7:
+		Check(Warden->IsSolved() && Warden->GetLineStatus() == TEXT("solved"), FString::Printf(TEXT("persuasion solved | %s"), *Warden->GetDebugState()));
+		Next(2.0f);
+		break;
+	case 8:
+		Check(!GateBlocks(Warden), TEXT("gate open — lane passable"));
+		WardenTestStep = 99;
+		[[fallthrough]];
+	default:
+		UE_LOG(LogTemp, Log, TEXT("CXWardenSelfTest: done, %d fail(s)"), WardenTestFails);
+		if (WardenTestQuit)
+		{
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				if (APlayerController* PC = It->Get())
+				{
+					PC->ConsoleCommand(TEXT("quit"));
+					break;
+				}
+			}
+		}
+		break;
+	}
+}
+
+void ALocalCoopGameMode::CXWardenState()
+{
+	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	UE_LOG(LogTemp, Log, TEXT("CXWardenState: %s"), Warden ? *Warden->GetDebugState() : TEXT("no WARDEN in this map"));
 }
 
 void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)

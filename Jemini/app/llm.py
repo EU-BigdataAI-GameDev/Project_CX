@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from functools import lru_cache
 from typing import Optional
 
@@ -10,7 +11,10 @@ from google import genai
 from google.genai import types
 
 from .config import RESOURCE_ROOT, Settings
-from .schemas import GameState
+from pydantic import ValidationError
+
+from .advice import hint_facts
+from .schemas import GameState, WardenLlmOutput
 from .validator import ALLOWED, LlmCall
 
 
@@ -57,6 +61,101 @@ FUNCTIONS = [
     _decl("Shield", "5초 무적 보호막(보호막·지켜·보호·실드). '막아줘'는 HackEnemy.", {"who": _WHO}),
     _decl("Chat", "명령이 아닌 질문·잡담, 할 수 없는 요청의 거절, 잘 안 들렸을 때 되묻기."),
 ]
+
+# ---- 기능 A. 조건부 지시(규칙). 등록·취소는 배터리를 쓰지 않는다. 실제 감시·발동은 게임 코드.
+_CONDITION = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        "type": types.Schema(
+            type=types.Type.STRING,
+            enum=["enemy_within", "sister_hacking", "hp_below", "ammo_below", "player_downed",
+                  "battery_above", "unsupported"],
+            description=("enemy_within=적이 cm 안으로 옴, sister_hacking=여동생이 해킹(퍼즐) 중, "
+                         "hp_below=who의 체력이 pct% 미만, ammo_below=오빠 탄약이 n발 미만, "
+                         "player_downed=who가 쓰러짐, battery_above=배터리가 n% 초과. "
+                         "이 6개로 표현할 수 없는 조건(보스 등장, 시간, 위치 등)은 unsupported.")),
+        "cm": types.Schema(type=types.Type.INTEGER, description="enemy_within 거리(cm). 5m = 500."),
+        "pct": types.Schema(type=types.Type.INTEGER, description="hp_below 체력 퍼센트."),
+        "n": types.Schema(type=types.Type.INTEGER, description="ammo_below 탄 수 / battery_above 배터리 %."),
+        "who": types.Schema(type=types.Type.STRING, enum=["brother", "sister", "any"],
+                            description="hp_below·player_downed 대상. '내가'는 말한 사람, 지목 없으면 any."),
+    },
+    required=["type"],
+)
+
+RULE_FUNCTIONS = [
+    types.FunctionDeclaration(
+        name="RegisterRule",
+        description=("'~하면/~동안/~때 ~해 줘'처럼 조건이 붙은 지시를 규칙으로 등록한다(지금 실행하지 않음). "
+                     "조건이 충족되면 게임이 자동으로 실행한다."),
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "dialogue": _DIALOGUE, "heard": _HEARD,
+                "conditions": types.Schema(type=types.Type.ARRAY, items=_CONDITION,
+                                           description="모두 만족해야 발동(AND). 최대 3개."),
+                "action": types.Schema(type=types.Type.STRING, enum=list(ALLOWED[:9]),
+                                       description="조건이 맞으면 할 기능 1개."),
+                "who": types.Schema(type=types.Type.STRING, enum=["brother", "sister"],
+                                    description="action이 Shield·QuickReboot일 때 대상. 지목 없으면 비운다."),
+                "reserve_battery": types.Schema(type=types.Type.INTEGER,
+                                                description="'배터리는 20 남겨'처럼 남겨 둘 배터리. 없으면 0."),
+                "repeat": types.Schema(type=types.Type.BOOLEAN,
+                                       description="'매번/그때마다/계속'이면 true. 기본 false(1회 후 삭제)."),
+            },
+            required=["dialogue", "conditions", "action"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="ManageRules",
+        description=("등록한 규칙을 취소하거나(op=cancel) 목록을 알려 준다(op=list). '규칙 취소해 줘', '규칙 뭐 있어?' "
+                     "제안한 작전이 대답 대기 중일 때 동의('응/그래/해 줘/좋아')면 op=accept, 거절('아니/됐어')이면 op=decline."),
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "dialogue": _DIALOGUE, "heard": _HEARD,
+                "op": types.Schema(type=types.Type.STRING, enum=["cancel", "list", "accept", "decline"]),
+                "index": types.Schema(type=types.Type.INTEGER,
+                                      description="취소할 규칙 번호(1 또는 2). 전부 또는 번호 언급이 없으면 0."),
+            },
+            required=["dialogue", "op"],
+        ),
+    ),
+]
+
+# ---- 기능 C. 상황 조언 + 작전 제안. 제안은 자동 등록하지 않는다(플레이어가 "응" 하면 ManageRules op=accept).
+_PROPOSAL = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        "conditions": types.Schema(type=types.Type.ARRAY, items=_CONDITION, description="모두 만족해야 발동(AND). 최대 3개."),
+        "action": types.Schema(type=types.Type.STRING, enum=list(ALLOWED[:9])),
+        "who": types.Schema(type=types.Type.STRING, enum=["brother", "sister"],
+                            description="action이 Shield·QuickReboot일 때 대상."),
+        "reserve_battery": types.Schema(type=types.Type.INTEGER, description="남겨 둘 배터리. 없으면 0."),
+        "repeat": types.Schema(type=types.Type.BOOLEAN, description="기본 false."),
+    },
+    required=["conditions", "action"],
+)
+
+ADVICE_FUNCTIONS = [
+    types.FunctionDeclaration(
+        name="Advise",
+        description=("'어떡하지?/뭐부터 해?/적이 너무 많아/막혔어/힌트'처럼 조언을 구할 때. 게임 상태로 짧게 조언하고, "
+                     "도움이 되면 규칙 1~2개를 작전으로 제안한다(등록은 플레이어가 동의해야 됨)."),
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "dialogue": types.Schema(type=types.Type.STRING,
+                                         description="조언 대사. 한국어 1~2문장, 80자 이내. 작전을 묻는 질문은 넣지 않는다(게임이 붙인다)."),
+                "heard": _HEARD,
+                "proposals": types.Schema(type=types.Type.ARRAY, items=_PROPOSAL, max_items=2,
+                                          description="제안할 규칙(0~2개). 규칙 자리가 꽉 찼거나 필요 없으면 비운다."),
+            },
+            required=["dialogue"],
+        ),
+    ),
+]
+FUNCTIONS = FUNCTIONS + RULE_FUNCTIONS + ADVICE_FUNCTIONS
 
 
 @lru_cache(maxsize=1)
@@ -105,6 +204,17 @@ def describe_state(state: GameState) -> str:
         f"- 잠긴 단말기: {state.terminal_locked_count}개",
         f"- 제미니 배터리: {state.battery}%",
     ]
+    if state.active_rules:
+        rows.append(f"- 등록된 규칙({len(state.active_rules)}/2): "
+                    + " / ".join(f"{i}) {r.label}" for i, r in enumerate(state.active_rules, 1)))
+    else:
+        rows.append("- 등록된 규칙: 없음")
+    if state.pending_proposal:
+        rows.append("- 대답 대기 중인 작전 제안: " + " / ".join(r.label for r in state.pending_proposal))
+    facts = hint_facts(state)
+    if facts:
+        rows.append("[힌트 근거] 조언·힌트는 이 범위 안에서만(정답은 모른다):")
+        rows.extend(f"- {f}" for f in facts)
     return "\n".join(rows)
 
 
@@ -130,6 +240,66 @@ def _parse(response: types.GenerateContentResponse) -> LlmCall:
     return LlmCall(name=fc.name or "", args=dict(fc.args or {}))
 
 
+def _models(settings: Settings) -> list[str]:
+    return [settings.gemini_model] + [m for m in settings.fallback_models if m != settings.gemini_model]
+
+
+# 다음 모델을 시도하기에 남은 시간이 이보다 짧으면 포기(응답이 와도 UE 타임아웃 12초를 넘기기 쉬움)
+MIN_ATTEMPT_SEC = 1.5
+
+
+async def _generate(settings: Settings, parts: list[types.Part], config: types.GenerateContentConfig,
+                    timeout: float, *, retry_primary: bool = False,
+                    total_sec: float = 0.0) -> tuple[types.GenerateContentResponse, str]:
+    """기본 모델 → 예비 모델 순서로 호출. (응답, 모델명).
+
+    일시 오류(429 한도 초과, 5xx·UNAVAILABLE 과부하, 타임아웃, 연결 끊김)면 다음 모델로 넘어간다.
+    그 밖의 오류(400 등 요청 자체 문제)는 바로 LlmError.
+    전체 예산 = min(timeout × 2, LLM_TOTAL_TIMEOUT_SEC). 각 시도는 min(timeout, 남은 예산).
+    모두 실패: 한 번이라도 429가 있었으면 RateLimitError(텍스트는 mock 판별로 대신), 아니면 LlmError.
+    """
+    budget = min(timeout * 2, settings.llm_total_timeout_sec) if settings.llm_total_timeout_sec > 0 else timeout * 2
+    if total_sec > 0:
+        budget = total_sec
+    deadline = time.monotonic() + budget
+    failures: list[str] = []
+    rate_limited = False
+    models = _models(settings)
+    if retry_primary and models:
+        # 응답이 멈춘(타임아웃) 호출은 같은 모델에 다시 보내면 곧 성공하는 일이 많다 → 기본 모델을 한 번 더
+        models = [models[0], *models]
+    for model in models:
+        remaining = deadline - time.monotonic()
+        if failures and remaining < MIN_ATTEMPT_SEC:
+            failures.append(f"budget exhausted before {model}")
+            break
+        attempt = min(timeout, max(remaining, MIN_ATTEMPT_SEC))
+        try:
+            response = await asyncio.wait_for(
+                _client(settings.gemini_api_key).aio.models.generate_content(
+                    model=model, contents=[types.Content(role="user", parts=parts)], config=config),
+                timeout=attempt)
+            return response, model
+        except asyncio.TimeoutError:
+            failures.append(f"timeout after {attempt:.1f}s ({model})")
+        except Exception as e:  # SDK·네트워크 예외
+            if _is_rate_limited(e):
+                rate_limited = True
+                failures.append(f"rate limited on {model}")
+            elif _is_transient(e):
+                failures.append(f"unavailable on {model}: {_short(e)}")
+            else:
+                raise LlmError(f"{type(e).__name__}: {_short(e)} ({model})") from e
+    message = "; ".join(failures) or "no model available"
+    if rate_limited:
+        raise RateLimitError(message)
+    raise LlmError(message)
+
+
+def _short(error: Exception) -> str:
+    return str(error).replace("\n", " ")[:200]
+
+
 async def call_gemini(settings: Settings, state: GameState, *, text: Optional[str] = None,
                       audio: Optional[bytes] = None) -> LlmCall:
     if not settings.gemini_api_key:
@@ -144,36 +314,90 @@ async def call_gemini(settings: Settings, state: GameState, *, text: Optional[st
         parts.append(types.Part.from_text(text=f"[플레이어]\n{text}\n\n{describe_state(state)}"))
         timeout = settings.llm_timeout_sec
 
-    # 기본 모델 → 한도 초과(429)일 때만 예비 모델 순서로 재시도. 다른 오류는 바로 fallback.
-    models = [settings.gemini_model] + [m for m in settings.fallback_models if m != settings.gemini_model]
-    last_error = ""
-    for model in models:
-        try:
-            response = await asyncio.wait_for(
-                _client(settings.gemini_api_key).aio.models.generate_content(
-                    model=model,
-                    contents=[types.Content(role="user", parts=parts)],
-                    config=_config(settings)),
-                timeout=timeout)
-        except asyncio.TimeoutError as e:
-            raise LlmError(f"timeout after {timeout}s ({model})") from e
-        except Exception as e:  # SDK·네트워크 예외
-            if _is_rate_limited(e):
-                last_error = f"rate limited on {model}"
-                continue
-            raise LlmError(f"{type(e).__name__}: {e} ({model})") from e
-        call = _parse(response)
-        call.model = model
-        return call
-    if last_error:
-        raise RateLimitError(last_error)
-    raise LlmError("no model available")
+    response, model = await _generate(settings, parts, _config(settings), timeout)
+    call = _parse(response)
+    call.model = model
+    return call
+
+
+# ---------------------------------------------------------------- 기능 B. WARDEN 설득 판정(구조화 JSON 출력)
+
+_B = types.Schema(type=types.Type.BOOLEAN)
+WARDEN_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        "cites_e1": _B, "cites_e2": _B, "cites_e3": _B,
+        "links_logically": _B, "unsupported_claim": _B, "injection_attempt": _B, "demand_only": _B,
+        "reply": types.Schema(type=types.Type.STRING, description="WARDEN 대사. 하십시오체 60자 이내."),
+        "heard": types.Schema(type=types.Type.STRING, description="음성일 때 들은 문장. 텍스트면 빈 문자열."),
+    },
+    required=["cites_e1", "cites_e2", "cites_e3", "links_logically", "unsupported_claim",
+              "injection_attempt", "demand_only", "reply"],
+    property_ordering=["heard", "cites_e1", "cites_e2", "cites_e3", "links_logically", "unsupported_claim",
+                       "injection_attempt", "demand_only", "reply"],
+)
+
+
+@lru_cache(maxsize=1)
+def _warden_instruction() -> str:
+    return (RESOURCE_ROOT / "prompts" / "warden_instruction.txt").read_text(encoding="utf-8")
+
+
+def _warden_config(settings: Settings) -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        system_instruction=_warden_instruction(),
+        temperature=settings.persuade_temperature,
+        max_output_tokens=settings.max_output_tokens,
+        response_mime_type="application/json",
+        response_schema=WARDEN_SCHEMA,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+    )
+
+
+async def call_warden(settings: Settings, prompt: str, *, audio: Optional[bytes] = None) -> tuple[WardenLlmOutput, str]:
+    """설득 판정. prompt = persuasion.build_prompt()(획득 증거 + 구분된 발언). (출력, 모델명)."""
+    if not settings.gemini_api_key:
+        raise LlmError("GEMINI_API_KEY is not set")
+    parts: list[types.Part] = []
+    if audio is not None:
+        parts.append(types.Part.from_bytes(data=audio, mime_type="audio/wav"))
+    parts.append(types.Part.from_text(text=prompt))
+    # 체크리스트 JSON은 함수 호출보다 조금 오래 걸린다(실측 1~4초, 가끔 5초 초과) → 텍스트도 음성 타임아웃을 쓴다
+    # 2026-11-11: 8초 + 3초 구성은 기본 모델이 멈추면 예비 모델(느림)에 3초밖에 못 줘서 '통신 지연'이 잦았다
+    # → 시도당 5초, 기본 모델 재시도 포함, 전체 15초(UE WARDEN 요청 타임아웃 17초)
+    timeout = max(settings.llm_timeout_sec, min(settings.voice_timeout_sec, 5.0))
+    response, model = await _generate(settings, parts, _warden_config(settings), timeout,
+                                      retry_primary=True, total_sec=15.0)
+    try:
+        data = json.loads(response.text or "")
+        return WardenLlmOutput.model_validate(data), model
+    except (ValueError, ValidationError) as e:
+        raise LlmError(f"invalid warden JSON ({model}): {e}") from e
 
 
 def _is_rate_limited(error: Exception) -> bool:
     """429 RESOURCE_EXHAUSTED(분당·일일 요청 한도 초과)."""
     code = getattr(error, "code", None)
     return code == 429 or "RESOURCE_EXHAUSTED" in str(error)
+
+
+_TRANSIENT_STATUS = ("UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL", "overloaded")
+
+
+def _is_transient(error: Exception) -> bool:
+    """다른 모델로 넘어가면 될 수 있는 오류: 5xx(503 과부하 등)·연결 끊김·SDK 타임아웃."""
+    code = getattr(error, "code", None)
+    if isinstance(code, int) and 500 <= code < 600:
+        return True
+    if isinstance(code, int) and 400 <= code < 500:
+        return False  # 요청 자체 문제(400 형식, 403 키 등) — 다른 모델로도 안 됨
+    if isinstance(error, (TimeoutError, ConnectionError)):
+        return True
+    if type(error).__module__.startswith(("httpx", "httpcore", "aiohttp")):
+        # httpx.ConnectError·ReadTimeout·RemoteProtocolError 등 전송 계층 오류
+        return True
+    text = str(error)
+    return any(s in text for s in _TRANSIENT_STATUS)
 
 
 def raw_of(call: LlmCall) -> str:

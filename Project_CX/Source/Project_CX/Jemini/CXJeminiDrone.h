@@ -14,6 +14,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USoundBase;
 class AHackTerminal;
+class UCXJeminiRuleComponent;
 
 /** 드론 표정(Docs/SupportDrone_UE_Prompt.md 6장 E_DroneEmotion). 값 = 머티리얼 Emotion 파라미터 = 아틀라스 열. */
 UENUM(BlueprintType)
@@ -135,6 +136,23 @@ public:
 
 	/** 서버: 배터리 직접 설정(디버그·복원). 게임 인스턴스에도 반영. */
 	void SetBattery(int32 NewBattery);
+
+	// ---------------------------------------------------------------- 규칙(기능 A, UCXJeminiRuleComponent)
+
+	/** 조건부 지시 규칙(서버 권위·복제). */
+	UCXJeminiRuleComponent* GetRuleComponent() const { return RuleComponent; }
+
+	/** 서버로 보내는 것과 같은 게임 상태(규칙 조건 평가·/validate용). Speaker가 없으면 brother. */
+	FCXJeminiState GatherStateFor(const APawn* Speaker) const { return GatherState(Speaker); }
+
+	/**
+	 *  서버: /validate가 ok를 준 규칙 행동을 기존 ExecuteCommand 경로로 실행(배터리는 효과 실행 순간 차감).
+	 *  드론이 바쁘면 BUSY, 지금 배터리로 비용·예비 배터리가 안 되면 LOW_BATTERY / RESERVE_BATTERY, 대상이 사라졌으면 TARGET_LOST로 false.
+	 */
+	bool ExecuteRuleCommand(const FCXJeminiResponse& Response, int32 ReserveBattery, FString& OutReason);
+
+	/** 서버: 규칙 관련 대사(보류 알림 등). */
+	void SayRuleLine(const FString& Text, const FString& Status);
 
 	// ---------------------------------------------------------------- HUD 조회
 
@@ -322,6 +340,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Jemini|Visual")
 	TObjectPtr<UPointLightComponent> Light;
+
+	/** 조건부 지시 규칙(기능 A). */
+	UPROPERTY(VisibleAnywhere, Category = "Jemini|Rule")
+	TObjectPtr<UCXJeminiRuleComponent> RuleComponent;
 
 private:
 	FCXJeminiState GatherState(const APawn* Speaker) const;

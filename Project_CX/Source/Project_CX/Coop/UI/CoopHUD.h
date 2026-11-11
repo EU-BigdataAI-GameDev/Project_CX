@@ -229,6 +229,16 @@ private:
 	UPROPERTY(EditAnywhere, Category = "HUD|Jemini")
 	float HeardBubbleDuration = 4.0f;
 
+	/**
+	 *  기능 B. WARDEN 설득 퍼즐(맵에 ACXWardenTerminal이 있을 때만): 증거 노트(왼쪽, 획득한 것 한 줄씩 — 본문은 획득 담당 칸에만),
+	 *  새 증거 알림, 단말기 근처 WARDEN 대사 패널(두 칸 모두). DrawJemini보다 먼저(노트를 말풍선 배치 장애물로 등록).
+	 */
+	void DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister);
+	uint8 LastEvidenceMask = 0;
+	bool bEvidenceMaskInit = false;
+	int32 EvidenceToastIndex = INDEX_NONE;
+	float EvidenceToastTime = -100.0f;
+
 	/** 자기 칸 체력 바 옆: 제미니 보호막 남은 시간 + 회복 +N 팝업(제미니 기능 기획 2-6, 2-9). */
 	void DrawJeminiHealthExtras(const UCXHealthComponent& Health, const UCXPlayerLifeComponent* Life);
 
@@ -270,6 +280,8 @@ private:
 	FTimerHandle HackRefreshTimer;
 
 	float UIScale = 1.0f;
+	/** 이번 프레임 증거 노트 패널의 아래 끝 Y(없으면 0). 제미니 규칙 목록이 이 아래로 밀린다. */
+	float EvidencePanelBottom = 0.0f;
 
 	/**
 	 *  이번 프레임 이 칸에 떠 있는 큰 패널(해킹 퍼즐·중계 패널) 영역(픽셀). DrawHUD 시작 때 비운다.

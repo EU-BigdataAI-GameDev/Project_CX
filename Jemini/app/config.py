@@ -40,7 +40,7 @@ def _int(name: str, default: int) -> int:
     return int(raw) if raw not in (None, "") else default
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Settings:
     gemini_api_key: str
     gemini_model: str
@@ -73,6 +73,23 @@ class Settings:
     stt_cpu_threads: int = 0
     # 모델이 없으면 첫 실행 때 Hugging Face에서 내려받기
     stt_auto_download: bool = True
+    # 기능 B. WARDEN 설득(POST /persuade): 세션별 시도 간격(초), 판정 temperature(낮게 — 흔들림 줄이기)
+    persuade_cooldown_sec: float = 3.0
+    persuade_temperature: float = 0.1
+    # 모델 폴백 전체 예산(초). 실제 예산 = min(요청 타임아웃 × 2, 이 값). UE 요청 타임아웃(12초)보다 짧게. 0이면 × 2만.
+    llm_total_timeout_sec: float = 11.0
+
+    def __repr__(self) -> str:
+        # API 키·토큰이 테스트 실패 출력·로그에 찍히지 않도록 가린다
+        fields = []
+        for name in self.__dataclass_fields__:
+            value = getattr(self, name)
+            if name in ("gemini_api_key", "api_token"):
+                value = "***" if value else ""
+            fields.append(f"{name}={value!r}")
+        return f"Settings({', '.join(fields)})"
+
+    __str__ = __repr__
 
 
 def load_settings() -> Settings:
@@ -86,9 +103,9 @@ def load_settings() -> Settings:
     return Settings(
         gemini_api_key=api_key,
         # 버전 고정(별칭 gemini-flash-latest는 가리키는 모델이 바뀔 수 있음)
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
-        # 기본 모델이 한도 초과(429)면 순서대로 시도. 쉼표로 구분, 비우면 예비 없음.
-        fallback_models=tuple(m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.1-flash-lite").split(",") if m.strip()),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
+        # 기본 모델이 한도 초과(429)·과부하(5xx)·타임아웃이면 순서대로 시도. 쉼표로 구분, 비우면 예비 없음.
+        fallback_models=tuple(m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",") if m.strip()),
         max_output_tokens=_int("LLM_MAX_OUTPUT_TOKENS", 400),
         # 키가 없으면 자동으로 모의 모드
         mock_mode=_bool("MOCK_MODE", default=not api_key),
@@ -114,4 +131,7 @@ def load_settings() -> Settings:
         stt_model_dir=stt_model_dir,
         stt_cpu_threads=_int("STT_CPU_THREADS", 0),
         stt_auto_download=_bool("STT_AUTO_DOWNLOAD", default=True),
+        persuade_cooldown_sec=_float("PERSUADE_COOLDOWN_SEC", 3.0),
+        persuade_temperature=_float("PERSUADE_TEMPERATURE", 0.1),
+        llm_total_timeout_sec=_float("LLM_TOTAL_TIMEOUT_SEC", 11.0),
     )
