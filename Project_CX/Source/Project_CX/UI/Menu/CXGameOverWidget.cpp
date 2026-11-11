@@ -190,6 +190,7 @@ void UCXGameOverWidget::BuildMenu()
 
 	// 재시작 지점 안내(NativeConstruct에서 세이브 유무로 갱신 — 세이브포인트·맵 이동 기획 4장)
 	InfoText = MakeText(TEXT("RESTART FROM: MAP START"), 14, TEXT("Regular"), 160, CXMenuStyle::TextDim);
+	InfoText->SetFont(CXMenuStyle::MonoFont(17, TEXT("Regular"), 60));	// 시스템 복구 지점 — 고정폭(게임 화면 글자 +3pt)
 	if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(InfoText))
 	{
 		S->SetHorizontalAlignment(HAlign_Center);
@@ -208,7 +209,7 @@ void UCXGameOverWidget::BuildMenu()
 	}
 
 	// 5) 하단 힌트(선택만 — 뒤로 힌트 없음)
-	HintText = MakeText(TEXT("[A / ENTER]  SELECT"), 14, TEXT("Regular"), 160, CXMenuStyle::TextDim);
+	HintText = MakeText(TEXT("[A / ENTER]  SELECT"), 17, TEXT("Regular"), 160, CXMenuStyle::TextDim);
 	HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	if (UOverlaySlot* S = RootOverlay->AddChildToOverlay(HintText))
 	{

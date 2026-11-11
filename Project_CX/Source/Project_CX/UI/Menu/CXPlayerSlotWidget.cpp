@@ -69,7 +69,7 @@ void UCXPlayerSlotWidget::NativeOnInitialized()
 	}
 
 	DeviceText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Device"));
-	DeviceText->SetFont(CXMenuStyle::Font(14, TEXT("Regular"), 160));
+	DeviceText->SetFont(CXMenuStyle::MonoFont(13, TEXT("Regular"), 60));	// 장치 상태 — 고정폭
 	DeviceText->SetColorAndOpacity(FSlateColor(CXMenuStyle::TextDim));
 	if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(DeviceText))
 	{

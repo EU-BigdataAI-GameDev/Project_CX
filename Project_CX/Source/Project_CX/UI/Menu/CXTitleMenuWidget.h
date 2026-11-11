@@ -7,6 +7,7 @@
 #include "CXTitleMenuWidget.generated.h"
 
 class UTextBlock;
+class UWidget;
 class UImage;
 class UOverlay;
 class UCanvasPanel;
@@ -80,7 +81,8 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UCXTitleBackdropWidget> Backdrop;
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> Content;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleText;
+	/** 게임명 줄 CAELUM : UNCHAINED(글자 3개 묶음 — 콜론만 여동생 마젠타). 점등 깜박임은 줄 전체에. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> TitleText;
 	UPROPERTY(Transient) TObjectPtr<UImage> TitleUnderline;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SubtitleText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SaveWarningText;

@@ -63,7 +63,8 @@ void UCXMenuItemWidget::NativeOnInitialized()
 	}
 
 	InfoText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Info"));
-	InfoText->SetFont(CXMenuStyle::Font(16, TEXT("Regular"), 80));
+	// 항목 오른쪽 데이터(세이브 요약 등) — 시스템 출력이라 고정폭
+	InfoText->SetFont(CXMenuStyle::MonoFont(15, TEXT("Regular"), 20));
 	InfoText->SetColorAndOpacity(FSlateColor(CXMenuStyle::TextDim));
 	InfoText->SetVisibility(ESlateVisibility::Collapsed);
 	if (UHorizontalBoxSlot* S = Row->AddChildToHorizontalBox(InfoText))
