@@ -37,6 +37,10 @@ namespace CXJemini
 				TSharedRef<FJsonObject> Puzzle = MakeShared<FJsonObject>();
 				Puzzle->SetStringField(TEXT("type"), State.PuzzleType);
 				Puzzle->SetNumberField(TEXT("progress"), FMath::Clamp(State.PuzzleProgress, 0.0f, 1.0f));
+				if (!State.PuzzleKind.IsEmpty())
+				{
+					Puzzle->SetStringField(TEXT("kind"), State.PuzzleKind);
+				}
 				Obj->SetObjectField(TEXT("sister_puzzle"), Puzzle);
 			}
 			else
@@ -59,7 +63,100 @@ namespace CXJemini
 			Obj->SetStringField(TEXT("speaker"), State.Speaker == TEXT("sister") ? TEXT("sister") : TEXT("brother"));
 			Obj->SetBoolField(TEXT("drone_busy"), State.bDroneBusy);
 			Obj->SetNumberField(TEXT("battery"), FMath::Clamp(State.Battery, 0, 100));
+			// 기능 A: 보관 중인 규칙(서버는 개수 제한·목록·취소 대상에만 쓴다)
+			TArray<TSharedPtr<FJsonValue>> Rules;
+			for (const FCXJeminiRule& Rule : State.ActiveRules)
+			{
+				TSharedRef<FJsonObject> R = MakeShared<FJsonObject>();
+				R->SetNumberField(TEXT("id"), Rule.Id);
+				R->SetStringField(TEXT("label"), Rule.Label);
+				R->SetStringField(TEXT("action"), Rule.Action);
+				R->SetBoolField(TEXT("held"), Rule.bHeld);
+				Rules.Add(MakeShared<FJsonValueObject>(R));
+			}
+			Obj->SetArrayField(TEXT("active_rules"), Rules);
+			// 기능 C: 대답 대기 중인 작전 제안(서버는 수락 자리 계산·짧은 대답 판별에만 쓴다)
+			TArray<TSharedPtr<FJsonValue>> Pending;
+			for (int32 i = 0; i < FMath::Min(2, State.PendingProposal.Num()); ++i)
+			{
+				TSharedRef<FJsonObject> R = MakeShared<FJsonObject>();
+				R->SetNumberField(TEXT("id"), 0);
+				R->SetStringField(TEXT("label"), State.PendingProposal[i].Label);
+				R->SetStringField(TEXT("action"), State.PendingProposal[i].Action);
+				Pending.Add(MakeShared<FJsonValueObject>(R));
+			}
+			Obj->SetArrayField(TEXT("pending_proposal"), Pending);
+			// 기능 C: WARDEN 힌트용(얻은 증거 id·마지막 거절 사유만)
+			if (State.bHasWarden)
+			{
+				TSharedRef<FJsonObject> Warden = MakeShared<FJsonObject>();
+				TArray<TSharedPtr<FJsonValue>> Ids;
+				for (const FString& Id : State.WardenEvidence)
+				{
+					Ids.Add(MakeShared<FJsonValueString>(Id));
+				}
+				Warden->SetArrayField(TEXT("evidence"), Ids);
+				if (!State.WardenLastReason.IsEmpty())
+				{
+					Warden->SetStringField(TEXT("last_reason"), State.WardenLastReason.Left(32));
+				}
+				Warden->SetBoolField(TEXT("near"), State.bWardenNear);
+				Obj->SetObjectField(TEXT("warden"), Warden);
+			}
 			return Obj;
+		}
+
+		FString GetStringOrEmpty(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Field);
+
+		/** rule JSON → FCXJeminiRule. when이 비거나 action이 없으면 false. */
+		bool ParseRule(const TSharedPtr<FJsonObject>& Obj, FCXJeminiRule& Out)
+		{
+			if (!Obj.IsValid())
+			{
+				return false;
+			}
+			Out = FCXJeminiRule();
+			const TArray<TSharedPtr<FJsonValue>>* When = nullptr;
+			if (Obj->TryGetArrayField(TEXT("when"), When) && When)
+			{
+				for (const TSharedPtr<FJsonValue>& Value : *When)
+				{
+					const TSharedPtr<FJsonObject> C = Value.IsValid() ? Value->AsObject() : nullptr;
+					if (!C.IsValid())
+					{
+						continue;
+					}
+					FCXJeminiRuleCondition Cond;
+					Cond.Type = GetStringOrEmpty(C, TEXT("type"));
+					Cond.Who = GetStringOrEmpty(C, TEXT("who"));
+					double Number = 0.0;
+					for (const TCHAR* Field : { TEXT("cm"), TEXT("pct"), TEXT("n") })
+					{
+						if (C->TryGetNumberField(Field, Number))
+						{
+							Cond.Value = FMath::RoundToInt(Number);
+						}
+					}
+					if (!Cond.Type.IsEmpty())
+					{
+						Out.When.Add(Cond);
+					}
+				}
+			}
+			const TSharedPtr<FJsonObject>* Do = nullptr;
+			if (Obj->TryGetObjectField(TEXT("do"), Do) && Do)
+			{
+				Out.Action = GetStringOrEmpty(*Do, TEXT("action"));
+				Out.ActionWho = GetStringOrEmpty(*Do, TEXT("who"));
+			}
+			double Reserve = 0.0;
+			if (Obj->TryGetNumberField(TEXT("reserve_battery"), Reserve))
+			{
+				Out.ReserveBattery = FMath::Clamp(FMath::RoundToInt(Reserve), 0, 100);
+			}
+			Obj->TryGetBoolField(TEXT("repeat"), Out.bRepeat);
+			Out.Label = GetStringOrEmpty(Obj, TEXT("label"));
+			return Out.When.Num() > 0 && !Out.Action.IsEmpty();
 		}
 
 		FString ToJson(const TSharedRef<FJsonObject>& Obj)
@@ -178,7 +275,53 @@ namespace CXJemini
 			Out.CommandName = GetStringOrEmpty(*Command, TEXT("name"));
 			Out.CommandTarget = GetStringOrEmpty(*Command, TEXT("target"));
 		}
+		// 기능 A: 규칙 등록·취소·목록
+		Out.RuleOp = GetStringOrEmpty(Root, TEXT("rule_op"));
+		const TSharedPtr<FJsonObject>* RuleObj = nullptr;
+		if (Root->TryGetObjectField(TEXT("rule"), RuleObj) && RuleObj)
+		{
+			Out.bHasRule = ParseRule(*RuleObj, Out.Rule);
+		}
+		double RuleId = 0.0;
+		if (Root->TryGetNumberField(TEXT("rule_id"), RuleId))
+		{
+			Out.RuleId = FMath::RoundToInt(RuleId);
+		}
+		// 기능 C: 작전 제안(검증된 규칙 0~2개)
+		const TArray<TSharedPtr<FJsonValue>>* Proposal = nullptr;
+		if (Root->TryGetArrayField(TEXT("proposal"), Proposal) && Proposal)
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *Proposal)
+			{
+				FCXJeminiRule Rule;
+				if (Value.IsValid() && ParseRule(Value->AsObject(), Rule) && Out.Proposal.Num() < 2)
+				{
+					Out.Proposal.Add(Rule);
+				}
+			}
+		}
 		return true;
+	}
+
+	void SendValidate(const FEndpoint& Endpoint, const FString& Action, const FString& Who, int32 ReserveBattery, const FCXJeminiState& State, FOnCXJeminiResponse OnDone)
+	{
+		TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
+		Body->SetStringField(TEXT("action"), Action);
+		if (Who == TEXT("brother") || Who == TEXT("sister"))
+		{
+			Body->SetStringField(TEXT("who"), Who);
+		}
+		Body->SetNumberField(TEXT("reserve_battery"), FMath::Clamp(ReserveBattery, 0, 100));
+		Body->SetObjectField(TEXT("state"), StateObject(State));
+
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = MakeRequest(Endpoint, TEXT("/validate"));
+		Request->SetHeader(TEXT("Content-Type"), TEXT("application/json; charset=utf-8"));
+		// LLM이 없는 검증이라 짧게(서버가 죽어 있으면 빨리 보류로)
+		Request->SetTimeout(FMath::Clamp(Endpoint.TimeoutSec, 1.0f, 3.0f));
+		TArray<uint8> Bytes;
+		AppendUtf8(Bytes, ToJson(Body));
+		Request->SetContent(MoveTemp(Bytes));
+		Dispatch(Request, State.Battery, MoveTemp(OnDone));
 	}
 
 	void SendText(const FEndpoint& Endpoint, const FString& Text, const FCXJeminiState& State, FOnCXJeminiResponse OnDone)

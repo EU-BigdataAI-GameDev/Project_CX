@@ -227,6 +227,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack")
 	TArray<TObjectPtr<AActor>> UnlockActors;
 
+	/** 기능 B(WARDEN 설득): 해킹 성공 보상 증거 id("E2"/"E3", 비우면 없음) — ACXWardenTerminal::AwardEvidence. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hack|Evidence")
+	FName RewardEvidenceId;
+
 	UPROPERTY(BlueprintAssignable, Category = "Hack")
 	FOnHackTerminalHacked OnHacked;
 

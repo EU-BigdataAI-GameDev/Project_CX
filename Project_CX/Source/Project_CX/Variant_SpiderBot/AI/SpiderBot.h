@@ -91,6 +91,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SpiderBot")
 	bool IsDead() const { return State == ESpiderBotState::Dead; }
 
+	/** 기능 B: 죽을 때 떨어뜨릴 증거 id(없으면 None). */
+	FName GetDropEvidenceId() const { return DropEvidenceId; }
+
 	UFUNCTION(BlueprintPure, Category = "SpiderBot")
 	UCXHealthComponent* GetHealthComponent() const { return Health; }
 
@@ -164,6 +167,10 @@ protected:
 	/** 사망 후 제거(초). */
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Stats")
 	float CorpseLifeSpan = 3.0f;
+
+	/** 기능 B(WARDEN 설득): 이 거미가 죽으면 떨어뜨릴 증거 id("E1"~"E3", 비우면 없음). 레벨에 놓인 인스턴스에서 지정 — ACXEvidencePickup 스폰. */
+	UPROPERTY(EditAnywhere, Category = "SpiderBot|Evidence")
+	FName DropEvidenceId;
 
 	/** 여동생 해킹 가능 거리(cm). 2026-11-04: 300 → 450(전투 중 접근 부담 완화). */
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Hack")

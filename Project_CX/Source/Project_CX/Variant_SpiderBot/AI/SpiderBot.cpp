@@ -4,6 +4,7 @@
 #include "CXHealthComponent.h"
 #include "CXPlayerLifeComponent.h"
 #include "CXSfx.h"
+#include "CXEvidencePickup.h"
 #include "AIController.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -490,6 +491,11 @@ void ASpiderBot::HandleDeath()
 	SetLifeSpan(FMath::Max(0.1f, CorpseLifeSpan));
 	DetachFromControllerPendingDestroy();
 	UE_LOG(LogTemp, Log, TEXT("SpiderBot: %s destroyed"), *GetName());
+	// 기능 B: 증거 드롭(맵2 가장 오른쪽 거미 → E1 안전 규정)
+	if (!DropEvidenceId.IsNone())
+	{
+		ACXEvidencePickup::SpawnDrop(GetWorld(), DropEvidenceId, GetActorLocation());
+	}
 }
 
 // ---------------------------------------------------------------- 해킹 대상: 그로기 3초(해킹 시스템 기획 10장)

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CXJeminiInputComponent.h"
+#include "CXWardenTerminal.h"
 #include "CXJeminiDrone.h"
+#include "CXJeminiRuleComponent.h"
 #include "CXJeminiClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
@@ -315,13 +317,26 @@ bool UCXJeminiInputComponent::CanTalkNow() const
 	{
 		return false;
 	}
+	// 기능 B: WARDEN 단말기 앞의 여동생은 제미니 대신 WARDEN과 말한다(드론이 바빠도 된다)
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Pawn))
+	{
+		return Warden->CanAcceptTalk();
+	}
 	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 	if (!Drone)
 	{
 		return false;
 	}
 	// 클라이언트는 게임모드가 없어 복제값(요청 중 / 드론 작업 중)만 본다
-	return GetOwner()->HasAuthority() ? Drone->CanAcceptRequest() : !Drone->IsBusy();
+	if (GetOwner()->HasAuthority() ? Drone->CanAcceptRequest() : !Drone->IsBusy())
+	{
+		return true;
+	}
+	// 드론 작업 중이어도 작전 제안 대기·등록된 규칙이 있으면 말할 수 있다("응/아니"·"규칙 취소").
+	// 최종 판단은 서버 ACXJeminiDrone::BeginRequest(게임 오버 등 포함).
+	const UCXJeminiRuleComponent* Rules = Drone->GetRuleComponent();
+	return !Drone->IsRequestPending() && Drone->GetAction() != ECXJeminiAction::Idle
+		&& Rules && (Rules->GetProposal().Num() > 0 || Rules->GetRules().Num() > 0);
 }
 
 void UCXJeminiInputComponent::MarkBlocked()
@@ -470,6 +485,12 @@ bool UCXJeminiInputComponent::DebugSubmitText(const FString& Text)
 
 void UCXJeminiInputComponent::Server_SubmitText_Implementation(const FString& Text)
 {
+	// 기능 B: WARDEN 단말기 앞이면 설득 대화로(서버가 위치를 다시 확인)
+	if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+	{
+		Warden->SubmitText(Cast<APawn>(GetOwner()), Text.Left(200));
+		return;
+	}
 	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
 	{
 		Drone->SubmitText(Cast<APawn>(GetOwner()), Text.Left(300));
@@ -541,6 +562,10 @@ bool UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
 	}
 	if (GetOwner()->HasAuthority())
 	{
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			return Warden->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
+		}
 		ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 		return Drone && Drone->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
 	}
@@ -564,7 +589,11 @@ void UCXJeminiInputComponent::Server_VoiceChunk_Implementation(const TArray<uint
 	PendingVoice.Append(Chunk);
 	if (bFinal)
 	{
-		if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			Warden->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
+		}
+		else if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
 		{
 			Drone->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
 		}
@@ -669,6 +698,11 @@ void UCXJeminiInputComponent::TickLiveCaption()
 	{
 		const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 		const float Waited = GetWorld()->GetTimeSeconds() - PendingStartTime;
+		// 기능 B: WARDEN에게 말한 경우 — WARDEN 응답이 올 때까지(최대 15초) 마지막 자막 유지
+		if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())); Warden && Warden->IsRequestPending() && Waited <= 15.0f)
+		{
+			return;
+		}
 		// 드론 대사가 바뀜 = 최종 응답 도착(이제 HUD가 Heard 말풍선을 그린다). 요청이 끝났는데 대사가 없거나 너무 오래면 지운다.
 		if (!Drone || Drone->GetDialogueSeq() != PendingDialogueSeq || (!Drone->IsRequestPending() && Waited > 1.0f) || Waited > 15.0f)
 		{

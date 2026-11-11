@@ -182,6 +182,34 @@ public:
 	UFUNCTION(Exec)
 	void CXSolveHack();
 
+	/** 기능 B 테스트·시연: WARDEN 증거 지급. all 또는 E1/E2/E3(공백·쉼표로 여러 개). 예) CXGiveEvidence all / CXGiveEvidence E1 E3 */
+	UFUNCTION(Exec)
+	void CXGiveEvidence(const FString& Ids = TEXT("all"));
+
+	/** 기능 B: 두 플레이어를 WARDEN 단말기(문) 앞으로 이동(맵2 끝 — 시연 시간 단축). */
+	UFUNCTION(Exec)
+	void CXGotoWarden();
+
+	/** 기능 B: WARDEN 강제 해결(문 열림). CXSolveHack도 WARDEN이 가장 가까우면 이것을 한다. */
+	UFUNCTION(Exec)
+	void CXSolveWarden();
+
+	/** 기능 B 테스트: 여동생이 WARDEN에게 채팅한 것처럼(거리 무시). 예) CXWardenSay 문 열어 */
+	UFUNCTION(Exec)
+	void CXWardenSay(const FString& Text);
+
+	/** 기능 B 테스트: WARDEN 상태 한 줄 로그(증거·해결·대사·문 충돌). */
+	UFUNCTION(Exec)
+	void CXWardenState();
+
+	/**
+	 *  기능 B 자체 확인(맵2): 문 막힘 → 오른쪽 거미 처치 → 증거 드롭을 오빠가 주움(E1) → 마지막 단말기 해킹(E2) →
+	 *  여동생 채팅(입력 컴포넌트 경로)으로 증거 부족 설득 → 중간 단말기(E3) → "문 열어"(명령만) → 올바른 설득 → 해결·문 통과.
+	 *  단계별 결과를 로그 "CXWardenSelfTest"로 남긴다. 인자 1이면 끝나고 종료(헤드리스).
+	 */
+	UFUNCTION(Exec)
+	void CXWardenSelfTest(int32 bQuitWhenDone = 0);
+
 	/** 테스트용 콘솔 명령: 1P가 제미니에게 채팅한 것처럼 요청(입력창 생략). 예) CXJemini 총알 채워줘 */
 	UFUNCTION(Exec)
 	void CXJemini(const FString& Text);
@@ -220,6 +248,44 @@ public:
 	/** 테스트용 콘솔 명령: 드론 표정 고정(0 기본 / 1 기쁨 / 2 슬픔 / 3 화남), -1이면 고정 해제(자동 표정). 예) CXJeminiEmotion 1 */
 	UFUNCTION(Exec)
 	void CXJeminiEmotion(int32 Value = -1);
+
+	/**
+	 *  테스트용 콘솔 명령: LLM 없이 조건부 지시 규칙 추가(기능 A). 조건은 쉼표로 묶고(AND, 최대 3), 값은 '=', 대상은 ':'.
+	 *  조건: enemy_within=500 / sister_hacking / hp_below=brother:30 / ammo_below=5 / player_downed=any / battery_above=50
+	 *  행동: 9개 기능(Shield·QuickReboot는 Shield:sister처럼 대상). Reserve = 남길 배터리, bRepeat = 1이면 반복.
+	 *  예) CXJeminiRuleAdd sister_hacking,enemy_within=500 Decoy / CXJeminiRuleAdd hp_below=brother:30 HealSupport 20
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiRuleAdd(const FString& Conditions, const FString& Action, int32 Reserve = 0, int32 bRepeat = 0);
+
+	/** 테스트용 콘솔 명령: 규칙 삭제(Id 0 = 전부). 예) CXJeminiRuleClear */
+	UFUNCTION(Exec)
+	void CXJeminiRuleClear(int32 Id = 0);
+
+	/** 테스트용 콘솔 명령: 규칙 목록·감시 상태 로그. */
+	UFUNCTION(Exec)
+	void CXJeminiRuleList();
+
+	/**
+	 *  기능 C 자체 확인(어느 맵이든, 서버 mock 권장): 오빠 체력 깎기 → "어떡하지?" → 조언 + 작전 제안(대답 대기) → "응" → 규칙 등록 →
+	 *  다시 제안 → "아니" → 버림 → 짧은 대답 시간으로 제안 → 시간 초과 버림 → 그 뒤 "응"은 등록 없음.
+	 *  단계별 결과를 로그 "CXJeminiAdviceSelfTest"로 남긴다. 인자 1이면 끝나고 종료(헤드리스).
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiAdviceSelfTest(int32 bQuitWhenDone = 0);
+
+	void AdviceSelfTestStep();
+	int32 AdviceTestStep = 0;
+	int32 AdviceTestQuit = 0;
+	int32 AdviceTestFails = 0;
+	int32 AdviceTestRuleCount = 0;
+	FTimerHandle AdviceTestTimer;
+
+	void WardenSelfTestStep();
+	int32 WardenTestStep = 0;
+	int32 WardenTestQuit = 0;
+	int32 WardenTestFails = 0;
+	FTimerHandle WardenTestTimer;
 
 	/** 테스트용: 로컬 플레이어(0/1)가 제미니에게 채팅 요청. 보냈으면 true. */
 	UFUNCTION(BlueprintCallable, Category = "Local Coop|Debug")

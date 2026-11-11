@@ -59,6 +59,18 @@
 - [x] 실제 마이크로 확인: 실시간 자막 체감 속도·인식률, 녹음 중/짧은 녹음 뒤 PIE 종료 시 크래시 없음(확인 당시 헤드셋 미연결)
 - [x] 제미니 기능 PIE 확인: 빠른 재부팅, 단말기 A·적 해킹 A(여동생 퍼즐 중), Fx 밝기·크기, 쓰러진 사람 채팅·음성, 맵 이동 강화 유지, 실제 Gemini로 9-2 판별 문장
 
+#### 제미니 고도화 ver2 (`.claude/Plans/제미니 고도화 기획 ver2.md`)
+- [x] 기능 A: 자연어 조건부 지시(규칙) — 서버 `RegisterRule`·`ManageRules`(12개 함수), 조건 화이트리스트 6종·`UNSUPPORTED_CONDITION`, `POST /validate`, mock 키워드 판별, pytest 166개. UE `UCXJeminiRuleComponent`(최대 2, 0.2초 감시, `/validate` → 기존 실행 경로, 2초 쿨다운·6초 실패 시 보류), HUD 규칙 한 줄 목록·"규칙 보류", 콘솔 `CXJeminiRuleAdd/Clear/List`. 헤드리스 실행으로 발동·삭제·RESERVE_BATTERY 보류 확인
+- [ ] 기능 A PIE 확인: 실제 발화로 등록 → HUD 목록 → 발동(미끼·회복·재부팅), 규칙 보류 표시 위치(해킹 패널과 겹침 여부), 원격 클라이언트 복제
+- [x] 기능 B: 증거 기반 WARDEN 설득 퍼즐(맵2 끝) — 서버 `POST /persuade`(+`/voice`), 체크리스트 판정·오프라인 폴백, pytest 204개. UE `ACXWardenTerminal`(문 포함)·`ACXEvidencePickup`, 거미 드롭·단말기 해킹 보상, 여동생 채팅/음성 라우팅, HUD 증거 노트·WARDEN 대사, 콘솔 `CXGiveEvidence/CXGotoWarden/CXSolveWarden/CXWardenSay/CXWardenState/CXWardenSelfTest`. 맵2 배치(`Docs/LevelManifests/Map2_Warden_manifest.md`), 헤드리스 자체 확인 0 fail
+- [ ] 기능 B PIE 확인: 증거 반짝임이 분할 화면에서 잘 보이는지, WARDEN 패널·증거 노트 위치(해킹 패널·제미니 말풍선과 겹침), 문 셔터 모양, 실제 음성 설득, 원격 클라이언트 복제
+- [x] 기능 C: 상황 조언 + 작전 제안 — 서버 `Advise`(13개 함수)·`ManageRules` accept/decline, 짧은 대답("응/아니") LLM 없이 판별, `[힌트 근거]`(퍼즐 종류별 비대칭 정보·WARDEN 얻은 증거 제목만)·누설 가드, 오프라인 고정 조언, pytest 230개. UE 제안 대기(`UCXJeminiRuleComponent::Proposal`, 20초)·HUD "PLAN? … [응/아니]"·state `pending_proposal`/`sister_puzzle.kind`/`warden`, 콘솔 `CXJeminiAdviceSelfTest`. 헤드리스 자체 확인 0 fail, 실제 Gemini 5문장 의도대로
+- [ ] 기능 C PIE 확인: 실제 발화·음성으로 조언 → "응" 등록, HUD PLAN 줄 위치(규칙 목록 아래), 원격 클라이언트 복제
+- [x] 드론 작업 중에도 제안 대기·규칙이 있으면 발화 허용("응/아니"·"규칙 취소", 실행은 BUSY 거절) — 빌드 성공, PIE 체감 미확인
+- [x] 모델 폴백 확장: 429뿐 아니라 503/5xx·타임아웃·연결 끊김도 다음 모델로(전체 예산 min(타임아웃×2, 11초)), `/command`·음성·`/persuade` 공통. pytest
+- [x] 비교 실험(키워드 vs LLM) — 문장 66개 `Jemini/tests/fixtures/compare_sentences.json`, `Jemini/tools/compare_keyword_vs_llm.py`, 결과 `Docs/Jemini/비교실험_결과.md`
+- [ ] 발표 자료(슬라이드) — 비교실험_결과.md 표·대표 문장 인용
+
 ---
 
 ## 남은 자잘한 것

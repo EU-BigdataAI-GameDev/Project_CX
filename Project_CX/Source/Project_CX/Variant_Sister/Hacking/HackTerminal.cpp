@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "CXSfx.h"
+#include "CXWardenTerminal.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
@@ -188,6 +189,11 @@ void AHackTerminal::MarkHacked()
 	State = EHackTerminalState::Hacked;
 	ApplyStateVisuals();
 	OnHacked.Broadcast(this);
+	// 기능 B: 해킹 보상 증거(제미니 대행·CXSolveHack으로 열어도 같다)
+	if (HasAuthority() && !RewardEvidenceId.IsNone())
+	{
+		ACXWardenTerminal::AwardEvidence(this, RewardEvidenceId, nullptr);
+	}
 }
 
 void AHackTerminal::OnRep_State()
