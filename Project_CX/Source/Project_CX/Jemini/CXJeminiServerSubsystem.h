@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HAL/PlatformProcess.h"
+#include "Containers/Ticker.h"
 #include "CXJeminiServerSubsystem.generated.h"
 
 /**
@@ -48,9 +49,15 @@ protected:
 private:
 	void CheckThenLaunch(const FString& BaseUrl, const FString& Host, int32 Port);
 	bool LaunchServer(const FString& Host, int32 Port);
+	/** 띄운 뒤 몇 초 지나서도 살아 있는지 보고, 죽었으면 그 후보를 빼고 다시 띄운다. */
+	void VerifyLaunched(const FString& Host, int32 Port);
 	static bool ParseLocalUrl(const FString& Url, FString& OutHost, int32& OutPort);
 
 	FProcHandle ServerProcess;
+	/** 띄웠다가 곧바로 죽은 후보(불완전한 exe 빌드 등) — 다음 시도에서 건너뛴다(이슈 #21). */
+	TArray<FString> FailedCandidates;
+	FString LaunchedCandidate;
+	FTSTicker::FDelegateHandle VerifyHandle;
 	EState State = EState::Disabled;
 	bool bShuttingDown = false;
 };
