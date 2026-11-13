@@ -669,16 +669,22 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 		TextW = FMath::Max(TextW, LW);
 		LineH = FMath::Max(LineH, LH);
 	}
+	// 2026-11-13 #25: 플레이어 인용은 최대 2줄·약 90자(넘으면 …). 패널 폭은 WARDEN 대사 기준으로 먼저 정한다
 	FString PlayerText = Warden->GetPlayerLine().TrimStartAndEnd();
-	if (PlayerText.Len() > 46)
+	if (PlayerText.Len() > 90)
 	{
-		PlayerText = PlayerText.Left(45) + TEXT("…");
+		PlayerText = PlayerText.Left(89) + TEXT("…");
 	}
 	const bool bShowPlayer = !PlayerText.IsEmpty();
 	float SmallH = 0.0f, Dummy = 0.0f;
 	GetTextSize(TEXT("가"), Dummy, SmallH, SmallFont, Scale);
 	const float W = FMath::Clamp(TextW + 2.0f * Pad, 380.0f * S(), MaxW);
-	const float H = Lines.Num() * LineH + 1.2f * Pad + (bShowPlayer ? SmallH + 6.0f * S() : 0.0f) + SmallH + 4.0f * S();
+	TArray<FString> PlayerLines;
+	if (bShowPlayer)
+	{
+		PlayerLines = WrapText(FString::Printf(TEXT("PLAYER >  \"%s\""), *PlayerText), SmallFont, Scale, W - 2.0f * Pad, 2);
+	}
+	const float H = Lines.Num() * LineH + 1.2f * Pad + (bShowPlayer ? PlayerLines.Num() * SmallH + 6.0f * S() : 0.0f) + SmallH + 4.0f * S();
 	const bool bOnScreen = ScreenPos.Z > 0.0f;
 	const float X = FMath::Clamp((bOnScreen ? ScreenPos.X : Canvas->ClipX * 0.5f) - W * 0.5f, 8.0f * S(), Canvas->ClipX - W - 8.0f * S());
 	float Y = FMath::Clamp((bOnScreen ? ScreenPos.Y : Canvas->ClipY * 0.2f) - H, 8.0f * S(), Canvas->ClipY - H - 8.0f * S());
@@ -707,8 +713,12 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 	RowY += SmallH + 4.0f * S();
 	if (bShowPlayer)
 	{
-		Label(FString::Printf(TEXT("PLAYER >  \"%s\""), *PlayerText), X + Pad, RowY, SisterColor.CopyWithNewOpacity(0.85f), SmallFont, 1.0f);
-		RowY += SmallH + 6.0f * S();
+		for (const FString& PlayerRow : PlayerLines)
+		{
+			Label(PlayerRow, X + Pad, RowY, SisterColor.CopyWithNewOpacity(0.85f), SmallFont, 1.0f);
+			RowY += SmallH;
+		}
+		RowY += 6.0f * S();
 	}
 	for (int32 i = 0; i < Lines.Num(); ++i)
 	{
