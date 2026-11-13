@@ -265,15 +265,22 @@ async def _generate(settings: Settings, parts: list[types.Part], config: types.G
     failures: list[str] = []
     rate_limited = False
     models = _models(settings)
-    if retry_primary and models:
-        # 응답이 멈춘(타임아웃) 호출은 같은 모델에 다시 보내면 곧 성공하는 일이 많다 → 기본 모델을 한 번 더
-        models = [models[0], *models]
-    for model in models:
+    queue = list(models)
+    primary = models[0] if models else None
+    retried = False
+    i = 0
+    while i < len(queue):
+        model = queue[i]
+        i += 1
         remaining = deadline - time.monotonic()
         if failures and remaining < MIN_ATTEMPT_SEC:
             failures.append(f"budget exhausted before {model}")
             break
-        attempt = min(timeout, max(remaining, MIN_ATTEMPT_SEC))
+        if total_sec > 0 and model != primary:
+            # 예비 모델은 느리다(실측 8~22초) → 시도 한도를 두지 않고 남은 예산을 모두 준다
+            attempt = max(remaining, MIN_ATTEMPT_SEC)
+        else:
+            attempt = min(timeout, max(remaining, MIN_ATTEMPT_SEC))
         try:
             response = await asyncio.wait_for(
                 _client(settings.gemini_api_key).aio.models.generate_content(
@@ -282,6 +289,10 @@ async def _generate(settings: Settings, parts: list[types.Part], config: types.G
             return response, model
         except asyncio.TimeoutError:
             failures.append(f"timeout after {attempt:.1f}s ({model})")
+            if retry_primary and model == primary and not retried:
+                # 멈춘 호출은 같은 모델에 다시 보내면 곧 성공하는 일이 많다 → 예비 모델 뒤에 기본 모델을 한 번 더
+                retried = True
+                queue.append(primary)
         except Exception as e:  # SDK·네트워크 예외
             if _is_rate_limited(e):
                 rate_limited = True
