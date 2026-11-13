@@ -55,10 +55,12 @@ Claude Code가 GitHub CLI(`gh`)로 이슈와 PR을 올릴 때 따르는 규칙. 
    ```powershell
    $doc = ".github\PRD\PR_<이름>.md"
    $lines = Get-Content $doc -Encoding UTF8
-   $title = ($lines[0] -replace '^#\s*', '')
+   $title = ($lines[0] -replace '^#\s*', '') -replace '"', '\"'   # 제목의 큰따옴표는 \"로 바꿔 전달
    $lines[1..($lines.Length-1)] | Set-Content <scratchpad>\pr_body.md -Encoding UTF8
    & "C:\Program Files\GitHub CLI\gh.exe" pr create --base develop --head <브랜치> --title $title --body-file <scratchpad>\pr_body.md
    ```
+   - **제목에 큰따옴표(`"`)가 있으면** Windows PowerShell 5.1이 `gh` 인자를 쪼개 `unknown argument ... please quote all values that have spaces` 오류가 난다. 위 예시처럼 `"`를 `\"`로 바꿔 전달한다(제목에 큰따옴표를 안 쓰면 가장 간단하다). 이슈 제목(`gh issue create --title`)도 같다.
+   - `gh`의 `✓ Closed issue ...`·`✓ Created ...` 같은 **성공 메시지가 PowerShell에서 빨간 `NativeCommandError`처럼 보일 수 있다.** `✓`가 있으면 성공이다(종료 코드나 `gh pr view`/`gh issue view`로 확인).
 4. **PR을 올렸으면 연결된 이슈를 닫는다**(아래 3-1). PR 번호와 링크, 닫은 이슈를 사용자에게 알린다. 머지는 사용자가 한다(요청 없이 머지하지 않는다).
 
 "PR 올려줘" 요청이 없으면 PR 문서만 만들고 업로드하지 않는다. 문서 작성 요청과 업로드 요청을 구분한다.
