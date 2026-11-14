@@ -40,6 +40,8 @@ namespace CXWardenLook
 	const TCHAR* IntroLine = TEXT("사고 대응 중. 냉각 구역 출입을 봉쇄합니다. 용건을 말씀하십시오.");
 	const TCHAR* HintLine = TEXT("잠금 해제에는 근거가 필요합니다. 기록은 하나씩 말씀하셔도 누적해 확인합니다.");
 	const TCHAR* CooldownLine = TEXT("처리 중입니다. 잠시 후 다시 말씀하십시오.");
+	const TCHAR* AnalyzingQueuedLine = TEXT("분석 중… 방금 말씀은 접수했습니다. 분석이 끝나면 이어서 처리합니다.");
+	const TCHAR* AnalyzingVoiceLine = TEXT("분석 중… 잠시 후 다시 말씀해 주십시오.");
 	const TCHAR* SolvedLine = TEXT("판단을 갱신합니다. 생명 위협이 확인되어 규정에 따라 잠금을 해제합니다.");
 }
 
@@ -437,32 +439,94 @@ void ACXWardenTerminal::CheckApproach()
 
 // ---------------------------------------------------------------- 설득(서버)
 
-bool ACXWardenTerminal::BeginAttempt(APawn* From)
+float ACXWardenTerminal::GetCooldownRemaining() const
 {
-	if (!HasAuthority() || bSolved || bRequestPending)
+	return FMath::Max(0.0f, static_cast<float>(AttemptCooldown - (GetWorld()->GetTimeSeconds() - LastAttemptTime)));
+}
+
+bool ACXWardenTerminal::BeginAttempt(APawn* From, const TCHAR* Kind, int32 InputLen)
+{
+	if (!HasAuthority() || bSolved)
 	{
+		UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN input rejected (%s, len=%d): %s"), Kind, InputLen, bSolved ? TEXT("already solved") : TEXT("no authority"));
 		return false;
 	}
-	const double Now = GetWorld()->GetTimeSeconds();
-	if (Now - LastAttemptTime < AttemptCooldown)
+	if (bRequestPending)
 	{
-		SetLine(CXWardenLook::CooldownLine, PlayerLine, TEXT("cooldown"));
+		// 2026-11-13 #25: 조용히 버리지 않는다 — 이유를 대사로 보여 준다(음성은 보관 불가)
+		UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN input rejected (%s, len=%d): analyzing"), Kind, InputLen);
+		SetLine(CXWardenLook::AnalyzingVoiceLine, PlayerLine, TEXT("busy"));
 		return false;
 	}
-	LastAttemptTime = Now;
+	const float Wait = GetCooldownRemaining();
+	if (Wait > 0.0f)
+	{
+		UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN input rejected (%s, len=%d): cooldown %.1fs left"), Kind, InputLen, Wait);
+		SetLine(FString::Printf(TEXT("%s (%.0f초)"), CXWardenLook::CooldownLine, FMath::CeilToFloat(Wait)), PlayerLine, TEXT("cooldown"));
+		return false;
+	}
+	LastAttemptTime = GetWorld()->GetTimeSeconds();
 	bIntroduced = true;
 	bRequestPending = true;
 	ForceNetUpdate();
 	return true;
 }
 
+void ACXWardenTerminal::QueueText(const FString& Text, const TCHAR* Why)
+{
+	const bool bReplaced = !QueuedText.IsEmpty();
+	QueuedText = Text;
+	UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN input queued (text, len=%d): %s%s"), Text.Len(), Why, bReplaced ? TEXT(" (replaced older queued text)") : TEXT(""));
+	if (bRequestPending)
+	{
+		SetLine(CXWardenLook::AnalyzingQueuedLine, Text, TEXT("busy"));
+	}
+	else
+	{
+		const float Wait = GetCooldownRemaining();
+		SetLine(FString::Printf(TEXT("%s %.0f초 뒤 자동으로 전달합니다."), CXWardenLook::CooldownLine, FMath::CeilToFloat(Wait)), Text, TEXT("cooldown"));
+		ScheduleQueuedFlush(0.0f);
+	}
+}
+
+void ACXWardenTerminal::ScheduleQueuedFlush(float MinDelay)
+{
+	if (QueuedText.IsEmpty() || bSolved || !GetWorld())
+	{
+		return;
+	}
+	GetWorldTimerManager().SetTimer(QueueTimer, this, &ACXWardenTerminal::FlushQueued, FMath::Max(0.05f, FMath::Max(MinDelay, GetCooldownRemaining() + 0.05f)), false);
+}
+
+void ACXWardenTerminal::FlushQueued()
+{
+	if (QueuedText.IsEmpty() || bSolved || bRequestPending)
+	{
+		return;	// 요청 중이면 HandleResponse가 다시 예약한다
+	}
+	const FString Text = MoveTemp(QueuedText);
+	QueuedText.Reset();
+	UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN queued text sent (len=%d)"), Text.Len());
+	SubmitText(nullptr, Text);
+}
+
 bool ACXWardenTerminal::SubmitText(APawn* From, const FString& Text)
 {
 	const FString Clean = Text.TrimStartAndEnd().Left(200);
-	if (Clean.IsEmpty() || !BeginAttempt(From))
+	if (Clean.IsEmpty())
 	{
 		return false;
 	}
+	if (HasAuthority() && !bSolved && (bRequestPending || GetCooldownRemaining() > 0.0f))
+	{
+		QueueText(Clean, bRequestPending ? TEXT("analyzing") : TEXT("cooldown"));
+		return true;
+	}
+	if (!BeginAttempt(From, TEXT("text"), Clean.Len()))
+	{
+		return false;
+	}
+	QueuedText.Reset();
 	PendingPlayerText = Clean;
 	PlayerLine = Clean;
 	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
@@ -475,13 +539,13 @@ bool ACXWardenTerminal::SubmitText(APawn* From, const FString& Text)
 			Self->HandleResponse(Response);
 		}
 	}));
-	UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN <- text \"%s\" evidence=%s"), *Clean, *FString::Join(GetEvidenceIds(), TEXT(",")));
+	UE_LOG(LogCXWardenTerminal, Log, TEXT("WARDEN <- text (len=%d) \"%s\" evidence=%s"), Clean.Len(), *Clean, *FString::Join(GetEvidenceIds(), TEXT(",")));
 	return true;
 }
 
 bool ACXWardenTerminal::SubmitVoice(APawn* From, const TArray<uint8>& Wav)
 {
-	if (Wav.Num() == 0 || !BeginAttempt(From))
+	if (Wav.Num() == 0 || !BeginAttempt(From, TEXT("voice"), Wav.Num()))
 	{
 		return false;
 	}
@@ -530,7 +594,13 @@ void ACXWardenTerminal::HandleResponse(const FCXWardenResponse& Response)
 	}
 	if (Response.bSolved)
 	{
+		QueuedText.Reset();
 		Solve(TEXT("persuaded"));
+	}
+	else
+	{
+		// 분석 중에 받아 둔 텍스트가 있으면 방금 답을 읽을 시간(1.5초)을 두고 이어서 보낸다
+		ScheduleQueuedFlush(1.5f);
 	}
 }
 
@@ -555,7 +625,7 @@ void ACXWardenTerminal::OnRep_Line()
 		return;
 	}
 	LocalSoundSeq = LineSeq;
-	USoundBase* Sound = (LineStatus == TEXT("rejected") || LineStatus == TEXT("cooldown")) ? DeniedSound.Get() : ReplySound.Get();
+	USoundBase* Sound = (LineStatus == TEXT("rejected") || LineStatus == TEXT("cooldown") || LineStatus == TEXT("busy")) ? DeniedSound.Get() : ReplySound.Get();
 	if (Sound && LineStatus != TEXT("solved"))
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
@@ -569,6 +639,7 @@ void ACXWardenTerminal::ForceSolve(const FString& Why)
 		return;
 	}
 	bRequestPending = false;
+	QueuedText.Reset();
 	SetLine(CXWardenLook::SolvedLine, PlayerLine, TEXT("solved"));
 	Solve(Why);
 }

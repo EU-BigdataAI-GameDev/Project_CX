@@ -54,7 +54,7 @@ public:
 	// ---------------------------------------------------------------- 서버
 	/** 증거 비트 설정. 새로 얻었으면 true. */
 	bool GrantEvidence(int32 Index);
-	/** 설득 요청(서버). 받았으면 true(요청 중·해결됨·간격 3초 안이면 false + 안내 대사). */
+	/** 설득 요청(서버). 텍스트는 요청 중·간격 3초 안이면 마지막 한 개를 보관했다가 이어서 보내고 안내 대사를 띄운다(true). 음성은 그때는 false + 안내 대사. 해결됨이면 false. */
 	bool SubmitText(APawn* From, const FString& Text);
 	bool SubmitVoice(APawn* From, const TArray<uint8>& Wav);
 	/** 테스트·시연: 강제로 해결(문 열기). */
@@ -146,7 +146,12 @@ private:
 	void ApplyGateLayout();
 	void ApplyVisualState();
 	void ApplyOpenAlpha();
-	bool BeginAttempt(APawn* From);
+	bool BeginAttempt(APawn* From, const TCHAR* Kind, int32 InputLen);
+	/** 요청 중·간격 안에 들어온 텍스트를 마지막 한 개만 보관했다가 풀리면 보낸다. */
+	void QueueText(const FString& Text, const TCHAR* Why);
+	void ScheduleQueuedFlush(float MinDelay);
+	void FlushQueued();
+	float GetCooldownRemaining() const;
 	void HandleResponse(const FCXWardenResponse& Response);
 	void SetLine(const FString& Warden, const FString& Player, const FString& Status);
 	void Solve(const FString& Why);
@@ -201,4 +206,7 @@ private:
 	FString PendingPlayerText;
 	/** 마지막 rejected 사유(NEED_RULE 등, 서버 전용). */
 	FString LastReason;
+	/** 분석 중·간격 안에 받은 최신 텍스트(서버 전용). 응답이 오면 이어서 보낸다. */
+	FString QueuedText;
+	FTimerHandle QueueTimer;
 };

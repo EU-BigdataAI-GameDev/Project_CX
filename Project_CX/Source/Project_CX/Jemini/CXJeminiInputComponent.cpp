@@ -35,6 +35,8 @@ int32 UCXJeminiInputComponent::OpenChatCount = 0;
 namespace CXJeminiInput
 {
 	constexpr int32 MappingPriority = 5;
+	/** WARDEN으로 가는 채팅의 글자 수 한도(클라이언트 Left(200) / 서버 422). */
+	constexpr int32 WardenMaxChars = 200;
 	constexpr int32 VoiceChunkBytes = 32 * 1024;
 	constexpr int32 MaxVoiceBytes = 2 * 1024 * 1024;
 	const FLinearColor Accent(0.1f, 0.95f, 1.0f, 1.0f);
@@ -45,20 +47,33 @@ namespace CXJeminiInput
 /**
  *  분할 칸 아래쪽의 한 줄 입력창. Enter = 전송, Esc = 취소, 포커스를 잃으면 취소.
  *  입력창이 처리하지 않은 키(W/A/S/D 등)는 여기서 삼켜 게임 뷰포트(이동·사격)로 새지 않게 한다.
+ *  2026-11-13 #25: WARDEN과 말할 때는 라벨/힌트를 바꾸고 n/200 글자 수를 보인다. 입력·포커스·확정 이벤트를 LogCXJeminiInput에 남긴다
+ *  (스페이스 뒤 글자가 씹히는 증상의 원인 확인용 - 로그만, 동작은 그대로).
  */
 class SCXJeminiChatBox : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false) {}
+	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false), _bWarden(false) {}
 		/** 위아래 분할이면 두 칸 경계(화면 세로 중앙)에 놓는다. 좌우 분할은 아래쪽 가운데. */
 		SLATE_ARGUMENT(bool, bVerticalCenter)
+		/** WARDEN과 말하는 중: 라벨·힌트를 바꾸고 n/200 글자 수를 보여 준다. */
+		SLATE_ARGUMENT(bool, bWarden)
 	SLATE_END_ARGS()
 
 	TFunction<void(const FString&)> OnSubmit;
 	TFunction<void()> OnCancel;
 
+	virtual ~SCXJeminiChatBox() override
+	{
+		if (FocusHandle.IsValid() && FSlateApplication::IsInitialized())
+		{
+			FSlateApplication::Get().OnFocusChanging().Remove(FocusHandle);
+		}
+	}
+
 	void Construct(const FArguments& InArgs)
 	{
+		bWarden = InArgs._bWarden;
 		// 제미니 단말 입력줄 — 시스템 폰트(IBM Plex Mono, 한글은 서브 폰트)
 		// 2026-11-10 게임 화면 글자 +3pt(17/16 → 20/19), 입력창 폭 760 → 900
 		// 2026-11-12 QA: 글자 -1pt(19/18), 폭 900 → 840
@@ -85,29 +100,48 @@ public:
 					.Padding(FMargin(0.0f, 0.0f, 12.0f, 0.0f))
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("JEMINI >")))
+						.Text(FText::FromString(bWarden ? TEXT("WARDEN >") : TEXT("JEMINI >")))
 						.Font(LabelFont)
-						.ColorAndOpacity(CXJeminiInput::Accent)
+						.ColorAndOpacity(bWarden ? FLinearColor(1.0f, 0.3f, 0.22f, 1.0f) : CXJeminiInput::Accent)
 					]
 					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
 					[
 						SAssignNew(TextBox, SEditableTextBox)
 						.Font(Font)
-						.HintText(FText::FromString(TEXT("제미니에게 부탁하기 (Enter 전송 / Esc 취소)")))
+						.HintText(FText::FromString(bWarden ? TEXT("WARDEN에게 말하기 (Enter 전송 / Esc 취소)") : TEXT("제미니에게 부탁하기 (Enter 전송 / Esc 취소)")))
 						.ClearKeyboardFocusOnCommit(false)
 						.SelectAllTextWhenFocused(true)
+						.OnTextChanged(this, &SCXJeminiChatBox::HandleChanged)
 						.OnTextCommitted(this, &SCXJeminiChatBox::HandleCommitted)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SAssignNew(CounterText, STextBlock)
+						.Visibility(bWarden ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+						.Text(FText::FromString(FString::Printf(TEXT("0/%d"), CXJeminiInput::WardenMaxChars)))
+						.Font(LabelFont)
+						.ColorAndOpacity(FLinearColor(0.6f, 0.75f, 0.8f, 0.9f))
 					]
 				]
 			]
 		];
+
+		if (FSlateApplication::IsInitialized())
+		{
+			FocusHandle = FSlateApplication::Get().OnFocusChanging().AddRaw(this, &SCXJeminiChatBox::HandleFocusChanging);
+		}
 	}
 
 	TSharedPtr<SWidget> GetFocusTarget() const { return TextBox; }
 
 	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
 	{
+		// 진단: IME 조합 중에는 VK_PROCESSKEY라 키 이름이 평소와 다를 수 있다
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox key down: %s char=0x%04X repeat=%d"), *InKeyEvent.GetKey().ToString(), static_cast<int32>(InKeyEvent.GetCharacter()), InKeyEvent.IsRepeat() ? 1 : 0);
 		if (InKeyEvent.GetKey() == EKeys::Escape)
 		{
 			Cancel();
@@ -131,6 +165,7 @@ public:
 			return;
 		}
 		bClosed = true;
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox cancel (len=%d)"), TextBox.IsValid() ? TextBox->GetText().ToString().Len() : 0);
 		if (OnCancel)
 		{
 			OnCancel();
@@ -138,8 +173,36 @@ public:
 	}
 
 private:
+	static FString TypeOf(const TSharedPtr<SWidget>& Widget)
+	{
+		return Widget.IsValid() ? Widget->GetTypeAsString() : FString(TEXT("none"));
+	}
+
+	void HandleFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldPath, const TSharedPtr<SWidget>& OldWidget, const FWidgetPath& NewPath, const TSharedPtr<SWidget>& NewWidget)
+	{
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox focus: %s -> %s (cause=%d user=%d)"), *TypeOf(OldWidget), *TypeOf(NewWidget), static_cast<int32>(FocusEvent.GetCause()), FocusEvent.GetUser());
+	}
+
+	void HandleChanged(const FText& Text)
+	{
+		const FString Str = Text.ToString();
+		FString Tail;
+		for (int32 i = FMath::Max(0, Str.Len() - 3); i < Str.Len(); ++i)
+		{
+			Tail += FString::Printf(TEXT("%04X "), static_cast<int32>(Str[i]));
+		}
+		const TSharedPtr<SWidget> Focused = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetKeyboardFocusedWidget() : nullptr;
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox text changed: len=%d tail=[%s] focus=%s closed=%d"), Str.Len(), *Tail, *TypeOf(Focused), bClosed ? 1 : 0);
+		if (bWarden && CounterText.IsValid())
+		{
+			CounterText->SetText(FText::FromString(FString::Printf(TEXT("%d/%d"), Str.Len(), CXJeminiInput::WardenMaxChars)));
+			CounterText->SetColorAndOpacity(Str.Len() > CXJeminiInput::WardenMaxChars ? FLinearColor(1.0f, 0.55f, 0.1f, 1.0f) : FLinearColor(0.6f, 0.75f, 0.8f, 0.9f));
+		}
+	}
+
 	void HandleCommitted(const FText& Text, ETextCommit::Type CommitType)
 	{
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox commit: type=%d len=%d closed=%d"), static_cast<int32>(CommitType), Text.ToString().Len(), bClosed ? 1 : 0);
 		if (bClosed)
 		{
 			return;
@@ -159,6 +222,9 @@ private:
 	}
 
 	TSharedPtr<SEditableTextBox> TextBox;
+	TSharedPtr<STextBlock> CounterText;
+	FDelegateHandle FocusHandle;
+	bool bWarden = false;
 	bool bClosed = false;
 };
 
@@ -323,7 +389,8 @@ bool UCXJeminiInputComponent::CanTalkNow() const
 	// 기능 B: WARDEN 단말기 앞의 여동생은 제미니 대신 WARDEN과 말한다(드론이 바빠도 된다)
 	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Pawn))
 	{
-		return Warden->CanAcceptTalk();
+		// 2026-11-13 #25: 분석 중에도 입력창은 열린다(제출하면 WARDEN이 마지막 한 개를 보관했다가 이어서 보낸다). 해결된 뒤에는 FindTalkTarget이 없다.
+		return !Warden->IsSolved();
 	}
 	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
 	if (!Drone)
@@ -383,7 +450,9 @@ void UCXJeminiInputComponent::OpenChat()
 	// 2026-11-12 QA: 2인 분할이면 채팅창을 두 칸 경계(화면 정가운데)에 놓는다. 좌우 분할 = 가로 중앙·아래쪽, 위아래 분할 = 세로 중앙.
 	const ESplitScreenType::Type Split = Viewport->GetCurrentSplitscreenConfiguration();
 	const bool bSplit = Split == ESplitScreenType::TwoPlayer_Vertical || Split == ESplitScreenType::TwoPlayer_Horizontal;
-	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox).bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal);
+	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox)
+		.bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal)
+		.bWarden(ACXWardenTerminal::FindTalkTarget(Pawn) != nullptr);
 	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
 	Box->OnSubmit = [WeakThis](const FString& Text)
 	{
@@ -461,6 +530,8 @@ void UCXJeminiInputComponent::HandleChatSubmit(const FString& Text)
 {
 	// Slate 콜백 안에서 위젯을 지우지 않도록 다음 틱에 닫는다
 	const FString Trimmed = Text.TrimStartAndEnd();
+	UE_LOG(LogCXJeminiInput, Log, TEXT("Chat submit: len=%d warden=%d%s"), Trimmed.Len(), ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())) ? 1 : 0,
+		Trimmed.Len() > CXJeminiInput::WardenMaxChars ? TEXT(" (over 200 chars: WARDEN gets the first 200)") : TEXT(""));
 	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
 	GetWorld()->GetTimerManager().SetTimerForNextTick([WeakThis, Trimmed]()
 	{
@@ -507,7 +578,8 @@ void UCXJeminiInputComponent::Server_SubmitText_Implementation(const FString& Te
 	// 기능 B: WARDEN 단말기 앞이면 설득 대화로(서버가 위치를 다시 확인)
 	if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
 	{
-		Warden->SubmitText(Cast<APawn>(GetOwner()), Text.Left(200));
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Server_SubmitText -> WARDEN (len=%d)"), Text.Len());
+		Warden->SubmitText(Cast<APawn>(GetOwner()), Text.Left(CXJeminiInput::WardenMaxChars));
 		return;
 	}
 	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
@@ -527,6 +599,14 @@ void UCXJeminiInputComponent::OnTalkPressed()
 	if (!CanTalkNow())
 	{
 		MarkBlocked();
+		return;
+	}
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())); Warden && Warden->IsRequestPending())
+	{
+		// 음성은 보관할 수 없으니 분석이 끝난 뒤에 말하도록 알린다(조용히 녹음해서 버리지 않는다)
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Voice talk blocked: WARDEN is analyzing"));
+		MarkBlocked();
+		SetNotice(TEXT("WARDEN ANALYZING - WAIT"));
 		return;
 	}
 	if (!Recorder.Start())
