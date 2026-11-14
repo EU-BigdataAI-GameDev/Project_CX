@@ -36,6 +36,7 @@ void UCXJeminiServerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UCXJeminiServerSubsystem::Deinitialize()
 {
 	bShuttingDown = true;
+	FTSTicker::GetCoreTicker().RemoveTicker(VerifyHandle);
 	if (ServerProcess.IsValid())
 	{
 		// 내가 띄운 서버만 끈다(직접 띄운 서버는 건드리지 않음)
@@ -47,6 +48,19 @@ void UCXJeminiServerSubsystem::Deinitialize()
 		UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: stopped the server this game started"));
 	}
 	Super::Deinitialize();
+}
+
+void UCXJeminiServerSubsystem::VerifyLaunched(const FString& Host, int32 Port)
+{
+	if (bShuttingDown || !ServerProcess.IsValid() || FPlatformProcess::IsProcRunning(ServerProcess))
+	{
+		return;
+	}
+	UE_LOG(LogCXJeminiServer, Warning, TEXT("JeminiServer: %s exited shortly after start — trying the next candidate"), *LaunchedCandidate);
+	FailedCandidates.AddUnique(LaunchedCandidate);
+	FPlatformProcess::CloseProc(ServerProcess);
+	ServerProcess.Reset();
+	State = LaunchServer(Host, Port) ? EState::Launched : EState::LaunchFailed;
 }
 
 bool UCXJeminiServerSubsystem::ParseLocalUrl(const FString& Url, FString& OutHost, int32& OutPort)
@@ -141,7 +155,7 @@ bool UCXJeminiServerSubsystem::LaunchServer(const FString& Host, int32 Port)
 
 	for (const FCandidate& Candidate : Candidates)
 	{
-		if (!IFileManager::Get().FileExists(*Candidate.Exe))
+		if (FailedCandidates.Contains(Candidate.Exe) || !IFileManager::Get().FileExists(*Candidate.Exe))
 		{
 			continue;
 		}
@@ -150,6 +164,21 @@ bool UCXJeminiServerSubsystem::LaunchServer(const FString& Host, int32 Port)
 		if (ServerProcess.IsValid())
 		{
 			UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: launched %s %s (pid %u)"), *Candidate.Exe, *Candidate.Args, ProcessId);
+			// 프로세스는 떴는데 곧바로 죽는 경우(불완전한 exe 빌드 등)를 위해 몇 초 뒤 살아 있는지 확인한다(이슈 #21)
+			LaunchedCandidate = Candidate.Exe;
+			if (!bShuttingDown)
+			{
+				FTSTicker::GetCoreTicker().RemoveTicker(VerifyHandle);
+				TWeakObjectPtr<UCXJeminiServerSubsystem> WeakThis(this);
+				VerifyHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis, Host, Port](float)
+				{
+					if (UCXJeminiServerSubsystem* Self = WeakThis.Get())
+					{
+						Self->VerifyLaunched(Host, Port);
+					}
+					return false;
+				}), 4.0f);
+			}
 			return true;
 		}
 		UE_LOG(LogCXJeminiServer, Warning, TEXT("JeminiServer: failed to start %s"), *Candidate.Exe);
