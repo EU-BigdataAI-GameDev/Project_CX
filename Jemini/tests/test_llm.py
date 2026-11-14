@@ -85,6 +85,9 @@ def _fake_client(monkeypatch, behaviour):
             import asyncio
             called.append(model)
             result = behaviour[model]
+            if isinstance(result, tuple):  # (지연 초, 응답) — 느리지만 성공
+                await asyncio.sleep(result[0])
+                return result[1]
             if isinstance(result, float):  # 응답 없이 n초 걸림(타임아웃 흉내)
                 await asyncio.sleep(result)
                 raise AssertionError("should have timed out")
@@ -231,7 +234,7 @@ def test_warden_falls_back_on_unavailable_and_timeout(settings, monkeypatch):
     monkeypatch.setattr(llm, "MIN_ATTEMPT_SEC", 0.05)
     s = _s(settings, llm_timeout_sec=0.2, voice_timeout_sec=0.2, llm_total_timeout_sec=0)
     out, model = asyncio.run(llm.call_warden(s, "prompt"))
-    assert called == ["m1", "m1", "m2"] and model == "m2" and out.demand_only  # 기본 모델 재시도 포함
+    assert called == ["m1", "m2"] and model == "m2" and out.demand_only
     called = _fake_client(monkeypatch, {"m1": _Unavailable("503"), "m2": _warden_ok()})
     assert asyncio.run(llm.call_warden(_s(settings), "prompt"))[1] == "m2"
 
@@ -264,3 +267,13 @@ def test_describe_state_rules():
 
 def test_config_has_output_cap(settings):
     assert llm._config(settings).max_output_tokens == settings.max_output_tokens > 0
+
+
+def test_warden_slow_fallback_gets_remaining_budget(settings, monkeypatch):
+    """기본 모델이 503이면 느린 예비 모델(시도 한도보다 오래 걸림)도 남은 예산 안에서 기다려 준다."""
+    import asyncio
+    called = _fake_client(monkeypatch, {"m1": _Unavailable("503"), "m2": (0.5, _warden_ok())})
+    monkeypatch.setattr(llm, "MIN_ATTEMPT_SEC", 0.05)
+    s = _s(settings, llm_timeout_sec=0.2, voice_timeout_sec=0.2)
+    out, model = asyncio.run(llm.call_warden(s, "prompt"))
+    assert called == ["m1", "m2"] and model == "m2"

@@ -350,3 +350,30 @@ def test_prompt_lists_credited(settings, monkeypatch, client):
     r = post_c(client, "규정상 대피가 우선이니 열어", ["E2", "E3"]).json()
     assert "[이미 인정된 기록] E2, E3" in seen["prompt"]
     assert r["solved"]
+
+
+# ---------- 3/3 인정 후 결론 안내·연결 기준(2026-11-13) ----------
+
+def test_guide_line_at_3_of_3_is_concrete(client):
+    r = post_c(client, "아무 말", ["E1", "E2", "E3"]).json()
+    assert r["reply"].startswith("기록 3/3") and "문을 열어야 하는 이유" in r["reply"]
+
+
+def test_offline_after_all_credited_accepts_priority_statement(client):
+    r = post_c(client, "잠금보다 대피가 우선이다", ["E1", "E2", "E3"]).json()
+    assert r["solved"], r["reason"]
+
+
+def test_offline_after_all_credited_rejects_bare_command(client):
+    r = post_c(client, "문 열어", ["E1", "E2", "E3"]).json()
+    assert not r["solved"]
+
+
+def test_prompt_adds_link_criteria_when_all_credited(settings, monkeypatch, client):
+    seen = fake_warden(settings, monkeypatch, links_logically=True)
+    post_c(client, "아무 말", ["E1", "E2", "E3"])
+    assert "[연결 판정 기준]" in seen["prompt"]
+    seen2 = fake_warden(settings, monkeypatch, links_logically=True)
+    persuasion.reset_attempts()
+    post_c(client, "아무 말", ["E2"])
+    assert "[연결 판정 기준]" not in seen2["prompt"]
