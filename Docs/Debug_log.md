@@ -25,6 +25,14 @@
 - **확인**: 에디터 빌드 성공. `-game -nullrhi` + `CXWardenSay` 2개를 같은 틱에 연속 보냄 → 두 번째가 `input queued (analyzing)` + 대화창 상태 `busy`, 첫 응답 후 `queued text sent`로 이어서 전송됨(서버 실제 응답 2건).
 - **다음 재현 시**: 로그에서 `ChatBox text changed` 줄이 스페이스(0020) 뒤로 이어지는지, `ChatBox focus`가 입력창 밖으로 옮겨 갔는지, `key down`이 `ProcessKey` 등으로 오는지(IME 조합) 확인.
 
+## #15 제미니 서버 exe가 곧바로 죽어도 게임이 대체 후보로 넘어가지 않음 — 🔧 수정·빌드 완료(패키징 exe 재확인 필요)
+- **수정 날짜**: 2026-11-13 (이슈 #21)
+- **문제**: `Jemini/dist/jemini-server/jemini-server.exe`가 실행 즉시 종료(`_internal/base_library.zip` 없음 — 불완전한 빌드)되는데, 게임은 프로세스가 떴다는 것만 보고 "서버 실행 성공"으로 끝냈다. 그 결과 `.venv` 파이썬 후보로 넘어가지 못해 제미니·WARDEN이 계속 "신호 끊김/통신 지연".
+- **디버깅**: 비에디터(`-game`/패키징) 실행 순서가 `PackagedExe → DevExe → DevPython`이라 깨진 DevExe가 먼저 선택됨. `CreateProc`은 성공하므로 폴백 로직이 동작하지 않았다.
+- **수정**: `UCXJeminiServerSubsystem`이 띄운 뒤 4초 후 프로세스가 아직 살아 있는지 확인하고(`VerifyLaunched`), 죽었으면 그 후보를 제외(`FailedCandidates`)하고 다음 후보를 띄움. 헤더 변경.
+- **확인**: 깨진 dist exe가 남아 있는 상태로 헤드리스(`-game -nullrhi`) 실행 → 로그 "exited shortly after start — trying the next candidate" 후 `.venv\Scripts\python.exe run_server.py` 실행, `/health` 200.
+- exe 자체는 `Jemini/tools/build_exe.bat`로 다시 빌드해야 한다(`dist/`는 gitignore, 각자 PC 빌드).
+
 ## #14 오빠·여동생이 카메라 방향으로 앞뒤로 붙으면 뒤쪽 화면이 가려짐 — 🔧 수정·빌드 완료(PIE 재확인 필요)
 - **수정 날짜**: 2026-11-12
 - **문제**: 두 사람이 카메라 방향(깊이 X)으로 일직선이 되도록 붙으면 한쪽 화면(스크린샷은 오빠 칸)이 거의 검게 가려짐.
