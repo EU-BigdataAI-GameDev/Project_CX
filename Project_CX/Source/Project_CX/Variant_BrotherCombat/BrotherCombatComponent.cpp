@@ -151,6 +151,8 @@ void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
+	UpdateFireMoveSlow(OwnerCharacter);
+
 	if (bIsAiming)
 	{
 		// 엣지 케이스(자동 조준 사격 구현.md 2.3): 타겟이 죽거나 사거리를 벗어나면 다음으로 가까운 적으로 재탐색.
@@ -370,6 +372,7 @@ void UBrotherCombatComponent::Fire()
 		return;
 	}
 	LastFireTime = Now;
+	NotifyShotFired();
 
 	const FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRotation().RotateVector(MuzzleOffset);
 
@@ -417,7 +420,37 @@ void UBrotherCombatComponent::Server_Fire_Implementation(FVector_NetQuantizeNorm
 	{
 		CurrentAmmo = FMath::Max(CurrentAmmo - 1, 0);
 	}
+	NotifyShotFired();
 	SpawnBullet(AimDirection);
+}
+
+void UBrotherCombatComponent::NotifyShotFired()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		FireSlowEndTime = World->GetTimeSeconds() + FireMoveSlowTail;
+	}
+}
+
+void UBrotherCombatComponent::UpdateFireMoveSlow(ACharacter* OwnerCharacter)
+{
+	UCharacterMovementComponent* MovementComp = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr;
+	if (!MovementComp)
+	{
+		return;
+	}
+	const bool bShouldSlow = GetWorld()->GetTimeSeconds() < FireSlowEndTime;
+	if (bShouldSlow && !bFireSlowActive)
+	{
+		BaseMaxWalkSpeed = MovementComp->MaxWalkSpeed;
+		MovementComp->MaxWalkSpeed = BaseMaxWalkSpeed * FireMoveSpeedFactor;
+		bFireSlowActive = true;
+	}
+	else if (!bShouldSlow && bFireSlowActive)
+	{
+		MovementComp->MaxWalkSpeed = BaseMaxWalkSpeed;
+		bFireSlowActive = false;
+	}
 }
 
 bool UBrotherCombatComponent::RequestJeminiReload()

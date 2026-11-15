@@ -169,6 +169,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
 	float FireInterval = 0.3f;
 
+	/** 사격 중 이동속도 배율(난이도 조정). 발사 순간부터 마지막 발사 후 FireMoveSlowTail초까지 MaxWalkSpeed에 곱한다. 1이면 감속 없음. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Combat", meta = (ClampMin = "0.05", ClampMax = "1.0"))
+	float FireMoveSpeedFactor = 0.5f;
+
+	/** 마지막 발사 후 감속을 유지하는 시간(초). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
+	float FireMoveSlowTail = 0.3f;
+
 	/** 마지막 발사 시각(월드 시간). FireInterval 판정용. */
 	double LastFireTime = -1000.0;
 
@@ -237,4 +245,11 @@ private:
 	/** UpdateFacing이 OrientRotationToMovement를 껐다가 되돌릴 때 쓸, 최초 1회 캐싱한 원래 값. */
 	bool bDefaultOrientRotationToMovement = true;
 	bool bCachedDefaultOrientRotation = false;
+
+	/** 사격 감속: 각 머신이 자기 쪽 Fire/Server_Fire에서 시각을 갱신하고 Tick에서 MaxWalkSpeed를 적용/복원한다(MaxWalkSpeed는 비복제). */
+	void NotifyShotFired();
+	void UpdateFireMoveSlow(ACharacter* OwnerCharacter);
+	double FireSlowEndTime = 0.0;
+	bool bFireSlowActive = false;
+	float BaseMaxWalkSpeed = 0.0f;
 };

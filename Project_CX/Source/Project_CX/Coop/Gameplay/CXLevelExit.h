@@ -101,9 +101,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "CX|LevelExit")
 	FString Label = TEXT("EXIT");
 
-	/** NEXT AREA OFFLINE 표시 시간(초, HUD). */
+	/** 베타 종료 안내(다음 맵 미연결) 표시 시간(초, HUD). CoopHUD::DrawFlowNotices의 Duration과 맞춘다. */
 	UPROPERTY(EditAnywhere, Category = "CX|LevelExit")
-	float OfflineNoticeTime = 3.0f;
+	float OfflineNoticeTime = 8.0f;
 
 	// ------------------------------------------------------------ 비주얼
 
