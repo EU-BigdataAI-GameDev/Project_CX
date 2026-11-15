@@ -1795,20 +1795,25 @@ void ACoopHUD::DrawFlowNotices(const APawn* MyPawn, bool bDead)
 	for (TActorIterator<ACXLevelExit> It(GetWorld()); It; ++It)
 	{
 		const float Age = It->GetOfflineNoticeAge();
-		const float Duration = 3.0f;
+		const float Duration = 8.0f;	// 베타 종료 안내는 읽을 시간이 필요 — CXLevelExit::OfflineNoticeTime과 동일
 		if (Age < 0.0f || Age >= Duration)
 		{
 			continue;
 		}
 		const float Alpha = FMath::Clamp(FMath::Min(Age / 0.2f, (Duration - Age) / 0.5f), 0.0f, 1.0f);
 		const float Y = Canvas->ClipY * 0.20f;	// 출구 표지(화면 중앙 위)를 가리지 않게
-		const float W = 560.0f * S();
-		DrawRect(PanelColor.CopyWithNewOpacity(PanelColor.A * Alpha), CX - W * 0.5f, Y - 8.0f * S(), W, 74.0f * S());
-		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX - W * 0.5f, Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
-		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX + W * 0.5f - 4.0f * S(), Y - 8.0f * S(), 4.0f * S(), 74.0f * S());
-		const float Blink = 0.7f + 0.3f * Pulse(6.0f);
-		Label(TEXT("NEXT AREA OFFLINE"), CX, Y, DangerColor.CopyWithNewOpacity(Alpha * Blink), GameFont(ECXHudFont::Large), 1.2f, true);
-		Label(TEXT("ROUTE NOT CONNECTED  //  HOLD POSITION"), CX, Y + 40.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.7f * Alpha), SysFont(ECXHudFont::Tiny), 1.0f, true);
+		const float W = 640.0f * S();
+		const float H = 150.0f * S();
+		DrawRect(PanelColor.CopyWithNewOpacity(PanelColor.A * Alpha), CX - W * 0.5f, Y - 8.0f * S(), W, H);
+		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX - W * 0.5f, Y - 8.0f * S(), 4.0f * S(), H);
+		DrawRect(WarningColor.CopyWithNewOpacity(0.9f * Alpha), CX + W * 0.5f - 4.0f * S(), Y - 8.0f * S(), 4.0f * S(), H);
+		// 베타 종료 안내: 제목(영문 Large) + 감사·다음 맵 예고·설문 요청(한글은 SysFont 서브 폰트로 표시)
+		const float Blink = 0.85f + 0.15f * Pulse(3.0f);
+		const FLinearColor Body = FLinearColor(1.0f, 1.0f, 1.0f, Alpha);
+		Label(TEXT("BETA TEST  //  END OF BUILD"), CX, Y, WarningColor.CopyWithNewOpacity(Alpha * Blink), GameFont(ECXHudFont::Large), 1.0f, true);
+		Label(TEXT("플레이해 주셔서 감사합니다!"), CX, Y + 44.0f * S(), Body, SysFont(ECXHudFont::Medium), 1.0f, true);
+		Label(TEXT("다음 맵은 곧 공개될 예정입니다."), CX, Y + 70.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.8f * Alpha), SysFont(ECXHudFont::Medium), 1.0f, true);
+		Label(TEXT("설문조사에 참여해 의견을 남겨 주세요."), CX, Y + 96.0f * S(), SaveColor.CopyWithNewOpacity(Alpha), SysFont(ECXHudFont::Medium), 1.0f, true);
 		break;
 	}
 

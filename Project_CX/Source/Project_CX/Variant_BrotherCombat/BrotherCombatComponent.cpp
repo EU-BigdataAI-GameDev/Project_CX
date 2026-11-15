@@ -24,6 +24,10 @@
 #include "CXGameInstance.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/CollisionProfile.h"
 
 UBrotherCombatComponent::UBrotherCombatComponent()
 {
@@ -41,6 +45,7 @@ void UBrotherCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentAmmo = MaxAmmo;
+	CreateGunProp();
 
 	// 맵 이동으로 넘어온 제미니 공격력 강화(남은 시간을 게임 인스턴스에 맡겨 둔다 — 한 번 쓰고 비운다)
 	if (GetOwner() && GetOwner()->HasAuthority())
@@ -150,6 +155,9 @@ void UBrotherCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	{
 		return;
 	}
+
+	UpdateFireMoveSlow(OwnerCharacter);
+	UpdateFireAim(DeltaTime);
 
 	if (bIsAiming)
 	{
@@ -370,6 +378,7 @@ void UBrotherCombatComponent::Fire()
 		return;
 	}
 	LastFireTime = Now;
+	NotifyShotFired();
 
 	const FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRotation().RotateVector(MuzzleOffset);
 
@@ -417,7 +426,98 @@ void UBrotherCombatComponent::Server_Fire_Implementation(FVector_NetQuantizeNorm
 	{
 		CurrentAmmo = FMath::Max(CurrentAmmo - 1, 0);
 	}
+	NotifyShotFired();
 	SpawnBullet(AimDirection);
+}
+
+void UBrotherCombatComponent::NotifyShotFired()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastShotWorldTime = World->GetTimeSeconds();
+		FireSlowEndTime = LastShotWorldTime + FireMoveSlowTail;
+	}
+}
+
+void UBrotherCombatComponent::UpdateFireAim(float DeltaTime)
+{
+	const bool bAimPose = GetWorld()->GetTimeSeconds() < LastShotWorldTime + AimHoldTime;
+	const float Target = bAimPose ? 1.0f : 0.0f;
+	FireAimAlpha = FMath::Clamp(FMath::FInterpTo(FireAimAlpha, Target, DeltaTime, bAimPose ? AimBlendInSpeed : AimBlendOutSpeed), 0.0f, 1.0f);
+}
+
+float UBrotherCombatComponent::GetFireAimAlphaForPawn(const APawn* Pawn)
+{
+	const UBrotherCombatComponent* Comp = Pawn ? Pawn->FindComponentByClass<UBrotherCombatComponent>() : nullptr;
+	return Comp ? Comp->GetFireAimAlpha() : 0.0f;
+}
+
+void UBrotherCombatComponent::CreateGunProp()
+{
+	// 각 머신(서버/클라/분할화면)이 로컬로 만든다 — 순수 시각 소품이라 복제 불필요, 충돌 없음.
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	USkeletalMeshComponent* CharMesh = OwnerCharacter ? OwnerCharacter->GetMesh() : nullptr;
+	if (!CharMesh || GunComponent)
+	{
+		return;
+	}
+
+	auto MakeProp = [&](const TCHAR* Name, UStaticMesh* Mesh, const FTransform& Rel) -> UStaticMeshComponent*
+	{
+		UStaticMeshComponent* Prop = NewObject<UStaticMeshComponent>(OwnerCharacter, Name);
+		Prop->SetStaticMesh(Mesh);
+		Prop->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+		Prop->SetGenerateOverlapEvents(false);
+		Prop->SetCanEverAffectNavigation(false);
+		Prop->SetCastShadow(false);
+		Prop->SetIsReplicated(false);
+		Prop->RegisterComponent();
+		Prop->AttachToComponent(CharMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, GunSocketName);
+		Prop->SetRelativeTransform(Rel);
+		return Prop;
+	};
+
+	if (GunMesh)
+	{
+		GunComponent = MakeProp(TEXT("BrotherGun"), GunMesh, GunRelativeTransform);
+		return;
+	}
+
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Cube)
+	{
+		return;
+	}
+	// 임시 권총: 손 본 X축 방향으로 긴 몸통 + 앞쪽 가는 총열
+	FTransform Body = GunRelativeTransform;
+	Body.SetScale3D(GunRelativeTransform.GetScale3D() * FVector(0.16f, 0.05f, 0.09f));
+	GunComponent = MakeProp(TEXT("BrotherGun"), Cube, Body);
+
+	FTransform Barrel = GunRelativeTransform;
+	Barrel.AddToTranslation(GunRelativeTransform.GetRotation().RotateVector(FVector(14.0f, 0.0f, 2.0f)));
+	Barrel.SetScale3D(GunRelativeTransform.GetScale3D() * FVector(0.14f, 0.025f, 0.025f));
+	GunBarrelComponent = MakeProp(TEXT("BrotherGunBarrel"), Cube, Barrel);
+}
+
+void UBrotherCombatComponent::UpdateFireMoveSlow(ACharacter* OwnerCharacter)
+{
+	UCharacterMovementComponent* MovementComp = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr;
+	if (!MovementComp)
+	{
+		return;
+	}
+	const bool bShouldSlow = GetWorld()->GetTimeSeconds() < FireSlowEndTime;
+	if (bShouldSlow && !bFireSlowActive)
+	{
+		BaseMaxWalkSpeed = MovementComp->MaxWalkSpeed;
+		MovementComp->MaxWalkSpeed = BaseMaxWalkSpeed * FireMoveSpeedFactor;
+		bFireSlowActive = true;
+	}
+	else if (!bShouldSlow && bFireSlowActive)
+	{
+		MovementComp->MaxWalkSpeed = BaseMaxWalkSpeed;
+		bFireSlowActive = false;
+	}
 }
 
 bool UBrotherCombatComponent::RequestJeminiReload()

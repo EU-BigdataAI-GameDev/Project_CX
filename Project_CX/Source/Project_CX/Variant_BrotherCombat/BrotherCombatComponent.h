@@ -12,6 +12,9 @@ class UInputMappingContext;
 class UEnhancedInputComponent;
 class UAudioComponent;
 class USoundBase;
+class UStaticMesh;
+class UStaticMeshComponent;
+class APawn;
 
 /**
  *  오빠 캐릭터의 자동 조준 사격 로직(.claude/Plans/자동 조준 사격 구현.md).
@@ -169,8 +172,50 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
 	float FireInterval = 0.3f;
 
+	/** 사격 중 이동속도 배율(난이도 조정). 발사 순간부터 마지막 발사 후 FireMoveSlowTail초까지 MaxWalkSpeed에 곱한다. 1이면 감속 없음. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Combat", meta = (ClampMin = "0.05", ClampMax = "1.0"))
+	float FireMoveSpeedFactor = 0.5f;
+
+	/** 마지막 발사 후 감속을 유지하는 시간(초). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Combat", meta = (ClampMin = "0.0"))
+	float FireMoveSlowTail = 0.3f;
+
 	/** 마지막 발사 시각(월드 시간). FireInterval 판정용. */
 	double LastFireTime = -1000.0;
+
+	// ------------------------------------------------------------ 임시 권총 + 조준 포즈 알파
+
+	/** 오른손 소켓에 붙는 총 메시. 비워 두면 엔진 기본 큐브로 만든 임시 권총(몸통+총열)을 쓴다. 총은 BeginPlay에서 만들어지므로 바꾼 뒤 PIE를 다시 시작한다. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun")
+	TObjectPtr<UStaticMesh> GunMesh;
+
+	/** 총을 붙일 스켈레탈 본/소켓 이름. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun")
+	FName GunSocketName = TEXT("RightHand");
+
+	/** 소켓 기준 상대 변환. 임시 큐브일 때는 이 Scale에 임시 권총 크기가 추가로 곱해진다. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun")
+	FTransform GunRelativeTransform = FTransform(FRotator::ZeroRotator, FVector(8.0f, 0.0f, 0.0f), FVector::OneVector);
+
+	/** 마지막 발사 후 조준 자세를 유지하는 시간(초). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun", meta = (ClampMin = "0.0"))
+	float AimHoldTime = 0.8f;
+
+	/** 조준 알파가 오르는 속도(FInterpTo 속도). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun", meta = (ClampMin = "0.1"))
+	float AimBlendInSpeed = 14.0f;
+
+	/** 조준 알파가 내려가는 속도. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Gun", meta = (ClampMin = "0.1"))
+	float AimBlendOutSpeed = 6.0f;
+
+	/** 보간된 사격 조준 알파(0~1). 발사 중과 마지막 발사 후 AimHoldTime 동안 1을 향한다. AnimBP의 팔 본 Transform Modify Bone Alpha용. */
+	UFUNCTION(BlueprintPure, Category = "Brother|Gun")
+	float GetFireAimAlpha() const { return FireAimAlpha; }
+
+	/** AnimBP 편의용: TryGetPawnOwner 결과(캐스트 불필요)에서 컴포넌트를 찾아 알파를 돌려준다. 없으면 0. */
+	UFUNCTION(BlueprintPure, Category = "Brother|Gun")
+	static float GetFireAimAlphaForPawn(const APawn* Pawn);
 
 	/** 무기 메시/소켓이 없으므로 캐릭터 기준 상대 오프셋으로 스폰 지점을 계산한다(자동 조준 사격 구현.md 4.2). */
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
@@ -237,4 +282,21 @@ private:
 	/** UpdateFacing이 OrientRotationToMovement를 껐다가 되돌릴 때 쓸, 최초 1회 캐싱한 원래 값. */
 	bool bDefaultOrientRotationToMovement = true;
 	bool bCachedDefaultOrientRotation = false;
+
+	/** 사격 감속: 각 머신이 자기 쪽 Fire/Server_Fire에서 시각을 갱신하고 Tick에서 MaxWalkSpeed를 적용/복원한다(MaxWalkSpeed는 비복제). */
+	void NotifyShotFired();
+	void UpdateFireMoveSlow(ACharacter* OwnerCharacter);
+	double FireSlowEndTime = 0.0;
+	/** 마지막 발사 월드 시각(조준 알파 유지 판정). */
+	double LastShotWorldTime = -1000.0;
+	float FireAimAlpha = 0.0f;
+	void UpdateFireAim(float DeltaTime);
+
+	void CreateGunProp();
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> GunComponent;
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> GunBarrelComponent;
+	bool bFireSlowActive = false;
+	float BaseMaxWalkSpeed = 0.0f;
 };
