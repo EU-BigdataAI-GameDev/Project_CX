@@ -208,7 +208,7 @@ FName UCXMenuWidgetBase::GetFocusedItemId() const
 
 void UCXMenuWidgetBase::RefreshFocusVisuals()
 {
-	const FLinearColor Color = CXMenuStyle::PlayerColor(FocusPlayer);
+	const FLinearColor Color = FocusAccentOverride.IsSet() ? FocusAccentOverride.GetValue() : CXMenuStyle::PlayerColor(FocusPlayer);
 	for (int32 i = 0; i < Items.Num(); ++i)
 	{
 		if (Items[i])

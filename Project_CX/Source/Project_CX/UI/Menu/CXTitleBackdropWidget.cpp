@@ -2,6 +2,8 @@
 
 #include "CXTitleBackdropWidget.h"
 #include "CXMenuStyle.h"
+#include "CXSfx.h"
+#include "Engine/Texture2D.h"
 #include "Rendering/DrawElements.h"
 
 namespace CXBackdrop
@@ -49,9 +51,26 @@ namespace CXBackdrop
 	}
 }
 
+UCXTitleBackdropWidget::UCXTitleBackdropWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 없으면 조용히 nullptr → 절차 생성 야경으로 그린다
+	BackgroundTexture = CXSfx::Find<UTexture2D>(TEXT("/Game/Project_CX/Title/Title_Background.Title_Background"));
+}
+
 void UCXTitleBackdropWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
+
+	if (BackgroundTexture)
+	{
+		BackgroundBrush.SetResourceObject(BackgroundTexture);
+		BackgroundBrush.ImageSize = FVector2D(BackgroundTexture->GetSizeX(), BackgroundTexture->GetSizeY());
+		BackgroundBrush.DrawAs = ESlateBrushDrawType::Image;
+		BackgroundBrush.Tiling = ESlateBrushTileType::NoTile;
+	}
+	// 켄 번스로 화면보다 크게 그리는 부분이 뷰포트 밖(에디터 PIE 창 등)으로 새지 않게
+	SetClipping(EWidgetClipping::ClipToBounds);
 
 	// 고정 시드 → 매번 같은 스카이라인
 	FRandomStream Rng(5);
@@ -109,6 +128,11 @@ void UCXTitleBackdropWidget::NativeTick(const FGeometry& MyGeometry, float InDel
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	Time += InDeltaTime;
+	OverlayDim = FMath::FInterpTo(OverlayDim, bOverlayDim ? 1.0f : 0.0f, InDeltaTime, OverlayDimSpeed);
+	if (BackgroundTexture)
+	{
+		return;
+	}
 	for (FRainDrop& D : Rain)
 	{
 		D.Y += D.Speed * InDeltaTime;
@@ -166,6 +190,27 @@ void UCXTitleBackdropWidget::PaintLayer(const TArray<FBuilding>& Layer, FSlateWi
 	}
 }
 
+int32 UCXTitleBackdropWidget::PaintKeyArt(FSlateWindowElementList& Out, int32 Layer, const FGeometry& G, const FVector2f& Size) const
+{
+	const FVector2f ImageSize(FMath::Max(1.0f, (float)BackgroundBrush.ImageSize.X), FMath::Max(1.0f, (float)BackgroundBrush.ImageSize.Y));
+
+	// 핑퐁 진행도 0→1→0(양끝 감속). 한쪽 방향에 KenBurnsDuration초.
+	const float Phase = 0.5f - 0.5f * FMath::Cos(Time * UE_PI / FMath::Max(1.0f, KenBurnsDuration));
+	const float Zoom = FMath::Max(1.0f, FMath::Lerp(KenBurnsZoomMin, KenBurnsZoomMax, Phase));
+
+	// cover: 비율을 지키면서 화면을 꽉 채우는 최소 배율(남는 쪽은 잘린다)
+	const float Scale = FMath::Max(Size.X / ImageSize.X, Size.Y / ImageSize.Y) * Zoom;
+	const FVector2f DrawSize = ImageSize * Scale;
+
+	// 남는 여백(Size - DrawSize ≤ 0) 안에서만 패닝 → 가장자리가 드러나지 않는다
+	const FVector2f Pan(FMath::Clamp((float)KenBurnsPan.X, -1.0f, 1.0f) * Phase, FMath::Clamp((float)KenBurnsPan.Y, -1.0f, 1.0f) * Phase);
+	const FVector2f Pos = (Size - DrawSize) * (FVector2f(0.5f, 0.5f) + Pan * 0.5f);
+
+	++Layer;
+	FSlateDrawElement::MakeBox(Out, Layer, G.ToPaintGeometry(DrawSize, FSlateLayoutTransform(Pos)), &BackgroundBrush, ESlateDrawEffect::None, BackgroundTint);
+	return Layer;
+}
+
 int32 UCXTitleBackdropWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 	FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
@@ -177,6 +222,61 @@ int32 UCXTitleBackdropWidget::NativePaint(const FPaintArgs& Args, const FGeometr
 	{
 		return L;
 	}
+
+	const bool bKeyArt = BackgroundTexture && BackgroundBrush.GetResourceObject();
+	L = bKeyArt ? PaintKeyArt(OutDrawElements, L, G, Size) : PaintProcedural(OutDrawElements, L, G, Size);
+
+	// 가독성: 왼쪽(로고·메뉴 쪽) 어둡게, 하단 그라디언트, 상단/우측 비네팅
+	++L;
+	DrawHGradient(OutDrawElements, L, G, FVector2f(0, 0), FVector2f(Size.X * LeftShadeWidth, Size.Y), {
+		{ 0.0f, FLinearColor(0, 0, 0, LeftShadeAlpha) },
+		{ 0.55f, FLinearColor(0, 0, 0, LeftShadeAlpha * 0.45f) },
+		{ 1.0f, FLinearColor(0, 0, 0, 0.0f) } });
+	DrawVGradient(OutDrawElements, L, G, FVector2f(0, Size.Y * (1.0f - BottomShadeHeight)), FVector2f(Size.X, Size.Y * BottomShadeHeight), {
+		{ 0.0f, FLinearColor(0, 0, 0, 0.0f) },
+		{ 1.0f, FLinearColor(0, 0, 0, BottomShadeAlpha) } });
+	DrawHGradient(OutDrawElements, L, G, FVector2f(Size.X * 0.82f, 0), FVector2f(Size.X * 0.18f, Size.Y), {
+		{ 0.0f, FLinearColor(0, 0, 0, 0.0f) },
+		{ 1.0f, FLinearColor(0, 0, 0, RightShadeAlpha) } });
+	DrawVGradient(OutDrawElements, L, G, FVector2f(0, 0), FVector2f(Size.X, Size.Y * 0.18f), {
+		{ 0.0f, FLinearColor(0, 0, 0, TopShadeAlpha) },
+		{ 1.0f, FLinearColor(0, 0, 0, 0.0f) } });
+
+	// 스캔라인(3px 간격 1px)
+	++L;
+	if (ScanlineAlpha > 0.0f)
+	{
+		const float Step = FMath::Max(3.0f, 3.0f * Size.Y / RefH);
+		const FLinearColor ScanColor(0.0f, 0.0f, 0.0f, ScanlineAlpha);
+		for (float Y = 0.0f; Y < Size.Y; Y += Step)
+		{
+			CXMenuStyle::DrawRect(OutDrawElements, L, G, FVector2f(0.0f, Y), FVector2f(Size.X, 1.0f), ScanColor);
+		}
+	}
+
+	// 스윕 라인: 옅은 띠(위쪽 꼬리) + 얇은 선이 천천히 내려간다
+	if (SweepAlpha > 0.0f && SweepPeriod > 0.0f)
+	{
+		const float Band = Size.Y * 0.08f;
+		const float Y = FMath::Fmod(Time / SweepPeriod, 1.0f) * (Size.Y + Band) - Band;
+		DrawVGradient(OutDrawElements, L, G, FVector2f(0, Y), FVector2f(Size.X, Band), {
+			{ 0.0f, SweepColor.CopyWithNewOpacity(0.0f) },
+			{ 1.0f, SweepColor.CopyWithNewOpacity(SweepAlpha * 0.6f) } });
+		CXMenuStyle::DrawRect(OutDrawElements, L, G, FVector2f(0.0f, Y + Band), FVector2f(Size.X, FMath::Max(1.0f, Size.Y / RefH)), SweepColor.CopyWithNewOpacity(SweepAlpha));
+	}
+
+	// 설정/확인창이 위에 열렸을 때 추가 딤
+	if (OverlayDim > 0.001f)
+	{
+		++L;
+		CXMenuStyle::DrawRect(OutDrawElements, L, G, FVector2f::ZeroVector, Size, FLinearColor(0.0f, 0.0f, 0.0f, OverlayDimAlpha * OverlayDim));
+	}
+	return L;
+}
+
+int32 UCXTitleBackdropWidget::PaintProcedural(FSlateWindowElementList& OutDrawElements, int32 L, const FGeometry& G, const FVector2f& Size) const
+{
+	using namespace CXBackdrop;
 
 	// 화면을 덮도록 기준 해상도에서 스케일(+ 켄 번스 줌), 가운데 정렬
 	const float Zoom = 1.0f + 0.02f * (1.0f - FMath::Cos(Time * UE_TWO_PI / ZoomPeriod));
@@ -222,29 +322,5 @@ int32 UCXTitleBackdropWidget::NativePaint(const FPaintArgs& Args, const FGeometr
 		}
 	}
 
-	// 5) 가독성: 하단 그라디언트(검정 0→70%), 왼쪽(메뉴 쪽) 어둡게, 상단/우측 비네팅
-	++L;
-	DrawVGradient(OutDrawElements, L, G, FVector2f(0, Size.Y * 0.45f), FVector2f(Size.X, Size.Y * 0.55f), {
-		{ 0.0f, FLinearColor(0, 0, 0, 0.0f) },
-		{ 1.0f, FLinearColor(0, 0, 0, 0.7f) } });
-	DrawHGradient(OutDrawElements, L, G, FVector2f(0, 0), FVector2f(Size.X * 0.55f, Size.Y), {
-		{ 0.0f, FLinearColor(0, 0, 0, 0.6f) },
-		{ 0.6f, FLinearColor(0, 0, 0, 0.25f) },
-		{ 1.0f, FLinearColor(0, 0, 0, 0.0f) } });
-	DrawHGradient(OutDrawElements, L, G, FVector2f(Size.X * 0.8f, 0), FVector2f(Size.X * 0.2f, Size.Y), {
-		{ 0.0f, FLinearColor(0, 0, 0, 0.0f) },
-		{ 1.0f, FLinearColor(0, 0, 0, 0.45f) } });
-	DrawVGradient(OutDrawElements, L, G, FVector2f(0, 0), FVector2f(Size.X, Size.Y * 0.18f), {
-		{ 0.0f, FLinearColor(0, 0, 0, 0.5f) },
-		{ 1.0f, FLinearColor(0, 0, 0, 0.0f) } });
-
-	// 6) 스캔라인(3px 간격 1px)
-	++L;
-	const float Step = FMath::Max(3.0f, 3.0f * Size.Y / RefH);
-	const FLinearColor ScanColor(0.0f, 0.0f, 0.0f, 0.16f);
-	for (float Y = 0.0f; Y < Size.Y; Y += Step)
-	{
-		CXMenuStyle::DrawRect(OutDrawElements, L, G, FVector2f(0.0f, Y), FVector2f(Size.X, 1.0f), ScanColor);
-	}
 	return L;
 }

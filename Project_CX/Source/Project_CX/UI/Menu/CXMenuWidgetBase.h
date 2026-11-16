@@ -98,6 +98,9 @@ protected:
 	/** 마지막으로 메뉴를 조작한 플레이어(포커스 색). */
 	int32 FocusPlayer = 0;
 
+	/** 지정하면 항목 포커스 색을 플레이어 색 대신 이 색으로 고정(시작화면 키 아트의 네온 마젠타). 확인창은 그대로 플레이어 색. */
+	TOptional<FLinearColor> FocusAccentOverride;
+
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCXMenuItemWidget>> Items;
 
