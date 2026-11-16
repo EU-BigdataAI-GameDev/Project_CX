@@ -228,7 +228,7 @@ void ASpiderBot::ServerThink(float DeltaSeconds)
 
 		// 타격 = 각 주기의 내려찍기 끝 프레임(애님과 같은 시간축 — 클라이언트도 상태 진입 시 애님을 0부터 재생)
 		const float Period = FMath::Max(0.2f, ChopPeriod);
-		const float ImpactTime = (ChopsDone + FMath::Clamp(ChopImpactFraction, 0.0f, 1.0f)) * Period;
+		const float ImpactTime = AttackDamageDelay + ChopsDone * Period;
 		if (StateTime >= ImpactTime)
 		{
 			++ChopsDone;
@@ -424,7 +424,7 @@ float ASpiderBot::GetTimeToNextChop() const
 		return -1.0f;
 	}
 	const float Period = FMath::Max(0.2f, ChopPeriod);
-	return FMath::Max(0.0f, (ChopsDone + FMath::Clamp(ChopImpactFraction, 0.0f, 1.0f)) * Period - StateTime);
+	return FMath::Max(0.0f, AttackDamageDelay + ChopsDone * Period - StateTime);
 }
 
 // ---------------------------------------------------------------- 피해 / 사망
@@ -707,7 +707,11 @@ void ASpiderBot::PlayStateAnimation()
 	{
 		// 애님 1루프 = ChopPeriod(서버 타격 시점과 같은 시간축)
 		MeshComp->PlayAnimation(AttackAnim, true);
-		MeshComp->SetPlayRate(AttackAnim->GetPlayLength() / FMath::Max(0.2f, ChopPeriod));
+		const float Rate = AttackAnim->GetPlayLength() / FMath::Max(0.2f, ChopPeriod);
+		MeshComp->SetPlayRate(Rate);
+		// 와인드업을 건너뛰고 내려찍기 직전부터 시작 → 타격 프레임이 AttackDamageDelay 뒤에 온다(서버 피해 시점과 일치)
+		const float StartPos = AttackAnim->GetPlayLength() * FMath::Clamp(ChopImpactFraction, 0.0f, 1.0f) - AttackDamageDelay * Rate;
+		MeshComp->SetPosition(FMath::Max(0.0f, StartPos), false);
 	}
 	else if (IdleAnim)
 	{
