@@ -95,3 +95,8 @@ Jemini/*.spec
 
 # Jemini live-caption STT model (tools/download_stt_model.py)
 Jemini/models/
+
+# 원본/중복 텍스처(FBX에 포함됨)
+Art/Source/Brother/RailBlaster/Textures_2K/
+Art/Source/Brother/RailBlaster/RailBlaster.fbx
+Art/Source/Brother/RailBlaster/RailBlaster_Game.fbm/

@@ -97,6 +97,13 @@ public:
 	UFUNCTION(Exec)
 	void CXDamagePlayer(const FString& Who = TEXT("0"), float Amount = 30.0f);
 
+	/**
+	 * 테스트용 콘솔 명령: 오빠 총 소품 라이브 튜닝(소켓 기준 상대 트랜스폼, 모든 오빠에 즉시 적용).
+	 * CXGunTune loc X Y Z (cm) / rot Roll Pitch Yaw (도, 에디터 디테일 패널의 회전 X Y Z 순서) / scale S 또는 scale X Y Z / show
+	 */
+	UFUNCTION(Exec)
+	void CXGunTune(const FString& Mode = TEXT(""), const FString& A = TEXT(""), const FString& B = TEXT(""), const FString& C = TEXT(""));
+
 	/** 테스트용 콘솔 명령: 플레이어 앞(+Y, 진행 방향) Offset cm 바닥에 거미로봇 스폰(레벨에 저장하지 않음). 예) CXSpawnSpider 0 600 */
 	UFUNCTION(Exec)
 	void CXSpawnSpider(const FString& Who = TEXT("0"), float Offset = 600.0f);

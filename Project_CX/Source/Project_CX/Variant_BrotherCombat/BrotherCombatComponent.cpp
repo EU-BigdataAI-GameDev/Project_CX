@@ -2,6 +2,8 @@
 
 #include "BrotherCombatComponent.h"
 #include "BrotherBullet.h"
+#include "BrotherAnimInstance.h"
+#include "Animation/AnimSequence.h"
 #include "CombatDamageable.h"
 #include "CXHealthComponent.h"
 #include "GameFramework/Character.h"
@@ -39,6 +41,10 @@ UBrotherCombatComponent::UBrotherCombatComponent()
 	DryFireSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_DryFire.SW_Brother_DryFire"));
 	LowAmmoSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_LowAmmo.SW_Brother_LowAmmo"));
 	AimLockSound = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/Brother/SW_Brother_AimLock.SW_Brother_AimLock"));
+
+	NativeIdleAnim = CXSfx::Find<UAnimSequence>(TEXT("/Game/Project_CX/Characters/Brother/Anim/Brother_Anim_Breathing_Idle.Brother_Anim_Breathing_Idle"));
+	NativeRunAnim = CXSfx::Find<UAnimSequence>(TEXT("/Game/Project_CX/Characters/Brother/Anim/Brother_Anim_Running_InPlace.Brother_Anim_Running_InPlace"));
+	NativeJumpAnim = CXSfx::Find<UAnimSequence>(TEXT("/Game/Project_CX/Characters/Brother/Anim/Brother_Anim_Jumping.Brother_Anim_Jumping"));
 }
 
 void UBrotherCombatComponent::BeginPlay()
@@ -46,6 +52,18 @@ void UBrotherCombatComponent::BeginPlay()
 	Super::BeginPlay();
 	CurrentAmmo = MaxAmmo;
 	CreateGunProp();
+
+	// 오빠가 있는 모든 머신에서 로컬로 네이티브 AnimInstance를 설치한다(애니메이션은 복제되지 않고 각 머신이 상태로 계산).
+	if (bUseNativeAnim)
+	{
+		if (const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
+		{
+			if (USkeletalMeshComponent* CharMesh = OwnerCharacter->GetMesh())
+			{
+				CharMesh->SetAnimInstanceClass(UBrotherAnimInstance::StaticClass());
+			}
+		}
+	}
 
 	// 맵 이동으로 넘어온 제미니 공격력 강화(남은 시간을 게임 인스턴스에 맡겨 둔다 — 한 번 쓰고 비운다)
 	if (GetOwner() && GetOwner()->HasAuthority())
@@ -497,6 +515,15 @@ void UBrotherCombatComponent::CreateGunProp()
 	Barrel.AddToTranslation(GunRelativeTransform.GetRotation().RotateVector(FVector(14.0f, 0.0f, 2.0f)));
 	Barrel.SetScale3D(GunRelativeTransform.GetScale3D() * FVector(0.14f, 0.025f, 0.025f));
 	GunBarrelComponent = MakeProp(TEXT("BrotherGunBarrel"), Cube, Barrel);
+}
+
+void UBrotherCombatComponent::SetGunRelativeTransformLive(const FTransform& NewTransform)
+{
+	GunRelativeTransform = NewTransform;
+	if (GunComponent && GunMesh)
+	{
+		GunComponent->SetRelativeTransform(GunRelativeTransform);
+	}
 }
 
 void UBrotherCombatComponent::UpdateFireMoveSlow(ACharacter* OwnerCharacter)

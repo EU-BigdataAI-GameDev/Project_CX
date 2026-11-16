@@ -39,6 +39,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
+#include "Engine/Engine.h"
 
 ALocalCoopGameMode::ALocalCoopGameMode()
 {
@@ -1551,6 +1552,83 @@ void ALocalCoopGameMode::CXDamagePlayer(const FString& Who, float Amount)
 		}
 	}
 	UE_LOG(LogTemp, Log, TEXT("CXDamagePlayer: %s"), *GetCombatDebugState());
+}
+
+void ALocalCoopGameMode::CXGunTune(const FString& Mode, const FString& A, const FString& B, const FString& C)
+{
+	const FString M = Mode.TrimStartAndEnd().ToLower();
+	const bool bHasA = A.IsNumeric(), bHasB = B.IsNumeric(), bHasC = C.IsNumeric();
+	const float VA = bHasA ? FCString::Atof(*A) : 0.0f;
+	const float VB = bHasB ? FCString::Atof(*B) : 0.0f;
+	const float VC = bHasC ? FCString::Atof(*C) : 0.0f;
+
+	TArray<UBrotherCombatComponent*> Comps;
+	for (TActorIterator<ACharacter> It(GetWorld()); It; ++It)
+	{
+		if (UBrotherCombatComponent* Comp = It->FindComponentByClass<UBrotherCombatComponent>())
+		{
+			Comps.Add(Comp);
+		}
+	}
+
+	auto PrintUsage = [](const TCHAR* Reason)
+	{
+		const FString Msg = FString::Printf(TEXT("CXGunTune %s | loc X Y Z (cm) | rot Roll Pitch Yaw (deg, 에디터 디테일 패널 회전 X Y Z 순서) | scale S 또는 scale X Y Z | show"), Reason);
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(7311, 8.0f, FColor::Yellow, Msg);
+		}
+	};
+
+	if (Comps.IsEmpty())
+	{
+		PrintUsage(TEXT("오빠 BrotherCombatComponent 없음."));
+		return;
+	}
+
+	const bool bLoc = M == TEXT("loc") && bHasA && bHasB && bHasC;
+	const bool bRot = M == TEXT("rot") && bHasA && bHasB && bHasC;
+	const bool bScale = M == TEXT("scale") && bHasA && ((bHasB && bHasC) || (!bHasB && !bHasC));
+	if (M != TEXT("show") && !bLoc && !bRot && !bScale)
+	{
+		PrintUsage(TEXT("사용법 오류."));
+		return;
+	}
+
+	for (UBrotherCombatComponent* Comp : Comps)
+	{
+		FTransform T = Comp->GetGunRelativeTransform();
+		if (bLoc)
+		{
+			T.SetLocation(FVector(VA, VB, VC));
+		}
+		else if (bRot)
+		{
+			// 입력 순서 Roll Pitch Yaw -> FRotator(Pitch, Yaw, Roll)
+			T.SetRotation(FRotator(VB, VC, VA).Quaternion());
+		}
+		else if (bScale)
+		{
+			T.SetScale3D(bHasB ? FVector(VA, VB, VC) : FVector(VA));
+		}
+		if (bLoc || bRot || bScale)
+		{
+			Comp->SetGunRelativeTransformLive(T);
+		}
+	}
+
+	const FTransform& Cur = Comps[0]->GetGunRelativeTransform();
+	const FRotator R = Cur.GetRotation().Rotator();
+	const FVector L = Cur.GetLocation();
+	const FVector S = Cur.GetScale3D();
+	const FString Msg = FString::Printf(TEXT("Gun  위치 X=%.2f Y=%.2f Z=%.2f | 회전 X(Roll)=%.2f Y(Pitch)=%.2f Z(Yaw)=%.2f | 스케일 X=%.3f Y=%.3f Z=%.3f"),
+		L.X, L.Y, L.Z, R.Roll, R.Pitch, R.Yaw, S.X, S.Y, S.Z);
+	UE_LOG(LogTemp, Log, TEXT("CXGunTune: %s"), *Msg);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(7310, 15.0f, FColor::Cyan, Msg);
+	}
 }
 
 AActor* ALocalCoopGameMode::DebugSpawnSpider(int32 LocalPlayerIndex, float Offset)
