@@ -15,6 +15,7 @@ class USoundBase;
 class UStaticMesh;
 class UStaticMeshComponent;
 class APawn;
+class UAnimSequence;
 
 /**
  *  오빠 캐릭터의 자동 조준 사격 로직(.claude/Plans/자동 조준 사격 구현.md).
@@ -30,6 +31,11 @@ class UBrotherCombatComponent : public UActorComponent
 
 public:
 	UBrotherCombatComponent();
+
+	/** 라이브 튜닝(CXGunTune)용: 총 소품의 소켓 기준 상대 트랜스폼을 즉시 바꾼다. GunMesh가 있으면 GunComponent만 갱신. */
+	void SetGunRelativeTransformLive(const FTransform& NewTransform);
+
+	const FTransform& GetGunRelativeTransform() const { return GunRelativeTransform; }
 
 	/** IA_Aim(Started)에서 호출. 가장 가까운 적을 찾아 조준 상태로 전환한다. 적이 없으면 조준 상태에 들어가지 않는다. */
 	UFUNCTION(BlueprintCallable, Category = "Brother|Combat")
@@ -92,6 +98,43 @@ public:
 	/** 지금 적용 중인 피해 배율(강화 아니면 1). */
 	UFUNCTION(BlueprintPure, Category = "Brother|Combat")
 	float GetDamageMultiplier() const { return GetDamageBoostRemaining() > 0.0f ? DamageBoostMultiplier : 1.0f; }
+
+	// ------------------------------------------------------------ 네이티브 AnimInstance(UBrotherAnimInstance)
+
+	/** true면 BeginPlay에서 메시의 AnimInstance를 네이티브 UBrotherAnimInstance로 교체한다(false: BP의 ABP_Brother 유지). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim")
+	bool bUseNativeAnim = true;
+
+	/** 네이티브 AnimInstance용 애니메이션(생성자에서 경로로 찾는다. 에디터에서 바꿀 수 있다). */
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim")
+	TObjectPtr<UAnimSequence> NativeIdleAnim;
+
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim")
+	TObjectPtr<UAnimSequence> NativeRunAnim;
+
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim")
+	TObjectPtr<UAnimSequence> NativeJumpAnim;
+
+	/** 사격 조준 자세(오른팔 올리기) 사용 여부. 끄면 GetFireAimAlpha와 무관하게 팔을 올리지 않는다. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim|AimPose")
+	bool bEnableAimPose = true;
+
+	/** RightArm 본 공간 회전(Add To Existing). FRotator의 Roll=X, Pitch=Y, Yaw=Z — Transform(Modify) Bone 핀과 같다. 알파(FireAimAlpha)로 가중. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim|AimPose")
+	FRotator RightArmAimRotation = FRotator(50.0f, 0.0f, -90.0f);
+
+	/** RightForeArm 본 공간 회전(Add To Existing). Roll=X, Pitch=Y, Yaw=Z. */
+	UPROPERTY(EditAnywhere, Category = "Brother|Anim|AimPose")
+	FRotator RightForeArmAimRotation = FRotator(70.0f, 0.0f, 0.0f);
+
+	const UAnimSequence* GetNativeIdleAnim() const { return NativeIdleAnim; }
+	const UAnimSequence* GetNativeRunAnim() const { return NativeRunAnim; }
+	const UAnimSequence* GetNativeJumpAnim() const { return NativeJumpAnim; }
+	bool IsAimPoseEnabled() const { return bEnableAimPose; }
+	/** 애니메이션 쪽 조회용: 조준 자세 알파(비활성이면 0). */
+	float GetAimPoseAlpha() const { return bEnableAimPose ? FireAimAlpha : 0.0f; }
+	const FRotator& GetRightArmAimRotation() const { return RightArmAimRotation; }
+	const FRotator& GetRightForeArmAimRotation() const { return RightForeArmAimRotation; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -216,6 +259,7 @@ protected:
 	/** AnimBP 편의용: TryGetPawnOwner 결과(캐스트 불필요)에서 컴포넌트를 찾아 알파를 돌려준다. 없으면 0. */
 	UFUNCTION(BlueprintPure, Category = "Brother|Gun")
 	static float GetFireAimAlphaForPawn(const APawn* Pawn);
+
 
 	/** 무기 메시/소켓이 없으므로 캐릭터 기준 상대 오프셋으로 스폰 지점을 계산한다(자동 조준 사격 구현.md 4.2). */
 	UPROPERTY(EditDefaultsOnly, Category = "Brother|Combat")
