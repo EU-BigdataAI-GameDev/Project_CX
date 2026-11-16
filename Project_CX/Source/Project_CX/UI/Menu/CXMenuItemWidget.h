@@ -41,6 +41,12 @@ public:
 	void SetInfo(const FText& InInfo);
 	void SetFocused(bool bInFocused, const FLinearColor& PlayerColor);
 
+	/**
+	 *  키 아트 위에 놓이는 메뉴용 모양(시작화면): 포커스 줄 바탕이 왼쪽→오른쪽으로 사라지는 그라디언트,
+	 *  포커스가 아닌 글자에는 검정 그림자(밝은 그림 위에서도 읽히게).
+	 */
+	void SetKeyArtStyle(bool bEnabled);
+
 	/** 진입 연출용: 가로 오프셋/투명도(메뉴 슬라이드인). */
 	void SetIntroOffset(float OffsetX, float Opacity);
 
@@ -53,6 +59,8 @@ public:
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
+		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
@@ -70,6 +78,7 @@ private:
 
 	FName ItemId;
 	bool bCenteredStyle = false;
+	bool bKeyArtStyle = false;
 	bool bFocused = false;
 	bool bPressed = false;
 	FLinearColor FocusColor = FLinearColor::White;

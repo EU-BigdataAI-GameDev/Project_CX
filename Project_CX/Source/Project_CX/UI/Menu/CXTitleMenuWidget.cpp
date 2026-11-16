@@ -14,6 +14,8 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
+#include "Components/SizeBox.h"
+#include "Engine/Texture2D.h"
 #include "Components/OverlaySlot.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
@@ -33,6 +35,8 @@ UCXTitleMenuWidget::UCXTitleMenuWidget(const FObjectInitializer& ObjectInitializ
 {
 	// 타이틀 네온 점등 지직(Kenney forceField_000)
 	SoundNeonBuzz = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/UI/SW_UI_NeonBuzz.SW_UI_NeonBuzz"));
+	// 로고 키 아트(없으면 조용히 nullptr → 글자 제목)
+	LogoTexture = CXSfx::Find<UTexture2D>(TEXT("/Game/Project_CX/Title/Title_logo.Title_logo"));
 }
 
 namespace CXTitle
@@ -46,6 +50,9 @@ namespace CXTitle
 	constexpr float BackdropFade = 1.0f;
 	constexpr float TitleStart = 0.9f;
 	constexpr float TitleFlicker = 0.6f;
+	constexpr float GlowIgnite = 0.25f;		// 로고가 뜨기 시작한 뒤 글로우가 지직거리며 켜지는 시점
+	constexpr float MenuWidth = 820.0f;
+	constexpr float ItemLabelInset = 21.0f;	// 메뉴 항목 안에서 글자가 시작되는 x(포커스 바 3 + 간격 18)
 	constexpr float SubtitleStart = 1.4f;
 	constexpr float MenuStart = 1.5f;
 	constexpr float MenuSlide = 0.2f;
@@ -113,16 +120,59 @@ void UCXTitleMenuWidget::BuildMenu()
 	Content = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Content"));
 	AddFill(Content);
 
-	// 게임명: 좌상단 1/3 지점
+	// 키 아트 모양: 배경 그림이나 로고가 하나라도 있으면 적용(둘 다 없으면 예전 모양 그대로)
+	bKeyArt = Backdrop->HasKeyArt() || LogoTexture != nullptr;
+	if (bKeyArt)
+	{
+		FocusAccentOverride = MenuAccentColor;
+	}
+	const FLinearColor Accent = bKeyArt ? MenuAccentColor : CXMenuStyle::Brother;
+
+	// 왼쪽 묶음: 게임명(로고) → 부제 → 메뉴가 위에서 아래로 흐른다(로고 크기가 바뀌어도 메뉴가 따라 내려감)
 	UVerticalBox* TitleBlock = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TitleBlock"));
 	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(TitleBlock))
 	{
 		S->SetAutoSize(true);
-		S->SetPosition(FVector2D(150.0f, 200.0f));
+		S->SetPosition(LogoTexture ? LeftColumnPosition : FVector2D(150.0f, 200.0f));
 	}
-	// 게임명 CAELUM:UNCHAINED — Oxanium Bold. 글자는 오빠 청록 네온 그림자, 가운데 콜론만 여동생 마젠타(두 사람 색 체계)
-	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleRow"));
+
+	UHorizontalBox* TitleRow = nullptr;
+	if (LogoTexture)
 	{
+		// 게임명 로고 이미지. 크기는 UpdateLogoLayout이 화면 폭 비율로 정한다(비율 유지).
+		LogoBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("LogoBox"));
+		UOverlay* LogoStack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LogoStack"));
+		LogoBox->AddChild(LogoStack);
+
+		auto MakeLogo = [&](const TCHAR* Name)
+		{
+			UImage* Img = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Name);
+			FSlateBrush Brush;
+			Brush.SetResourceObject(LogoTexture);
+			Brush.ImageSize = FVector2D(LogoTexture->GetSizeX(), LogoTexture->GetSizeY());
+			Brush.DrawAs = ESlateBrushDrawType::Image;
+			Img->SetBrush(Brush);
+			if (UOverlaySlot* S = LogoStack->AddChildToOverlay(Img))
+			{
+				S->SetHorizontalAlignment(HAlign_Fill);
+				S->SetVerticalAlignment(VAlign_Fill);
+			}
+			return Img;
+		};
+		LogoImage = MakeLogo(TEXT("Logo"));
+		// 같은 그림을 한 번 더 겹쳐 그린다 → 불투명한 글자는 그대로, 반투명한 네온 번짐만 짙어진다(숨쉬기)
+		LogoGlowImage = MakeLogo(TEXT("LogoGlow"));
+		LogoGlowImage->SetColorAndOpacity(LogoGlowTint);
+		LogoGlowImage->SetRenderOpacity(0.0f);
+
+		LogoBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+		TitleText = LogoBox;
+		TitleBlock->AddChildToVerticalBox(LogoBox);
+	}
+	else
+	{
+		// 게임명 CAELUM:UNCHAINED — Oxanium Bold. 글자는 오빠 청록 네온 그림자, 가운데 콜론만 여동생 마젠타(두 사람 색 체계)
+		TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleRow"));
 		const FLinearColor TitleColor(0.88f, 1.0f, 1.0f, 1.0f);
 		auto AddTitlePart = [&](const TCHAR* Str, const FLinearColor& Color, const FLinearColor& Glow, float PadL, float PadR)
 		{
@@ -138,11 +188,12 @@ void UCXTitleMenuWidget::BuildMenu()
 		AddTitlePart(TEXT("CAELUM"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
 		AddTitlePart(TEXT(":"), CXMenuStyle::Sister, CXMenuStyle::Sister.CopyWithNewOpacity(0.45f), 4.0f, 10.0f);
 		AddTitlePart(TEXT("UNCHAINED"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
+		TitleText = TitleRow;
+		TitleBlock->AddChildToVerticalBox(TitleRow);
 	}
-	TitleText = TitleRow;
-	TitleBlock->AddChildToVerticalBox(TitleRow);
 
 	UHorizontalBox* SubRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	SubtitleRow = SubRow;
 	if (UVerticalBoxSlot* S = TitleBlock->AddChildToVerticalBox(SubRow))
 	{
 		S->SetPadding(FMargin(6.0f, 4.0f, 0.0f, 0.0f));
@@ -150,32 +201,55 @@ void UCXTitleMenuWidget::BuildMenu()
 	TitleUnderline = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Underline"));
 	{
 		FSlateBrush LineBrush;
-		LineBrush.ImageSize = FVector2D(300.0f, 2.0f);
+		LineBrush.ImageSize = LogoTexture ? FVector2D(96.0f, 2.0f) : FVector2D(300.0f, 2.0f);
 		TitleUnderline->SetBrush(LineBrush);
 	}
-	TitleUnderline->SetColorAndOpacity(CXMenuStyle::Brother);
+	TitleUnderline->SetColorAndOpacity(LogoTexture ? Accent.CopyWithNewOpacity(0.85f) : Accent);
 	if (UHorizontalBoxSlot* S = SubRow->AddChildToHorizontalBox(TitleUnderline))
 	{
 		S->SetVerticalAlignment(VAlign_Center);
 	}
-	SubtitleText = MakeText(TEXT("DISTRICT 5"), 22, TEXT("Bold"), 600, CXMenuStyle::Brother.CopyWithNewOpacity(0.9f));
+	if (LogoTexture)
+	{
+		// 로고가 주인공 — 부제는 작게, 시스템 글꼴로 조용히
+		SubtitleText = MakeText(TEXT("DISTRICT 5"), 15, TEXT("Medium"), 620, FLinearColor(1.0f, 1.0f, 1.0f, 0.62f));
+		SubtitleText->SetFont(CXMenuStyle::MonoFont(15, TEXT("Medium"), 620));
+		SubtitleText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		SubtitleText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.7f));
+	}
+	else
+	{
+		SubtitleText = MakeText(TEXT("DISTRICT 5"), 22, TEXT("Bold"), 600, Accent.CopyWithNewOpacity(0.9f));
+	}
 	if (UHorizontalBoxSlot* S = SubRow->AddChildToHorizontalBox(SubtitleText))
 	{
 		S->SetVerticalAlignment(VAlign_Center);
-		S->SetPadding(FMargin(20.0f, 0.0f, 0.0f, 0.0f));
+		S->SetPadding(FMargin(LogoTexture ? 16.0f : 20.0f, 0.0f, 0.0f, 0.0f));
 	}
 
-	// 메뉴: 좌측 세로 목록(오른쪽은 비워 풍경이 보이게)
-	UVerticalBox* MenuList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MenuList"));
-	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(MenuList))
+	// 메뉴: 로고 아래 좌측 세로 목록(오른쪽은 비워 그림이 보이게)
+	USizeBox* MenuSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("MenuBox"));
+	MenuSize->SetWidthOverride(CXTitle::MenuWidth);
+	MenuBox = MenuSize;
+	if (UVerticalBoxSlot* S = TitleBlock->AddChildToVerticalBox(MenuSize))
 	{
-		S->SetPosition(FVector2D(150.0f, 440.0f));
-		S->SetSize(FVector2D(820.0f, 320.0f));
+		S->SetHorizontalAlignment(HAlign_Left);
+		// 글자 제목일 때는 예전 위치(게임명 아래 ~440)에 오도록 간격만 둔다. 로고일 때는 UpdateLogoLayout이 다시 잡는다.
+		S->SetPadding(FMargin(0.0f, 96.0f, 0.0f, 0.0f));
 	}
+	UVerticalBox* MenuList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MenuList"));
+	MenuSize->AddChild(MenuList);
 	AddMenuItem(MenuList, CXTitle::Continue, FText::FromString(TEXT("CONTINUE")));
 	AddMenuItem(MenuList, CXTitle::NewGame, FText::FromString(TEXT("NEW GAME")));
 	AddMenuItem(MenuList, CXTitle::Settings, FText::FromString(TEXT("SETTINGS")));
 	AddMenuItem(MenuList, CXTitle::Quit, FText::FromString(TEXT("QUIT GAME")));
+	if (bKeyArt)
+	{
+		for (UCXMenuItemWidget* Item : Items)
+		{
+			Item->SetKeyArtStyle(true);
+		}
+	}
 
 	SaveWarningText = MakeText(TEXT("SAVE DATA COULD NOT BE LOADED"), 16, TEXT("Bold"), 120, CXMenuStyle::Warning);
 	SaveWarningText->SetVisibility(ESlateVisibility::Collapsed);
@@ -219,7 +293,13 @@ void UCXTitleMenuWidget::BuildMenu()
 		S->SetPosition(FVector2D(0.0f, -232.0f));
 	}
 
-	HintText = MakeText(FString::Printf(TEXT("[A / ENTER]  SELECT        [B / ESC]  BACK            %s"), *VersionLabel), 14, TEXT("Regular"), 160, CXMenuStyle::TextDim);
+	HintText = MakeText(FString::Printf(TEXT("[A / ENTER]  SELECT        [B / ESC]  BACK            %s"), *VersionLabel), 14, TEXT("Regular"), 160,
+		bKeyArt ? FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) : CXMenuStyle::TextDim);
+	if (bKeyArt)
+	{
+		HintText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		HintText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f));
+	}
 	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(HintText))
 	{
 		S->SetAnchors(FAnchors(1.0f, 1.0f));
@@ -240,6 +320,52 @@ void UCXTitleMenuWidget::BuildMenu()
 	AddFill(FadeImage);
 
 	Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	// 첫 프레임 전(지오메트리 없음)에는 기준 해상도로 잡아 둔다
+	UpdateLogoLayout(FVector2D(1920.0, 1080.0));
+}
+
+void UCXTitleMenuWidget::UpdateLogoLayout(const FVector2D& ScreenSize)
+{
+	if (!LogoBox || !LogoTexture || ScreenSize.X <= 1.0 || ScreenSize.Y <= 1.0 || ScreenSize.Equals(LogoLayoutSize, 0.5))
+	{
+		return;
+	}
+	LogoLayoutSize = ScreenSize;
+
+	// 화면 폭 비율로 크기를 정하되, 높이 상한과 화면 오른쪽 끝을 넘지 않게. 비율은 텍스처 그대로.
+	const float Aspect = (float)LogoTexture->GetSizeX() / FMath::Max(1.0f, (float)LogoTexture->GetSizeY());
+	float Width = ScreenSize.X * LogoWidthFraction;
+	Width = FMath::Min(Width, (float)ScreenSize.Y * LogoMaxHeightFraction * Aspect);
+	Width = FMath::Min(Width, (float)(ScreenSize.X - LeftColumnPosition.X * 2.0));
+	Width = FMath::Max(Width, 200.0f);
+	const float Height = Width / Aspect;
+	LogoBox->SetWidthOverride(Width);
+	LogoBox->SetHeightOverride(Height);
+
+	// 로고 PNG의 투명 여백만큼 아래 줄을 당기고, 글자 왼쪽 끝에 맞춘다
+	const float InsetX = Width * LogoInsetLeft;
+	const float InsetY = Height * LogoInsetBottom;
+	if (UVerticalBoxSlot* S = SubtitleRow ? Cast<UVerticalBoxSlot>(SubtitleRow->Slot) : nullptr)
+	{
+		S->SetPadding(FMargin(InsetX, -InsetY, 0.0f, 0.0f));
+	}
+	if (UVerticalBoxSlot* S = MenuBox ? Cast<UVerticalBoxSlot>(MenuBox->Slot) : nullptr)
+	{
+		S->SetPadding(FMargin(FMath::Max(0.0f, InsetX - CXTitle::ItemLabelInset), LogoMenuGap, 0.0f, 0.0f));
+	}
+}
+
+void UCXTitleMenuWidget::UpdateLogoPulse(float GlowIntro)
+{
+	if (!LogoImage || !LogoGlowImage)
+	{
+		return;
+	}
+	// 0→1→0 숨쉬기(주기 LogoPulsePeriod초)
+	const float Pulse = 0.5f - 0.5f * FMath::Cos(LogoTime * UE_TWO_PI / FMath::Max(0.1f, LogoPulsePeriod));
+	LogoImage->SetRenderOpacity(FMath::Lerp(LogoPulseMinOpacity, 1.0f, Pulse));
+	LogoGlowImage->SetRenderOpacity(LogoGlowMaxOpacity * Pulse * GlowIntro);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -285,10 +411,21 @@ void UCXTitleMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	// 로고 크기는 화면 폭을 따라간다(해상도·화면비·DPI 스케일이 바뀌어도)
+	UpdateLogoLayout(FVector2D(MyGeometry.GetLocalSize()));
+	LogoTime += InDeltaTime;
+
 	if (IntroTime >= 0.0f)
 	{
 		UpdateIntro(InDeltaTime);
 	}
+	else
+	{
+		UpdateLogoPulse(1.0f);
+	}
+
+	// 설정 메뉴/확인창이 위에 떠 있는 동안 배경 그림을 더 어둡게(패널 글자가 그림에 묻히지 않게)
+	Backdrop->SetOverlayDim(bSettingsOpen || IsModalOpen());
 
 	// 게임패드 연결 상태(NOT CONNECTED 표시, 패드가 모두 빠지면 READY 해제)
 	GamepadPollTimer -= InDeltaTime;
@@ -346,6 +483,12 @@ void UCXTitleMenuWidget::UpdateIntro(float DeltaTime)
 	if (bShortIntro)
 	{
 		FadeImage->SetRenderOpacity(1.0f - Ramp(T, 0.0f, ShortIntro));
+		if (LogoBox)
+		{
+			const float A = FMath::InterpEaseOut(0.0f, 1.0f, Ramp(T, 0.0f, ShortIntro), 2.0f);
+			LogoBox->SetRenderTranslation(FVector2D(0.0f, LogoRise * 0.5f * (1.0f - A)));
+			UpdateLogoPulse(1.0f);
+		}
 		if (T >= ShortIntro)
 		{
 			FinishIntro();
@@ -355,8 +498,18 @@ void UCXTitleMenuWidget::UpdateIntro(float DeltaTime)
 
 	FadeImage->SetRenderOpacity(1.0f - Ramp(T, 0.0f, BackdropFade));
 
-	const float Flicker = FlickerAlpha(T - TitleStart);
-	TitleText->SetRenderOpacity(Flicker);
+	if (LogoBox)
+	{
+		// 로고: 페이드인 + 아래에서 살짝 떠오름. 네온 번짐(글로우 복사본)은 조금 뒤에 지직거리며 켜진다.
+		const float A = FMath::InterpEaseOut(0.0f, 1.0f, Ramp(T, TitleStart, FMath::Max(0.05f, LogoFadeTime)), 2.0f);
+		LogoBox->SetRenderOpacity(A);
+		LogoBox->SetRenderTranslation(FVector2D(0.0f, LogoRise * (1.0f - A)));
+		UpdateLogoPulse(FlickerAlpha(T - TitleStart - GlowIgnite));
+	}
+	else
+	{
+		TitleText->SetRenderOpacity(FlickerAlpha(T - TitleStart));
+	}
 	if (!bBuzzPlayed && T >= TitleStart)
 	{
 		bBuzzPlayed = true;
@@ -404,6 +557,8 @@ void UCXTitleMenuWidget::FinishIntro()
 	IntroTime = -1.0f;
 	FadeImage->SetRenderOpacity(0.0f);
 	TitleText->SetRenderOpacity(1.0f);
+	TitleText->SetRenderTranslation(FVector2D::ZeroVector);
+	UpdateLogoPulse(1.0f);
 	TitleUnderline->SetRenderOpacity(1.0f);
 	TitleUnderline->SetRenderScale(FVector2D(1.0f, 1.0f));
 	SubtitleText->SetRenderOpacity(1.0f);
@@ -535,10 +690,15 @@ void UCXTitleMenuWidget::OpenSettings()
 	{
 		Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
+	else
+	{
+		bSettingsOpen = true;
+	}
 }
 
 void UCXTitleMenuWidget::HandleSettingsClosed()
 {
+	bSettingsOpen = false;
 	Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	// 바뀐 조작 장치에 맞춰 슬롯(READY / PRESS START) 다시 그림
 	bGamepadAttached = FSlateApplication::IsInitialized() && FSlateApplication::Get().IsGamepadAttached();

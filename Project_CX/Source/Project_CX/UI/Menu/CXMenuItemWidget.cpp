@@ -10,12 +10,19 @@
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
+#include "Rendering/DrawElements.h"
 
 namespace CXMenuItemLayout
 {
 	constexpr float Height = 52.0f;
 	constexpr float BarWidth = 3.0f;
 	constexpr float BarSlide = 10.0f;	// 포커스 바가 왼쪽에서 미끄러져 들어오는 거리
+
+	// 키 아트 스타일(시작화면)
+	constexpr float KeyArtHighlightAlpha = 0.34f;	// 포커스 줄 그라디언트 왼쪽 끝 진하기
+	constexpr float KeyArtHighlightWidth = 0.78f;	// 그라디언트가 사라지는 지점(줄 폭 비율)
+	constexpr float KeyArtIdleTextAlpha = 0.72f;	// 포커스가 아닌 글자 밝기
+	constexpr float KeyArtIdleShadowAlpha = 0.75f;	// 포커스가 아닌 글자의 검정 그림자
 }
 
 void UCXMenuItemWidget::NativeOnInitialized()
@@ -166,6 +173,35 @@ void UCXMenuItemWidget::SetFocused(bool bInFocused, const FLinearColor& PlayerCo
 	ApplyVisuals();
 }
 
+void UCXMenuItemWidget::SetKeyArtStyle(bool bEnabled)
+{
+	bKeyArtStyle = bEnabled;
+	ApplyVisuals();
+}
+
+int32 UCXMenuItemWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
+	FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	if (bKeyArtStyle && bFocused && !bCenteredStyle)
+	{
+		// 포커스 줄: 강조색이 왼쪽에서 오른쪽으로 사라진다(자식보다 아래 레이어)
+		const float A = FMath::InterpEaseOut(0.0f, 1.0f, FocusAlpha, 2.0f) * InWidgetStyle.GetColorAndOpacityTint().A;
+		const FVector2f Size = FVector2f(AllottedGeometry.GetLocalSize());
+		const float W = Size.X * CXMenuItemLayout::KeyArtHighlightWidth * (0.6f + 0.4f * A);
+		if (A > 0.0f && W > 0.0f && Size.Y > 0.0f)
+		{
+			TArray<FSlateGradientStop> Stops;
+			Stops.Add(FSlateGradientStop(FVector2D(0.0f, 0.0f), FocusColor.CopyWithNewOpacity(CXMenuItemLayout::KeyArtHighlightAlpha * A)));
+			Stops.Add(FSlateGradientStop(FVector2D(W * 0.45f, 0.0f), FocusColor.CopyWithNewOpacity(CXMenuItemLayout::KeyArtHighlightAlpha * 0.35f * A)));
+			Stops.Add(FSlateGradientStop(FVector2D(W, 0.0f), FocusColor.CopyWithNewOpacity(0.0f)));
+			FSlateDrawElement::MakeGradient(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(FVector2f(W, Size.Y), FSlateLayoutTransform()),
+				MoveTemp(Stops), Orient_Vertical);
+		}
+		++LayerId;
+	}
+	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+}
+
 void UCXMenuItemWidget::SetIntroOffset(float OffsetX, float Opacity)
 {
 	SetRenderTranslation(FVector2D(OffsetX, 0.0f));
@@ -198,7 +234,17 @@ void UCXMenuItemWidget::ApplyVisuals()
 	FocusBar->SetColorAndOpacity(FocusColor.CopyWithNewOpacity(A));
 	FocusBar->SetRenderTranslation(FVector2D(-(1.0f - A) * CXMenuItemLayout::BarSlide, 0.0f));
 
-	if (bCenteredStyle)
+	if (bKeyArtStyle && !bCenteredStyle)
+	{
+		// 키 아트 위: 바탕은 NativePaint의 그라디언트가 맡고, 포커스가 아닌 글자는 검정 그림자로 띄운다
+		if (!bFocused)
+		{
+			LabelText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, CXMenuItemLayout::KeyArtIdleTextAlpha)));
+			LabelText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, CXMenuItemLayout::KeyArtIdleShadowAlpha));
+		}
+		Background->SetBrushColor(FLinearColor::Transparent);
+	}
+	else if (bCenteredStyle)
 	{
 		// 확인창 버튼: 포커스면 플레이어 색 반투명 바탕, 아니면 어두운 패널
 		Background->SetBrushColor(bFocused ? FocusColor.CopyWithNewOpacity(0.22f) : FLinearColor(1.0f, 1.0f, 1.0f, 0.05f));
