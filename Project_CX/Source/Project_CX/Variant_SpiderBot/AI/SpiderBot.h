@@ -135,7 +135,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Stats", meta = (ClampMin = "0.2"))
 	float ChopPeriod = 1.1f;
 
-	/** 한 주기 안에서 피해가 들어가는 시점(0~1) — AS_SpiderBot_Attack의 내려찍기 끝 프레임 17/24. */
+	/**
+	 *  공격 시작(접촉) 후 첫 피해까지의 지연(초). 이후 타격은 ChopPeriod 간격. 공격 애님은 시작 시 내려찍기 직전 위치부터 재생해
+	 *  타격 프레임이 이 시점에 오게 맞춘다(와인드업을 건너뜀) — 접촉 즉시 맞도록 짧게.
+	 */
+	UPROPERTY(EditAnywhere, Category = "SpiderBot|Stats", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AttackDamageDelay = 0.1f;
+
+	/** 애님 한 주기 안에서 내려찍기 타격 프레임 위치(0~1) — AS_SpiderBot_Attack의 내려찍기 끝 프레임 17/24(애님 위상 맞춤용). */
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Stats", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ChopImpactFraction = 17.0f / 24.0f;
 
