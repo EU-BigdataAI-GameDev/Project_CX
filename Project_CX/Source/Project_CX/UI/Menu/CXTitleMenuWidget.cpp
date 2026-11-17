@@ -4,6 +4,7 @@
 #include "CXMenuItemWidget.h"
 #include "CXPlayerSlotWidget.h"
 #include "CXTitleBackdropWidget.h"
+#include "CXCutsceneWidget.h"
 #include "CXGameInstance.h"
 #include "CXSaveGame.h"
 #include "CXSettingsWidget.h"
@@ -811,7 +812,20 @@ bool UCXTitleMenuWidget::TryStartGame(bool bContinue)
 		UCXSaveGame::DeleteSlot();
 		// 새 게임 = 처음 하는 사람일 수 있다 → 튜토리얼 "봤음" 기록도 지워 다시 보여 준다(이어하기는 유지)
 		UCXGameUserSettings::GetCXGameUserSettings()->ResetTutorialSeen();
-		BeginStartGame(NewGameMap);
+		// 오프닝 컷신(시작화면 위 오버레이)을 보여 준 뒤 첫 맵으로. 컷신을 못 띄우면(텍스처 없음 등) 바로 시작.
+		TWeakObjectPtr<UCXTitleMenuWidget> WeakThis(this);
+		const FString Map = NewGameMap;
+		const bool bPlaying = UCXCutsceneWidget::Play(this, [WeakThis, Map]()
+		{
+			if (UCXTitleMenuWidget* Title = WeakThis.Get())
+			{
+				Title->BeginStartGame(Map);
+			}
+		}) != nullptr;
+		if (!bPlaying)
+		{
+			BeginStartGame(NewGameMap);
+		}
 	};
 
 	if (bSaveExists)
