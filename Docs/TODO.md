@@ -1,6 +1,6 @@
 # Project_CX 진행도 (TODO)
 
-- 마지막 갱신: 2026-11-19 — **열린 항목만** 둔다. 끝난 항목은 `Docs/TODO_Done/`(월별 파일)으로 옮긴다.
+- 마지막 갱신: 2026-11-20 — **열린 항목만** 둔다. 끝난 항목은 `Docs/TODO_Done/`(월별 파일)으로 옮긴다.
 - MVP 흐름: 방 1(Map1) → 방 2(Map2) → **세이브 복도** → 마지막 방(보스맵 `Map3_Final`, 팀원 제작) → 출구 문 → 클리어
 - 규칙: 항목은 **한 줄**로 쓴다(자세한 내용은 기획서 `.claude/Plans/`의 "구현 결과", `Docs/Debug_log.md`, PR 번호 `#번호`로 링크). 끝나면 지우고 `Docs/TODO_Done/<월>.md`에 `완료일 — 한 줄 요약`으로 옮긴다.
 - 이미 끝난 일: `Docs/TODO_Done/2026-11.md`
@@ -10,7 +10,10 @@
 ## 필수 (MVP)
 
 ### 제미니 AI봇 (학교 과제, 제출 2026-12-02) — `Docs/Jemini/`, `.claude/Plans/제미니 고도화 기획 ver2.md`
-- [ ] 허깅페이스 Space 생성·배포(계정 필요) → UE ini `ServerUrl` 교체
+- [-] 허깅페이스 Space 생성·배포 — `Jemini/README.md` "허깅페이스 Space 배포" 참고
+  - [ ] 배포 준비: Space용 Dockerfile·requirements(STT 끔), 배포 스크립트, UE 쪽 잠든 Space 깨우기(워밍업)
+  - [ ] 사용자 작업: 허깅페이스 계정, Space 생성(Docker, 무료 CPU), Secrets(`GEMINI_API_KEY`, `API_TOKEN`) 입력, 스크립트로 푸시
+  - [ ] `/health` 확인 후 `DefaultGame.ini` `ServerUrl`·`ApiToken` 교체, 배포 빌드에서 제미니·WARDEN 동작 확인
 - [ ] 발표 자료(슬라이드) — `Docs/Jemini/비교실험_결과.md` 표·대표 문장 인용
 - [ ] 기능 A PIE 확인 — 실제 발화로 규칙 등록 → 발동(미끼·회복·재부팅), 규칙 보류 표시 겹침, 원격 클라이언트 복제
 - [ ] 기능 B PIE 확인 — 증거 반짝임이 분할 화면에서 잘 보이는지, WARDEN 패널·제미니 말풍선 겹침, 실제 음성 설득, 원격 클라이언트 복제
