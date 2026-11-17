@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from . import advice, llm, persuasion, rules, stt
 from .config import Settings, load_settings
-from .logger import write_log
+from .logger import log_llm_error, write_log
 from .mock import mock_call
 from .schemas import (CommandRequest, CommandResponse, GameState, PersuadeMeta, PersuadeRequest,
                       PersuadeResponse, SttPartialResponse, ValidateRequest, ValidateResponse)
@@ -104,6 +104,7 @@ async def _run(settings: Settings, state: GameState, *, kind: str, text: Optiona
             response.heard = None
     except llm.LlmError as e:
         error = str(e)
+        log_llm_error(kind, e)
         # 오류·지연: 대체 대사, 배터리 차감 없음, HTTP 200
         response = CommandResponse(status="fallback", dialogue=random.choice(FALLBACK_LINES),
                                    command=None, battery_after=state.battery, reason="LLM_ERROR")
@@ -205,6 +206,7 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
                                                          credited=credited)
         except llm.LlmError as e:
             error = str(e)
+            log_llm_error(f"persuade_{kind}", e)
             response = persuasion.simple_response("fallback", "LLM_ERROR", acquired, credited=credited)
 
     write_log(settings.log_path, {

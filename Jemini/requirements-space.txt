@@ -1,0 +1,8 @@
+# 허깅페이스 Space(무료 CPU)용 최소 의존성. 로컬 실시간 자막(faster-whisper)과 테스트 도구는 넣지 않는다.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+google-genai>=1.0
+python-dotenv>=1.0
+python-multipart>=0.0.9
+numpy>=1.24

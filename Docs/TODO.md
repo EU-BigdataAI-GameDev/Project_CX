@@ -10,10 +10,11 @@
 ## 필수 (MVP)
 
 ### 제미니 AI봇 (학교 과제, 제출 2026-12-02) — `Docs/Jemini/`, `.claude/Plans/제미니 고도화 기획 ver2.md`
-- [-] 허깅페이스 Space 생성·배포 — `Jemini/README.md` "허깅페이스 Space 배포" 참고
-  - [ ] 배포 준비: Space용 Dockerfile·requirements(STT 끔), 배포 스크립트, UE 쪽 잠든 Space 깨우기(워밍업)
-  - [ ] 사용자 작업: 허깅페이스 계정, Space 생성(Docker, 무료 CPU), Secrets(`GEMINI_API_KEY`, `API_TOKEN`) 입력, 스크립트로 푸시
-  - [ ] `/health` 확인 후 `DefaultGame.ini` `ServerUrl`·`ApiToken` 교체, 배포 빌드에서 제미니·WARDEN 동작 확인
+- [-] 제미니 서버 외부 배포(Render) — `Docs/Jemini/서버_배포_가이드.md`(허깅페이스 Docker Space는 2026-07부터 무료 계정 불가)
+  - [x] 배포 준비: Dockerfile·`requirements-space.txt`(STT 끔), 배포 스크립트, UE 잠든 서버 깨우기(워밍업), 배포용 저장소 `jemini-server` 준비
+  - [x] Render 서비스 생성·환경변수 입력, 배포 서버 동작 확인(`https://jemini-server.onrender.com`), `DefaultGame.ini` 교체
+  - [x] 에디터 PIE에서 제미니·WARDEN 실제 동작 확인(배포 서버)
+  - [ ] 패키징 빌드로 팀 시연(배포판에는 키를 넣지 않고 `ServerUrl`·`ApiToken`만 사용)
 - [ ] 발표 자료(슬라이드) — `Docs/Jemini/비교실험_결과.md` 표·대표 문장 인용
 - [ ] 기능 A PIE 확인 — 실제 발화로 규칙 등록 → 발동(미끼·회복·재부팅), 규칙 보류 표시 겹침, 원격 클라이언트 복제
 - [ ] 기능 B PIE 확인 — 증거 반짝임이 분할 화면에서 잘 보이는지, WARDEN 패널·제미니 말풍선 겹침, 실제 음성 설득, 원격 클라이언트 복제
