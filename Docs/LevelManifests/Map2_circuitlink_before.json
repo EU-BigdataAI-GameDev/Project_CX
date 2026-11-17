@@ -1,0 +1,152 @@
+{
+ "level": "/Game/Project_CX/Maps/Map2_SoulCity2",
+ "note": "before CircuitLink change (맵2 개선 기획 3장)",
+ "actors": [
+  {
+   "label": "HackClue_M2_S1_Canal",
+   "name": "HackCodeClue_8",
+   "class": "HackCodeClue",
+   "folder": "Gameplay/Hacking/Clues",
+   "tags": [
+    "GEN_Map2Hack"
+   ],
+   "loc": [
+    155.0,
+    1300.0,
+    284.9999280869961
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "terminal": "HackTerminal_M2_Passcode",
+   "digit_index": 1
+  },
+  {
+   "label": "HackClue_M2_S2_R1",
+   "name": "HackCodeClue_9",
+   "class": "HackCodeClue",
+   "folder": "Gameplay/Hacking/Clues",
+   "tags": [
+    "GEN_Map2Hack"
+   ],
+   "loc": [
+    155.0,
+    3250.0,
+    515.9999438226223
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "terminal": "HackTerminal_M2_Passcode",
+   "digit_index": 3
+  },
+  {
+   "label": "HackClue_M2_S2_R2",
+   "name": "HackCodeClue_10",
+   "class": "HackCodeClue",
+   "folder": "Gameplay/Hacking/Clues",
+   "tags": [
+    "GEN_Map2Hack"
+   ],
+   "loc": [
+    155.0,
+    4250.0,
+    570.9999783337116
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "terminal": "HackTerminal_M2_Passcode",
+   "digit_index": 0
+  },
+  {
+   "label": "HackClue_M2_S2_R4",
+   "name": "HackCodeClue_11",
+   "class": "HackCodeClue",
+   "folder": "Gameplay/Hacking/Clues",
+   "tags": [
+    "GEN_Map2Hack"
+   ],
+   "loc": [
+    155.0,
+    5180.0,
+    560.000107884407
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "terminal": "HackTerminal_M2_Passcode",
+   "digit_index": 2
+  },
+  {
+   "label": "HackTerminal_M2_Passcode",
+   "name": "HackTerminal_6",
+   "class": "HackTerminal",
+   "folder": "Gameplay/Hacking",
+   "tags": [
+    "GEN_Map2Hack"
+   ],
+   "loc": [
+    110.0,
+    5920.0,
+    -0.00010728836059570312
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "terminal_name": "SHUTTER_CTRL-5",
+   "puzzle_type": "<HackPuzzleType.PASSCODE: 1>",
+   "unlock_actors": [
+    "COL_HackGate_M2_S3Door",
+    "NEON_HackGate_M2_S3Door_00",
+    "NEON_HackGate_M2_S3Door_01",
+    "NEON_HackGate_M2_S3Door_02",
+    "NEON_HackGate_M2_S3Door_03",
+    "NEON_HackGate_M2_S3Door_04",
+    "NEON_HackGate_M2_S3Door_05",
+    "NEON_HackGate_M2_S3Door_06",
+    "NEON_HackGate_M2_S3Door_Rail_4",
+    "NEON_HackGate_M2_S3Door_Rail_258",
+    "NEON_HackGate_M2_S3Door_F0",
+    "NEON_HackGate_M2_S3Door_F1",
+    "NEON_HackGate_M2_S3Door_F2"
+   ],
+   "interact_range": 300.0
+  }
+ ]
+}

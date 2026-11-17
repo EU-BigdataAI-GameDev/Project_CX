@@ -1,0 +1,3230 @@
+{
+ "plan": [
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Matte04",
+   "offset": [
+    -99.23828125,
+    -2467.128173828125,
+    19781.8984375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_01",
+   "offset": [
+    -287.205078125,
+    23236.021484375,
+    3452.7841796875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Aspen_Tree_01",
+   "offset": [
+    40.8642578125,
+    36.6690673828125,
+    767.839111328125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Leaf_Pile01",
+   "offset": [
+    10.2666015625,
+    2.9791717529296875,
+    14.24600887298584
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_28_Opt",
+   "offset": [
+    6046.99658203125,
+    -4205.9912109375,
+    906.81005859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_29_Opt",
+   "offset": [
+    6964.7626953125,
+    -4899.8115234375,
+    739.316650390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/EffectsMobileOpt/Smoke/Meshes/SM_ChimneySmoke",
+   "offset": [
+    316.9360656738281,
+    -3.0517578125e-05,
+    1042.037353515625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_Slums_Wall_02l_102",
+   "offset": [
+    4495.62353515625,
+    -2299.61767578125,
+    284.85205078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_07",
+   "offset": [
+    2345.05712890625,
+    -467.7482604980469,
+    -420.1915283203125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_13",
+   "offset": [
+    1807.8028564453125,
+    -842.5546875,
+    10.29315185546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_18",
+   "offset": [
+    1181.7392578125,
+    987.7265014648438,
+    -461.83148193359375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_19",
+   "offset": [
+    938.45654296875,
+    200.95501708984375,
+    -124.94390869140625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_21",
+   "offset": [
+    385.66131591796875,
+    -1720.4013671875,
+    243.2932586669922
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_23",
+   "offset": [
+    4250.6123046875,
+    -1608.09326171875,
+    155.88137817382812
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_24",
+   "offset": [
+    4774.66650390625,
+    -2855.94580078125,
+    302.7826232910156
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_25",
+   "offset": [
+    5956.6181640625,
+    -3286.34716796875,
+    306.6795349121094
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_26",
+   "offset": [
+    6962.95703125,
+    -4576.392578125,
+    307.8055419921875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_27",
+   "offset": [
+    7888.78173828125,
+    -4496.517578125,
+    303.1257019042969
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_29",
+   "offset": [
+    8463.2392578125,
+    -3982.53076171875,
+    51.4755859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/LevelContent/Architecture/SM_CycRoom_01",
+   "offset": [
+    0.0,
+    0.0,
+    2500.000244140625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_31",
+   "offset": [
+    9038.66015625,
+    -3471.561767578125,
+    -239.3080291748047
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_38",
+   "offset": [
+    5453.29736328125,
+    -1072.205078125,
+    -50.00689697265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_39",
+   "offset": [
+    4886.005859375,
+    -587.8062133789062,
+    -349.1804504394531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_41",
+   "offset": [
+    5682.064453125,
+    -2426.885009765625,
+    406.50982666015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_42",
+   "offset": [
+    5739.2939453125,
+    -1373.9830322265625,
+    235.55160522460938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Roads/SM_slum_roads_stair_43",
+   "offset": [
+    6049.12109375,
+    -4159.2470703125,
+    303.01104736328125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_handrails_05",
+   "offset": [
+    4598.0498046875,
+    -266.1595458984375,
+    -438.61126708984375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_handrails_06",
+   "offset": [
+    5165.927734375,
+    -3568.232177734375,
+    443.544921875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_handrails_10",
+   "offset": [
+    5327.9267578125,
+    -486.38629150390625,
+    -72.56390380859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_handrails_12",
+   "offset": [
+    5820.470703125,
+    -964.042724609375,
+    281.63629150390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_merged_A",
+   "offset": [
+    843.7906494140625,
+    -585.34130859375,
+    148.17807006835938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_merged_B",
+   "offset": [
+    1569.4351806640625,
+    253.48007202148438,
+    28.360214233398438
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Handrails/SM_slum_handrails_Object026",
+   "offset": [
+    4503.2978515625,
+    -3146.60546875,
+    443.54412841796875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Stairs/SM_slum_stairs_slumStairs_00",
+   "offset": [
+    -106.50550842285156,
+    9.1552734375e-05,
+    1.52587890625e-05
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Stairs/SM_slum_stairs_slumStairs_01",
+   "offset": [
+    -0.00042724609375,
+    9.1552734375e-05,
+    6.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Stairs/SM_slum_stairs_slumStairs_03",
+   "offset": [
+    0.0005035400390625,
+    110.587890625,
+    -8.001991271972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_S_Soul_LevelMerged_DamDetails_01",
+   "offset": [
+    372129.625,
+    -62932.609375,
+    57226.390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_S_Soul_LevelMerged_DamWalls_01",
+   "offset": [
+    334069.28125,
+    -61327.1875,
+    48303.75
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_TreeMerge_2",
+   "offset": [
+    56074.7265625,
+    12734.84375,
+    -9818.32421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_00_Opt",
+   "offset": [
+    7371.3115234375,
+    -2712.8458251953125,
+    4342.690185546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_01_Opt",
+   "offset": [
+    -2510.913818359375,
+    -475.0361328125,
+    4843.7275390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_02_Opt",
+   "offset": [
+    -2412.571533203125,
+    -455.431884765625,
+    1899.5013427734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_03_Opt",
+   "offset": [
+    605.9288330078125,
+    -2050.423828125,
+    1761.1845703125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_04_Opt",
+   "offset": [
+    2344.89599609375,
+    -2093.731201171875,
+    3221.5390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_05_opt",
+   "offset": [
+    6077.8408203125,
+    -2306.0048828125,
+    2953.126953125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_06_Opt",
+   "offset": [
+    5056.4990234375,
+    -1406.0704345703125,
+    1447.696533203125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_07_Opt",
+   "offset": [
+    3323.184814453125,
+    -2625.460205078125,
+    2183.6083984375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_08_Opt",
+   "offset": [
+    6370.4990234375,
+    -3040.132568359375,
+    -279.8291015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_09_Opt",
+   "offset": [
+    6469.40576171875,
+    -965.7732543945312,
+    -115.7578125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_10_opt",
+   "offset": [
+    6799.59716796875,
+    943.1337280273438,
+    102.5003662109375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_11_opt",
+   "offset": [
+    3630.283447265625,
+    1381.639892578125,
+    -2378.036865234375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_12_opt",
+   "offset": [
+    5025.4248046875,
+    -1518.194091796875,
+    96.0487060546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_13_opt",
+   "offset": [
+    3247.13525390625,
+    -2578.05078125,
+    698.1641235351562
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_14_opt",
+   "offset": [
+    230.7152099609375,
+    -3088.07666015625,
+    198.8258056640625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_16_opt",
+   "offset": [
+    2194.69189453125,
+    -843.8544921875,
+    -82.20556640625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_17_opt",
+   "offset": [
+    5621.0068359375,
+    114.88543701171875,
+    -427.12445068359375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_20_opt",
+   "offset": [
+    -559.463623046875,
+    1003.7770385742188,
+    456.3046569824219
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_21_opt",
+   "offset": [
+    -622.8953857421875,
+    519.4072265625,
+    679.4139404296875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_22_opt",
+   "offset": [
+    419.6401672363281,
+    377.9729919433594,
+    226.1866455078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_24_opt",
+   "offset": [
+    -1687.3714599609375,
+    788.4585571289062,
+    456.3039855957031
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_25_Opt",
+   "offset": [
+    -2512.482666015625,
+    228.02386474609375,
+    456.3060607910156
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_26_Opt",
+   "offset": [
+    -820.1056518554688,
+    505.6702575683594,
+    738.1492309570312
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_30_Opt",
+   "offset": [
+    7842.43115234375,
+    -4426.39892578125,
+    754.0880737304688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_31_Opt",
+   "offset": [
+    8494.798828125,
+    -3963.2734375,
+    495.67840576171875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_32_Opt",
+   "offset": [
+    8984.8984375,
+    -3529.603759765625,
+    287.7725830078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_33_Opt",
+   "offset": [
+    3585.31005859375,
+    -423.264404296875,
+    -505.0810546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_34_Opt",
+   "offset": [
+    1193.646728515625,
+    -12998.372802734375,
+    -903.404052734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_35_Opt",
+   "offset": [
+    3268.8076171875,
+    -4578.0703125,
+    41.478759765625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_36_Opt",
+   "offset": [
+    4716.5576171875,
+    -3920.37451171875,
+    -147.59271240234375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_37_Opt",
+   "offset": [
+    5654.3671875,
+    -13029.140380859375,
+    -1557.214111328125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_38_Opt",
+   "offset": [
+    -6650.025390625,
+    5986.68359375,
+    921.41552734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_39_Opt",
+   "offset": [
+    806.5601196289062,
+    -2279.13037109375,
+    655.7022705078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_40_Opt",
+   "offset": [
+    9044.189453125,
+    2242.83935546875,
+    344.32080078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_42_Opt",
+   "offset": [
+    5522.984375,
+    -4154.6572265625,
+    456.5460205078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_43_Opt",
+   "offset": [
+    4960.07421875,
+    -2192.14208984375,
+    -627.0977783203125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_69_Opt",
+   "offset": [
+    -6272.74462890625,
+    3177.5546875,
+    3141.302490234375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Unified_70_Opt",
+   "offset": [
+    -6204.3701171875,
+    4050.383544921875,
+    1208.74755859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_WaterFallMeged_1",
+   "offset": [
+    449126.375,
+    14788.009765625,
+    46455.578125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_WaterFallMeged_2",
+   "offset": [
+    262191.375,
+    -179300.875,
+    -2742.2734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_WaterSplashes",
+   "offset": [
+    49224.30859375,
+    10035.515625,
+    -11623.21484375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Water_A",
+   "offset": [
+    575.0,
+    -2176.0927734375,
+    170.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Water_B",
+   "offset": [
+    2802.060546875,
+    -1301.330810546875,
+    170.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Water_C",
+   "offset": [
+    3950.0,
+    -2082.09423828125,
+    170.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Arches",
+   "offset": [
+    62987.767578125,
+    3356.040771484375,
+    -6576.020751953125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff",
+   "offset": [
+    26860.57421875,
+    4992.51025390625,
+    -7814.296875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff2",
+   "offset": [
+    15684.009765625,
+    301.0958251953125,
+    -487.3955078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff3",
+   "offset": [
+    17010.671875,
+    -203.8878173828125,
+    -2443.63916015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff4",
+   "offset": [
+    12509.927734375,
+    -1822.8974609375,
+    -685.121826171875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff5",
+   "offset": [
+    13087.4716796875,
+    -2654.8017578125,
+    -1347.7017822265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff6",
+   "offset": [
+    12358.435546875,
+    -4650.03466796875,
+    -1554.6026611328125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_EntranceRockCliff7",
+   "offset": [
+    11102.9521484375,
+    -3215.379150390625,
+    -614.3138427734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_LandinPlatformPebbles",
+   "offset": [
+    19062.271484375,
+    2138.338134765625,
+    -2320.0498046875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_LandinPlatformRocks",
+   "offset": [
+    20080.376953125,
+    4293.28955078125,
+    -3130.964111328125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_OutdoorEnt_Unified_01_Opt",
+   "offset": [
+    10603.63671875,
+    -2528.773193359375,
+    159.335205078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_OutdoorEnt_Unified__00Opt",
+   "offset": [
+    10887.9453125,
+    -2523.423828125,
+    1278.393310546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_OutdoorEnt_Unified__02Opt",
+   "offset": [
+    10283.126953125,
+    -4176.4609375,
+    452.99029541015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocksBIG",
+   "offset": [
+    39930.70703125,
+    2568.350341796875,
+    -10842.8447265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocksBIG2",
+   "offset": [
+    66289.2578125,
+    11890.7236328125,
+    -8647.498046875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocksBIG_01",
+   "offset": [
+    41061.8359375,
+    9795.609375,
+    -9824.7578125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocks_1",
+   "offset": [
+    38763.6015625,
+    3667.680908203125,
+    -11127.119140625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocks_2",
+   "offset": [
+    50089.50390625,
+    11272.1513671875,
+    -8628.2734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_RiverRocks_3",
+   "offset": [
+    53223.5859375,
+    8303.6611328125,
+    -9837.255859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_SlumMountain",
+   "offset": [
+    29678.22265625,
+    -9459.416015625,
+    -4941.78271484375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_SlumMountain_01",
+   "offset": [
+    40462.921875,
+    -4114.8984375,
+    -3300.978515625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_StairRailing",
+   "offset": [
+    11375.6796875,
+    -2859.7763671875,
+    -366.07269287109375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_Stairs",
+   "offset": [
+    11403.13671875,
+    -2921.19189453125,
+    -392.8138427734375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Merged/SM_S_Outdoor_Entrance_Decals",
+   "offset": [
+    10833.359375,
+    -3247.57275390625,
+    712.5338745117188
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Water/SM_small_river",
+   "offset": [
+    4839.81787109375,
+    -10065.2646484375,
+    -5483.3505859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Water/SM_soul_outdoor_watermesh",
+   "offset": [
+    656.0415649414062,
+    90.09811401367188,
+    -86.46903991699219
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05a_LOD01",
+   "offset": [
+    -4.9591064453125e-05,
+    50.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05a_LOD02",
+   "offset": [
+    -4.9591064453125e-05,
+    50.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05b",
+   "offset": [
+    0.0,
+    -62.51165008544922,
+    23.977052688598633
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05b_LOD01",
+   "offset": [
+    0.0,
+    -62.51165008544922,
+    23.977052688598633
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05b_LOD02",
+   "offset": [
+    0.0,
+    -62.51165008544922,
+    23.977052688598633
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05c",
+   "offset": [
+    -14.375049591064453,
+    27.092300415039062,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05c_LOD01",
+   "offset": [
+    -14.375049591064453,
+    27.092300415039062,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05c_LOD02",
+   "offset": [
+    -14.375049591064453,
+    27.092300415039062,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05d",
+   "offset": [
+    0.0,
+    -7.62939453125e-06,
+    -85.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05d_LOD02",
+   "offset": [
+    0.0,
+    85.00004577636719,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05e",
+   "offset": [
+    -14.375049591064453,
+    74.841796875,
+    -17.266651153564453
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05e_LOD02",
+   "offset": [
+    -14.375049591064453,
+    74.84774780273438,
+    -17.262638092041016
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05f",
+   "offset": [
+    0.0,
+    -1.9073486328125e-06,
+    35.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05f_LOD01",
+   "offset": [
+    0.0,
+    35.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05g",
+   "offset": [
+    -10.0,
+    74.99994659423828,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05h",
+   "offset": [
+    -9.500049591064453,
+    50.00004959106445,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05h_LOD02",
+   "offset": [
+    -9.500049591064453,
+    50.00004196166992,
+    3.814697265625e-06
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Roof_01a",
+   "offset": [
+    186.92431640625,
+    61.974849700927734,
+    -64.27555084228516
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Roof_01b",
+   "offset": [
+    186.92431640625,
+    61.974849700927734,
+    -66.58454895019531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Roof_01b_OP",
+   "offset": [
+    187.5349884033203,
+    62.24913024902344,
+    -66.4115219116211
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Roof_01c",
+   "offset": [
+    184.020751953125,
+    -2.5451507568359375,
+    -96.84829711914062
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01a_OP",
+   "offset": [
+    125.00000762939453,
+    4.9591064453125e-05,
+    -0.23499679565429688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01b_OP",
+   "offset": [
+    369.1405944824219,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01b_Opt",
+   "offset": [
+    369.1405944824219,
+    -0.000858306884765625,
+    0.026624679565429688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01c",
+   "offset": [
+    369.12921142578125,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01d",
+   "offset": [
+    370.5895080566406,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_01e",
+   "offset": [
+    -138.0045928955078,
+    250.0994415283203,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_02a",
+   "offset": [
+    250.00006103515625,
+    0.0,
+    -2.5
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_02b",
+   "offset": [
+    125.00004577636719,
+    0.0,
+    -2.5
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_02b_OP",
+   "offset": [
+    125.62272644042969,
+    4.9591064453125e-05,
+    -2.558687210083008
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_03a",
+   "offset": [
+    0.0,
+    0.0,
+    288.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_03b",
+   "offset": [
+    10.960647583007812,
+    -0.9112014770507812,
+    193.02020263671875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_03b_OP",
+   "offset": [
+    11.050262451171875,
+    -0.9112014770507812,
+    193.02020263671875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Scaffolding_04",
+   "offset": [
+    10.960647583007812,
+    -0.9112014770507812,
+    108.314697265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign01a",
+   "offset": [
+    -134.90615844726562,
+    2.47955322265625e-05,
+    -25.66559600830078
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign01b_Bent",
+   "offset": [
+    -201.49713134765625,
+    3.814697265625e-05,
+    -40.60112380981445
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign01b_Bent_opt",
+   "offset": [
+    -202.64495849609375,
+    -0.6448268890380859,
+    -40.91990280151367
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign01b_opt",
+   "offset": [
+    -204.08029174804688,
+    -0.6448383331298828,
+    -25.834938049316406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign01d_opt",
+   "offset": [
+    -143.6456756591797,
+    -0.7623519897460938,
+    15.854705810546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign02a",
+   "offset": [
+    -110.46765899658203,
+    3.24249267578125e-05,
+    37.79900360107422
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign02a_opt",
+   "offset": [
+    -111.10294342041016,
+    -0.64483642578125,
+    39.42230987548828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign02b",
+   "offset": [
+    -131.87278747558594,
+    7.62939453125e-06,
+    -26.529396057128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign02b_opt",
+   "offset": [
+    -133.10183715820312,
+    -0.64483642578125,
+    -26.834991455078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign02d",
+   "offset": [
+    -172.67454528808594,
+    1.9073486328125e-06,
+    28.834938049316406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign03a",
+   "offset": [
+    -110.46765899658203,
+    3.24249267578125e-05,
+    37.79900360107422
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign03a_opt",
+   "offset": [
+    -111.10294342041016,
+    -0.64483642578125,
+    41.11903381347656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign03b",
+   "offset": [
+    -131.87278747558594,
+    7.62939453125e-06,
+    -26.529396057128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign04a",
+   "offset": [
+    -69.59825134277344,
+    -1.71661376953125e-05,
+    -2.685670852661133
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign04a_opt",
+   "offset": [
+    -69.29891967773438,
+    -0.6448335647583008,
+    -2.8023929595947266
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign05a",
+   "offset": [
+    -69.5982437133789,
+    -1.71661376953125e-05,
+    -2.6856861114501953
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign05a_opt",
+   "offset": [
+    -69.29891967773438,
+    -0.6448335647583008,
+    -2.8023929595947266
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign06a",
+   "offset": [
+    -42.32477951049805,
+    9.5367431640625e-07,
+    7.62939453125e-06
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Sign06a_opt",
+   "offset": [
+    -42.46428298950195,
+    -0.034583091735839844,
+    -0.2639884948730469
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01a",
+   "offset": [
+    100.21415710449219,
+    -28.116455078125,
+    -43.75790023803711
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01b",
+   "offset": [
+    69.71600341796875,
+    1.7988510131835938,
+    -43.8578987121582
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01c",
+   "offset": [
+    150.0133514404297,
+    35.80739974975586,
+    -43.8578987121582
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01c_Opt",
+   "offset": [
+    150.0120086669922,
+    35.804046630859375,
+    -43.8578987121582
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01d",
+   "offset": [
+    -66.07785034179688,
+    66.07839965820312,
+    -43.8578987121582
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01e",
+   "offset": [
+    150.0130157470703,
+    35.80739974975586,
+    -78.58580017089844
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Support_01e_OP",
+   "offset": [
+    149.99478149414062,
+    35.810333251953125,
+    -78.58589172363281
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashbag",
+   "offset": [
+    0.8602485656738281,
+    0.055511474609375,
+    35.51850128173828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashcan_Closed02",
+   "offset": [
+    -4.614307403564453,
+    0.12481307983398438,
+    46.874698638916016
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashcan_Lid",
+   "offset": [
+    -3.814697265625e-06,
+    3.814697265625e-06,
+    5.149068832397461
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashcan_Open01",
+   "offset": [
+    0.0,
+    -1.9073486328125e-06,
+    42.754486083984375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashcan_Open02",
+   "offset": [
+    1.9073486328125e-06,
+    0.0,
+    56.121578216552734
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trashcan_Open02_Wind",
+   "offset": [
+    1.9073486328125e-06,
+    0.0,
+    56.121578216552734
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_01a",
+   "offset": [
+    0.0,
+    0.0,
+    4.48175048828125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_02a",
+   "offset": [
+    -0.046875,
+    1.912814974784851,
+    49.69392776489258
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_02b",
+   "offset": [
+    -0.05005073547363281,
+    1.7600998878479004,
+    49.80259704589844
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_02c",
+   "offset": [
+    -0.11510086059570312,
+    38.97515106201172,
+    18.590349197387695
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_02c_OP",
+   "offset": [
+    -0.021230697631835938,
+    39.534725189208984,
+    18.942079544067383
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Trash_02d",
+   "offset": [
+    0.16221046447753906,
+    2.190495014190674,
+    49.39471435546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_01a",
+   "offset": [
+    8.307846069335938,
+    209.6166534423828,
+    183.84487915039062
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_01a_Opt",
+   "offset": [
+    -7.3697509765625,
+    200.20994567871094,
+    175.54611206054688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_01b",
+   "offset": [
+    0.0,
+    489.3209533691406,
+    724.627197265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_01b_2",
+   "offset": [
+    0.0,
+    192.64605712890625,
+    285.28631591796875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_01b_OP",
+   "offset": [
+    0.0,
+    189.889404296875,
+    285.3320007324219
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02b",
+   "offset": [
+    49.934852600097656,
+    17.0625,
+    24.620901107788086
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02c",
+   "offset": [
+    49.934852600097656,
+    17.0625,
+    24.620901107788086
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02d",
+   "offset": [
+    50.000450134277344,
+    8.787650108337402,
+    50.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02e",
+   "offset": [
+    0.0,
+    9.641550064086914,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Vent_02e_OP",
+   "offset": [
+    0.0,
+    9.571554183959961,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01a",
+   "offset": [
+    150.0,
+    -1.130350112915039,
+    148.76211547851562
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01b",
+   "offset": [
+    149.73214721679688,
+    -1.5797500610351562,
+    150.02865600585938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01c",
+   "offset": [
+    149.73214721679688,
+    -1.5797500610351562,
+    149.85545349121094
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01d",
+   "offset": [
+    150.0,
+    -1.130350112915039,
+    148.69015502929688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01d_LP",
+   "offset": [
+    150.0,
+    -2.8646507263183594,
+    148.8986358642578
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01e",
+   "offset": [
+    -75.6446533203125,
+    -59.380348205566406,
+    148.75930786132812
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01f",
+   "offset": [
+    150.0,
+    -1.130350112915039,
+    148.68980407714844
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01g",
+   "offset": [
+    -93.42030334472656,
+    -76.57980346679688,
+    150.4700164794922
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01h",
+   "offset": [
+    75.4792709350586,
+    7.555047512054443,
+    149.51336669921875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01h_OP",
+   "offset": [
+    75.73065185546875,
+    7.568099498748779,
+    148.30613708496094
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01i",
+   "offset": [
+    75.16399383544922,
+    5.706350326538086,
+    148.3430633544922
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01j",
+   "offset": [
+    90.00005340576172,
+    6.851550102233887,
+    149.84060668945312
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01l",
+   "offset": [
+    70.12909698486328,
+    -1.130350112915039,
+    148.68980407714844
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01l_LP",
+   "offset": [
+    69.99845123291016,
+    -2.2008495330810547,
+    149.7812957763672
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_01m",
+   "offset": [
+    152.97671508789062,
+    11.314252853393555,
+    152.60398864746094
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a",
+   "offset": [
+    150.0,
+    11.032950401306152,
+    150.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b",
+   "offset": [
+    150.0,
+    11.963899612426758,
+    150.00489807128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c",
+   "offset": [
+    149.73214721679688,
+    17.862600326538086,
+    150.00489807128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d",
+   "offset": [
+    149.73214721679688,
+    17.862600326538086,
+    150.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e",
+   "offset": [
+    150.0,
+    11.963899612426758,
+    150.31370544433594
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02f",
+   "offset": [
+    -52.0,
+    -28.07219696044922,
+    150.00489807128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02g",
+   "offset": [
+    73.5,
+    11.963899612426758,
+    150.00489807128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02h",
+   "offset": [
+    0.0,
+    -0.016651153564453125,
+    150.2465057373047
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02i",
+   "offset": [
+    0.0,
+    0.01110076904296875,
+    150.00489807128906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02i_02",
+   "offset": [
+    0.0,
+    0.011104583740234375,
+    50.306602478027344
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02j",
+   "offset": [
+    150.0,
+    -86.61094665527344,
+    150.00318908691406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02j_OP",
+   "offset": [
+    150.0,
+    -86.61094665527344,
+    150.00318908691406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k",
+   "offset": [
+    150.0,
+    9.963899612426758,
+    150.00318908691406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02l",
+   "offset": [
+    -0.24720001220703125,
+    0.06170082092285156,
+    150.2465057373047
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02m",
+   "offset": [
+    150.0,
+    11.032950401306152,
+    219.6674041748047
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02n",
+   "offset": [
+    0.0,
+    -0.016651153564453125,
+    220.0780487060547
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02o",
+   "offset": [
+    -43.54465103149414,
+    385.1296081542969,
+    299.9777526855469
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02p",
+   "offset": [
+    -0.021148681640625,
+    42.252498626708984,
+    109.7763442993164
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02_Capped",
+   "offset": [
+    0.5285797119140625,
+    0.5567474365234375,
+    152.10189819335938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a",
+   "offset": [
+    600.0,
+    32.109649658203125,
+    314.5985107421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03b",
+   "offset": [
+    396.8226623535156,
+    5.5688018798828125,
+    314.5985107421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03b_OP_Opt",
+   "offset": [
+    396.8226623535156,
+    21.35553741455078,
+    314.5985107421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03c",
+   "offset": [
+    330.26031494140625,
+    -277.4414978027344,
+    314.5985107421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_Pipe_01",
+   "offset": [
+    236.15359497070312,
+    -24.64581298828125,
+    39.85551452636719
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_Tile_Board",
+   "offset": [
+    100.0,
+    -2.4999990463256836,
+    25.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01a",
+   "offset": [
+    80.0,
+    9.341400146484375,
+    82.94694519042969
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01b",
+   "offset": [
+    155.01954650878906,
+    9.210949897766113,
+    82.0971450805664
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01c",
+   "offset": [
+    150.0000457763672,
+    3.8536500930786133,
+    92.22284698486328
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01d",
+   "offset": [
+    80.0,
+    9.067900657653809,
+    28.50004768371582
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01e",
+   "offset": [
+    80.20995330810547,
+    9.067900657653809,
+    66.67510223388672
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_01f",
+   "offset": [
+    80.20995330810547,
+    14.79648208618164,
+    67.14492797851562
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_02a",
+   "offset": [
+    0.0,
+    6.8647003173828125,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_02a_Rail",
+   "offset": [
+    -7.62939453125e-06,
+    -3.5829572677612305,
+    -0.7051925659179688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Window_02a_Rail_Angle",
+   "offset": [
+    -1.91105318069458,
+    -0.002964019775390625,
+    4.505317687988281
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_01a",
+   "offset": [
+    128.63259887695312,
+    10.084500312805176,
+    -65.5344467163086
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_01a_OP0",
+   "offset": [
+    128.63262939453125,
+    10.084501266479492,
+    -65.5344467163086
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_02a",
+   "offset": [
+    -428.1385192871094,
+    -1.205899715423584,
+    -45.94839859008789
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_02c",
+   "offset": [
+    -427.1385192871094,
+    10.850500106811523,
+    -75.57340240478516
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_02c_OP",
+   "offset": [
+    -415.0341796875,
+    -4.446887969970703,
+    -75.4049301147461
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wires_02d",
+   "offset": [
+    7.45734977722168,
+    281.8251037597656,
+    348.8638916015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01a",
+   "offset": [
+    175.0,
+    -1.0465502738952637,
+    99.92829895019531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01b",
+   "offset": [
+    94.26654052734375,
+    -1.0465502738952637,
+    99.92829895019531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01c",
+   "offset": [
+    90.1467514038086,
+    -1.0465502738952637,
+    99.92829895019531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01d",
+   "offset": [
+    51.08360290527344,
+    0.0,
+    100.58280181884766
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01e",
+   "offset": [
+    51.9150505065918,
+    -2.8984498977661133,
+    101.49349975585938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01e_OP",
+   "offset": [
+    51.59535217285156,
+    -2.6873245239257812,
+    101.53619384765625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01f",
+   "offset": [
+    187.42889404296875,
+    13.467100143432617,
+    111.64014434814453
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_01f_OP",
+   "offset": [
+    187.5408172607422,
+    13.470748901367188,
+    111.12445068359375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_02a",
+   "offset": [
+    77.04564666748047,
+    45.05084991455078,
+    53.64979934692383
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_02b",
+   "offset": [
+    27.729299545288086,
+    44.86259841918945,
+    53.60395050048828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_02c",
+   "offset": [
+    77.15754699707031,
+    48.72275161743164,
+    53.64979934692383
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_02d",
+   "offset": [
+    30.000049591064453,
+    51.242252349853516,
+    53.60395050048828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_WoodWall_03a",
+   "offset": [
+    78.02274322509766,
+    0.0,
+    54.6844482421875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02c",
+   "offset": [
+    0.0,
+    6.1232337864698064e-15,
+    -100.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02d",
+   "offset": [
+    0.0,
+    5.2052139725214386e-15,
+    -85.00759887695312
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02e",
+   "offset": [
+    0.0,
+    3.786056856208957e-15,
+    -61.83100128173828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01a",
+   "offset": [
+    155.01834106445312,
+    61.90195083618164,
+    -223.1782989501953
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01b",
+   "offset": [
+    187.0338592529297,
+    61.90195083618164,
+    -223.1782989501953
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01b_OP",
+   "offset": [
+    187.0338592529297,
+    61.872554779052734,
+    -223.1782989501953
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01c",
+   "offset": [
+    186.4127960205078,
+    50.505897521972656,
+    -256.3271484375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_01d",
+   "offset": [
+    185.625,
+    50.44755172729492,
+    -257.07763671875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02b",
+   "offset": [
+    187.0338592529297,
+    61.90195083618164,
+    -185.4510498046875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02c",
+   "offset": [
+    186.4127960205078,
+    50.505897521972656,
+    -218.59991455078125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02d",
+   "offset": [
+    185.625,
+    50.44755172729492,
+    -219.33395385742188
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02e",
+   "offset": [
+    185.625,
+    50.44755172729492,
+    -359.6669616699219
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02e_OP",
+   "offset": [
+    186.49371337890625,
+    50.027652740478516,
+    -359.19671630859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_03a_OP",
+   "offset": [
+    155.01834106445312,
+    61.872554779052734,
+    -233.78897094726562
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_05a_Opt",
+   "offset": [
+    -10.640701293945312,
+    100.67994689941406,
+    -71.55929565429688
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01a",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -28.22654914855957
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01b",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -24.68804931640625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01c",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -28.22654914855957
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01d",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -48.96315002441406
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01e",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -28.22654914855957
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01f",
+   "offset": [
+    88.90000915527344,
+    -254.0,
+    -71.6954345703125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01g",
+   "offset": [
+    100.0,
+    -100.0,
+    -28.22654914855957
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01h",
+   "offset": [
+    100.0,
+    -100.0,
+    -25.687999725341797
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01i",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -42.226600646972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01i_02",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -42.226600646972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01j",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -28.726600646972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_01j_02",
+   "offset": [
+    100.0,
+    -100.00060272216797,
+    -28.726600646972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Floor_02a",
+   "offset": [
+    100.0,
+    -100.0,
+    -9.000149726867676
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Grating_01a",
+   "offset": [
+    66.2603988647461,
+    52.20840072631836,
+    -1.042099952697754
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Light_01a",
+   "offset": [
+    0.0,
+    0.0,
+    -18.1252498626709
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Light_01a_OP",
+   "offset": [
+    0.0,
+    1.9073486328125e-06,
+    -21.199281692504883
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Light_01b",
+   "offset": [
+    0.0,
+    0.0,
+    -18.11371612548828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Light_01b_OP",
+   "offset": [
+    0.0,
+    0.0,
+    -24.17889404296875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Optimizations_Stairs01",
+   "offset": [
+    2550.033447265625,
+    592.789306640625,
+    -724.4578247070312
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Optimizations_Stairs02",
+   "offset": [
+    3613.78662109375,
+    149.85986328125,
+    -681.7108764648438
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Optimizations_Stairs_MainBridge",
+   "offset": [
+    3320.80712890625,
+    -935.6597290039062,
+    231.67095947265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipes_04c",
+   "offset": [
+    6.907299041748047,
+    0.0,
+    146.05984497070312
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_01a",
+   "offset": [
+    0.0,
+    0.0,
+    42.45134735107422
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_01b",
+   "offset": [
+    37.291351318359375,
+    0.0,
+    90.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_01c",
+   "offset": [
+    0.0,
+    0.0,
+    100.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_01e",
+   "offset": [
+    0.0,
+    0.0,
+    50.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_02a",
+   "offset": [
+    -0.02422332763671875,
+    0.1436624526977539,
+    48.98527908325195
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_02b_OP",
+   "offset": [
+    10.248200416564941,
+    0.0,
+    19.256349563598633
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_02c_OP",
+   "offset": [
+    -11.718448638916016,
+    0.0,
+    49.0113525390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_02d",
+   "offset": [
+    0.0,
+    49.0113525390625,
+    -1.3207998275756836
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_02e",
+   "offset": [
+    0.0,
+    99.01134490966797,
+    -4.366649627685547
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_03a",
+   "offset": [
+    43.72174835205078,
+    46.78805160522461,
+    24.957956314086914
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_03b",
+   "offset": [
+    43.72174835205078,
+    5.44035005569458,
+    13.709500312805176
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_04a",
+   "offset": [
+    2.8316516876220703,
+    10.061600685119629,
+    256.2346496582031
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_04b",
+   "offset": [
+    -75.36270141601562,
+    11.005749702453613,
+    164.78553771972656
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_05a",
+   "offset": [
+    -4.9591064453125e-05,
+    -1.9073486328125e-06,
+    50.00004959106445
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_LV_Soul_pole01",
+   "offset": [
+    3.4393539428710938,
+    27.378986358642578,
+    39.05197525024414
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFar1",
+   "offset": [
+    22.8734130859375,
+    489.78118896484375,
+    959.535400390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFar2",
+   "offset": [
+    -286.2672119140625,
+    440.8037109375,
+    1044.004150390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFar3",
+   "offset": [
+    89.880859375,
+    315.3348083496094,
+    959.535400390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFar4",
+   "offset": [
+    126.42608642578125,
+    17.9029541015625,
+    993.3433227539062
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFar5",
+   "offset": [
+    -76.15570068359375,
+    284.96466064453125,
+    1044.004150390625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_ShantyLODFarGroup",
+   "offset": [
+    -4.3330078125,
+    211.1944580078125,
+    -244.87841796875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_01a",
+   "offset": [
+    100.0,
+    -99.99490356445312,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_02a",
+   "offset": [
+    63.73959732055664,
+    47.79159927368164,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_02b",
+   "offset": [
+    65.0,
+    50.0,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_02c",
+   "offset": [
+    63.76015090942383,
+    50.0,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_02d",
+   "offset": [
+    65.0,
+    47.79159927368164,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_03b",
+   "offset": [
+    130.00001525878906,
+    -99.99490356445312,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_03b_Opt",
+   "offset": [
+    129.888427734375,
+    -100.0279769897461,
+    9.991451263427734
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_03c",
+   "offset": [
+    130.9479522705078,
+    -70.93785095214844,
+    9.991450309753418
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_04a",
+   "offset": [
+    63.73959732055664,
+    47.99160385131836,
+    -10.817100524902344
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cieling_Pipes_01a",
+   "offset": [
+    67.63780212402344,
+    50.0,
+    -17.326499938964844
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cloth_01a",
+   "offset": [
+    220.04209899902344,
+    64.5,
+    -94.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cloth_01b",
+   "offset": [
+    73.15325164794922,
+    53.39999771118164,
+    74.19999694824219
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cloth_01c",
+   "offset": [
+    134.4178466796875,
+    -46.77660369873047,
+    -42.78559875488281
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Cloth_01d",
+   "offset": [
+    -160.02630615234375,
+    -74.66754913330078,
+    -49.486698150634766
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_01a",
+   "offset": [
+    -9.443000793457031,
+    -1.898200834796887e-18,
+    0.03099822998046875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02a",
+   "offset": [
+    0.0,
+    2.4492935992912173e-15,
+    -40.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_CurvedWall",
+   "offset": [
+    -518.12158203125,
+    -0.000152587890625,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Flat01",
+   "offset": [
+    -21.123397827148438,
+    4.2327880859375,
+    0.07926559448242188
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Large01_REDO",
+   "offset": [
+    -3.0517578125e-05,
+    6.103515625e-05,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Large02",
+   "offset": [
+    3.0517578125e-05,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Path_Single",
+   "offset": [
+    0.0,
+    -1.52587890625e-05,
+    1.52587890625e-05
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_StoneCluster01_COMBINED",
+   "offset": [
+    -4838.75,
+    -3872.7109375,
+    -614.936279296875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_StoneCluster02",
+   "offset": [
+    -9.992851257324219,
+    -9.08034896850586,
+    4.884749889373779
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_StoneCluster02_COMBINEDa",
+   "offset": [
+    -4467.677734375,
+    -1742.941162109375,
+    345.9976806640625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_StoneCluster03",
+   "offset": [
+    0.9934463500976562,
+    6.44805908203125,
+    4.099550008773804
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Wood_Beam",
+   "offset": [
+    0.639678955078125,
+    -0.2741222381591797,
+    18.375398635864258
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Soul_Rock_01",
+   "offset": [
+    111.525146484375,
+    -1994.047607421875,
+    228.96746826171875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_stone_1",
+   "offset": [
+    0.0,
+    0.0001068115234375,
+    -7.62939453125e-06
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_stone_2",
+   "offset": [
+    -25.4970703125,
+    -60.38325500488281,
+    18.548736572265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_stone_3",
+   "offset": [
+    -6.103515625e-05,
+    -9.432098388671875,
+    24.88147735595703
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_S_Soul_Flatrock",
+   "offset": [
+    -1.0550384521484375,
+    0.104583740234375,
+    -0.9672622680664062
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Leaf_Pile02",
+   "offset": [
+    -10.382110595703125,
+    49.095542907714844,
+    16.897192001342773
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Leaf_Pile03_1",
+   "offset": [
+    -10.651031494140625,
+    25.186370849609375,
+    6.196549892425537
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Roots02",
+   "offset": [
+    -35.54174041748047,
+    -263.2447204589844,
+    -0.12849807739257812
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Tree01",
+   "offset": [
+    0.00030517578125,
+    1.3004837036132812,
+    318.261474609375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_LV_SoulGrass_01",
+   "offset": [
+    6.201408386230469,
+    -6.655006408691406,
+    13.463950157165527
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_LV_Soul_Foliage021SM",
+   "offset": [
+    0.6329994201660156,
+    7.531749725341797,
+    26.93025016784668
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_LV_Soul_Tree01_B",
+   "offset": [
+    4.055763244628906,
+    -6.372871398925781,
+    401.8659973144531
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_LV_Soul_TreeCluster",
+   "offset": [
+    5.69537353515625,
+    147.9825439453125,
+    653.3429260253906
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_S_BuildingSetA_Tree_02_OP02_S_BuildingSetA_Tree_02_OP02",
+   "offset": [
+    0.0,
+    0.0,
+    81.7094955444336
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_S_Soul_bush",
+   "offset": [
+    -4.0731201171875,
+    2.4000778198242188,
+    297.4447784423828
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_S_Soul_Tree2",
+   "offset": [
+    -8.18902587890625,
+    -9.525909423828125,
+    92.00162506103516
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_S_Soul_TreeCards_01",
+   "offset": [
+    -8.188720703125,
+    20.7081298828125,
+    500.00042724609375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_S_Soul_TreeCards_02",
+   "offset": [
+    228.52777099609375,
+    -1163.1025390625,
+    500.0000305175781
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_tree2",
+   "offset": [
+    -12.940887451171875,
+    32.361785888671875,
+    519.9934692382812
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_Cave_Plane_02_9_OP_SM_Cave_Pl_grid",
+   "offset": [
+    -37500.0,
+    86502.6171875,
+    -3022.712890625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_glowstick02",
+   "offset": [
+    0.05773639678955078,
+    0.05773735046386719,
+    46.37955856323242
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_Cave_Chain_02",
+   "offset": [
+    268.4052429199219,
+    -27.743873596191406,
+    606.4450073242188
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_Cave_Floor_Stairs_Quarter",
+   "offset": [
+    -1278.9505004882812,
+    -1278.9364013671875,
+    -34.288818359375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_DamPlaceholder",
+   "offset": [
+    30586.91015625,
+    50693.62890625,
+    -3300.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_GDC2012_Throne_Interior_Chain_04_Holder",
+   "offset": [
+    0.0,
+    3.24249267578125e-05,
+    -34.53076171875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_GDC2012_Throne_Interior_Chain_05",
+   "offset": [
+    -0.8603949546813965,
+    9.455060005187988,
+    -111.50736999511719
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_CenterBD_Gear01",
+   "offset": [
+    0.0,
+    -1.49267578125,
+    4.8587646484375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Matte01",
+   "offset": [
+    0.0,
+    -0.003314343048259616,
+    30845.98046875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Matte02",
+   "offset": [
+    0.00390625,
+    -10380.7919921875,
+    13849.3515625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Matte03",
+   "offset": [
+    2169.97265625,
+    -1450.1209716796875,
+    57477.7265625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Wall01",
+   "offset": [
+    89303.28515625,
+    -55411.6484375,
+    6685.74609375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Wall02",
+   "offset": [
+    88764.7734375,
+    -94798.90625,
+    23694.576171875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_City_Wall03",
+   "offset": [
+    118596.10546875,
+    -87007.640625,
+    16499.2041015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_Slum_signpost",
+   "offset": [
+    -3334.73095703125,
+    650.3084106445312,
+    289.8174133300781
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_LV_Soul_Wall_02",
+   "offset": [
+    -10886.328125,
+    -66664.90625,
+    -3300.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_stairs_W1_H1_01",
+   "offset": [
+    -91.53793334960938,
+    -75.90679168701172,
+    36.3614501953125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_stairs_W1_H3_00",
+   "offset": [
+    -91.53854370117188,
+    -155.81405639648438,
+    90.90267944335938
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_Bridge",
+   "offset": [
+    -37.522705078125,
+    -36336.05078125,
+    330.9984130859375
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_Bridge3",
+   "offset": [
+    -2.5068359375,
+    5055.7587890625,
+    2145.580810546875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_Building11",
+   "offset": [
+    -297.3046875,
+    -4.7841796875,
+    32962.671875
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_Building7",
+   "offset": [
+    14.4765625,
+    6.816650390625,
+    23001.0517578125
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_BuildingAsset3",
+   "offset": [
+    0.0,
+    4552.3974609375,
+    0.0
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Soul_WallLamp_02",
+   "offset": [
+    0.5009994506835938,
+    101.42577362060547,
+    -209.50982666015625
+   ]
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_WoodBridge",
+   "offset": [
+    -1.002197265625,
+    31.464874267578125,
+    -140.79293823242188
+   ]
+  }
+ ],
+ "skipped": [
+  {
+   "path": "/Game/SoulCity/EffectsMobileOpt/SimpleFogSheet/Mesh/SM_SimpleFogSheet",
+   "reason": "used by /Game/SoulCity/EffectsMobileOpt/SimpleFogSheet/BP/BP_simpleFogSheet"
+  },
+  {
+   "path": "/Game/SoulCity/EffectsMobileOpt/Trash/Meshes/SM_leaf",
+   "reason": "used by /Game/SoulCity/EffectsMobileOpt/Trash/ParticleSystems/P_flyingPaper"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/NewNavi/Stairs/SM_slum_stairs_slumStairs_02",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Water/SM_Splash",
+   "reason": "used by /Game/SoulCity/Effects/Particles/Water/P_WaveSplash_01, /Game/SoulCity/Effects/Particles/Water/P_WaveSplash_02"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Water/SM_SplashBase_01",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Materials/Sky/SM_SkySphere_Cloudy",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_001",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_002",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_003",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_004",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_005",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_006",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_007",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_slum_roads_stair_trim_008",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Streetlight",
+   "reason": "used by /Game/SoulCity/Environment/Meshes/Building_Slum/Streetlight"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02b",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_02f",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Distance_02f",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Pipe_01d",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Decal_01b",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Medium02",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Small01",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Rocks/SM_Cave_Rock_Small02",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Grass01",
+   "reason": "used by /Game/SoulCity/Blueprints/BP_Blowing_grass"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Foliage/SM_Cave_Grass_Big_Cluster",
+   "reason": "used by /Game/SoulCity/Blueprints/BP_Blowing_grass"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_100planel_xpivot",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_Cave_Floor_Plane_100_10",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_LV_Soul_CenterBD_Gear02",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_LV_Soul_CenterBD_Gear02_noLOD",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Props/SM_Seagull",
+   "reason": "used by /Game/SoulCity/Blueprints/BP_Seagull_01"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_Soul_City_Plane",
+   "reason": "already centered"
+  },
+  {
+   "path": "/Game/SoulCity/Environment/Meshes/Building/SM_S_Searchlight_01",
+   "reason": "used by /Game/SoulCity/Effects/Particles/Others/P_SpotLight_DB_01"
+  }
+ ]
+}

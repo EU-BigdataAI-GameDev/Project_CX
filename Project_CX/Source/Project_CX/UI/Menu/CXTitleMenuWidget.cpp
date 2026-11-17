@@ -1,0 +1,869 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CXTitleMenuWidget.h"
+#include "CXMenuItemWidget.h"
+#include "CXPlayerSlotWidget.h"
+#include "CXTitleBackdropWidget.h"
+#include "CXCutsceneWidget.h"
+#include "CXGameInstance.h"
+#include "CXSaveGame.h"
+#include "CXSettingsWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/SizeBox.h"
+#include "Engine/Texture2D.h"
+#include "Components/OverlaySlot.h"
+#include "Components/Spacer.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/PlayerController.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "CXAudioSubsystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Sound/SoundBase.h"
+#include "CXSfx.h"
+
+UCXTitleMenuWidget::UCXTitleMenuWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 타이틀 네온 점등 지직(Kenney forceField_000)
+	SoundNeonBuzz = CXSfx::Find<USoundBase>(TEXT("/Game/Project_CX/Audio/SFX/UI/SW_UI_NeonBuzz.SW_UI_NeonBuzz"));
+	// 로고 키 아트(없으면 조용히 nullptr → 글자 제목)
+	LogoTexture = CXSfx::Find<UTexture2D>(TEXT("/Game/Project_CX/Title/Title_logo.Title_logo"));
+}
+
+namespace CXTitle
+{
+	const FName Continue = TEXT("Continue");
+	const FName NewGame = TEXT("NewGame");
+	const FName Settings = TEXT("Settings");
+	const FName Quit = TEXT("Quit");
+
+	// 진입 연출 타임라인(초)
+	constexpr float BackdropFade = 1.0f;
+	constexpr float TitleStart = 0.9f;
+	constexpr float TitleFlicker = 0.6f;
+	constexpr float GlowIgnite = 0.25f;		// 로고가 뜨기 시작한 뒤 글로우가 지직거리며 켜지는 시점
+	constexpr float MenuWidth = 820.0f;
+	constexpr float ItemLabelInset = 21.0f;	// 메뉴 항목 안에서 글자가 시작되는 x(포커스 바 3 + 간격 18)
+	constexpr float SubtitleStart = 1.4f;
+	constexpr float MenuStart = 1.5f;
+	constexpr float MenuSlide = 0.2f;
+	constexpr float MenuStagger = 0.04f;
+	constexpr float FooterStart = 1.6f;
+	constexpr float IntroEnd = 2.0f;
+	constexpr float ShortIntro = 0.3f;
+
+	// 게임명 글자 크기·자간(16자라 예전 PROJECT_CX 96/180보다 줄여 1920 기준 좌측 2/3 안에 들어가게)
+	constexpr int32 TitleSize = 84;
+	constexpr int32 TitleSpacing = 100;
+
+	constexpr float DevicePromptTime = 2.6f;
+	constexpr float GamepadPollInterval = 0.5f;
+
+	/** 네온 점등 깜박임(0~TitleFlicker초 → 밝기). 2~3회 짧게 꺼졌다 켜짐. */
+	float FlickerAlpha(float T)
+	{
+		if (T <= 0.0f) return 0.0f;
+		if (T < 0.06f) return 1.0f;
+		if (T < 0.14f) return 0.05f;
+		if (T < 0.20f) return 0.8f;
+		if (T < 0.30f) return 0.1f;
+		if (T < 0.36f) return 1.0f;
+		if (T < 0.42f) return 0.3f;
+		return FMath::Min(1.0f, 0.6f + (T - 0.42f) / 0.18f * 0.4f);
+	}
+
+	float Ramp(float T, float Start, float Duration)
+	{
+		return FMath::Clamp((T - Start) / Duration, 0.0f, 1.0f);
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// 위젯 트리
+
+void UCXTitleMenuWidget::BuildMenu()
+{
+	UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	auto AddFill = [Root](UWidget* W)
+	{
+		if (UOverlaySlot* S = Root->AddChildToOverlay(W))
+		{
+			S->SetHorizontalAlignment(HAlign_Fill);
+			S->SetVerticalAlignment(VAlign_Fill);
+		}
+	};
+	auto MakeText = [this](const FString& Str, int32 Size, FName Typeface, int32 Spacing, const FLinearColor& Color)
+	{
+		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		T->SetText(FText::FromString(Str));
+		T->SetFont(CXMenuStyle::Font(Size, Typeface, Spacing));
+		T->SetColorAndOpacity(FSlateColor(Color));
+		return T;
+	};
+
+	// 1) 배경
+	Backdrop = WidgetTree->ConstructWidget<UCXTitleBackdropWidget>(UCXTitleBackdropWidget::StaticClass(), TEXT("Backdrop"));
+	AddFill(Backdrop);
+
+	// 2) 내용(1920x1080 기준 배치, DPI 스케일은 엔진이 맞춘다)
+	Content = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Content"));
+	AddFill(Content);
+
+	// 키 아트 모양: 배경 그림이나 로고가 하나라도 있으면 적용(둘 다 없으면 예전 모양 그대로)
+	bKeyArt = Backdrop->HasKeyArt() || LogoTexture != nullptr;
+	if (bKeyArt)
+	{
+		FocusAccentOverride = MenuAccentColor;
+	}
+	const FLinearColor Accent = bKeyArt ? MenuAccentColor : CXMenuStyle::Brother;
+
+	// 왼쪽 묶음: 게임명(로고) → 부제 → 메뉴가 위에서 아래로 흐른다(로고 크기가 바뀌어도 메뉴가 따라 내려감)
+	UVerticalBox* TitleBlock = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TitleBlock"));
+	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(TitleBlock))
+	{
+		S->SetAutoSize(true);
+		S->SetPosition(LogoTexture ? LeftColumnPosition : FVector2D(150.0f, 200.0f));
+	}
+
+	UHorizontalBox* TitleRow = nullptr;
+	if (LogoTexture)
+	{
+		// 게임명 로고 이미지. 크기는 UpdateLogoLayout이 화면 폭 비율로 정한다(비율 유지).
+		LogoBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("LogoBox"));
+		UOverlay* LogoStack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LogoStack"));
+		LogoBox->AddChild(LogoStack);
+
+		auto MakeLogo = [&](const TCHAR* Name)
+		{
+			UImage* Img = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Name);
+			FSlateBrush Brush;
+			Brush.SetResourceObject(LogoTexture);
+			Brush.ImageSize = FVector2D(LogoTexture->GetSizeX(), LogoTexture->GetSizeY());
+			Brush.DrawAs = ESlateBrushDrawType::Image;
+			Img->SetBrush(Brush);
+			if (UOverlaySlot* S = LogoStack->AddChildToOverlay(Img))
+			{
+				S->SetHorizontalAlignment(HAlign_Fill);
+				S->SetVerticalAlignment(VAlign_Fill);
+			}
+			return Img;
+		};
+		LogoImage = MakeLogo(TEXT("Logo"));
+		// 같은 그림을 한 번 더 겹쳐 그린다 → 불투명한 글자는 그대로, 반투명한 네온 번짐만 짙어진다(숨쉬기)
+		LogoGlowImage = MakeLogo(TEXT("LogoGlow"));
+		LogoGlowImage->SetColorAndOpacity(LogoGlowTint);
+		LogoGlowImage->SetRenderOpacity(0.0f);
+
+		LogoBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+		TitleText = LogoBox;
+		TitleBlock->AddChildToVerticalBox(LogoBox);
+	}
+	else
+	{
+		// 게임명 CAELUM:UNCHAINED — Oxanium Bold. 글자는 오빠 청록 네온 그림자, 가운데 콜론만 여동생 마젠타(두 사람 색 체계)
+		TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleRow"));
+		const FLinearColor TitleColor(0.88f, 1.0f, 1.0f, 1.0f);
+		auto AddTitlePart = [&](const TCHAR* Str, const FLinearColor& Color, const FLinearColor& Glow, float PadL, float PadR)
+		{
+			UTextBlock* Part = MakeText(Str, CXTitle::TitleSize, TEXT("Bold"), CXTitle::TitleSpacing, Color);
+			Part->SetShadowOffset(FVector2D(2.5f, 2.5f));
+			Part->SetShadowColorAndOpacity(Glow);
+			if (UHorizontalBoxSlot* S = TitleRow->AddChildToHorizontalBox(Part))
+			{
+				S->SetVerticalAlignment(VAlign_Center);
+				S->SetPadding(FMargin(PadL, 0.0f, PadR, 0.0f));
+			}
+		};
+		AddTitlePart(TEXT("CAELUM"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
+		AddTitlePart(TEXT(":"), CXMenuStyle::Sister, CXMenuStyle::Sister.CopyWithNewOpacity(0.45f), 4.0f, 10.0f);
+		AddTitlePart(TEXT("UNCHAINED"), TitleColor, CXMenuStyle::Brother.CopyWithNewOpacity(0.55f), 0.0f, 0.0f);
+		TitleText = TitleRow;
+		TitleBlock->AddChildToVerticalBox(TitleRow);
+	}
+
+	UHorizontalBox* SubRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	SubtitleRow = SubRow;
+	if (UVerticalBoxSlot* S = TitleBlock->AddChildToVerticalBox(SubRow))
+	{
+		S->SetPadding(FMargin(6.0f, 4.0f, 0.0f, 0.0f));
+	}
+	TitleUnderline = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Underline"));
+	{
+		FSlateBrush LineBrush;
+		LineBrush.ImageSize = LogoTexture ? FVector2D(96.0f, 2.0f) : FVector2D(300.0f, 2.0f);
+		TitleUnderline->SetBrush(LineBrush);
+	}
+	TitleUnderline->SetColorAndOpacity(LogoTexture ? Accent.CopyWithNewOpacity(0.85f) : Accent);
+	if (UHorizontalBoxSlot* S = SubRow->AddChildToHorizontalBox(TitleUnderline))
+	{
+		S->SetVerticalAlignment(VAlign_Center);
+	}
+	if (LogoTexture)
+	{
+		// 로고가 주인공 — 부제는 작게, 시스템 글꼴로 조용히
+		SubtitleText = MakeText(TEXT("DISTRICT 5"), 15, TEXT("Medium"), 620, FLinearColor(1.0f, 1.0f, 1.0f, 0.62f));
+		SubtitleText->SetFont(CXMenuStyle::MonoFont(15, TEXT("Medium"), 620));
+		SubtitleText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		SubtitleText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.7f));
+	}
+	else
+	{
+		SubtitleText = MakeText(TEXT("DISTRICT 5"), 22, TEXT("Bold"), 600, Accent.CopyWithNewOpacity(0.9f));
+	}
+	if (UHorizontalBoxSlot* S = SubRow->AddChildToHorizontalBox(SubtitleText))
+	{
+		S->SetVerticalAlignment(VAlign_Center);
+		S->SetPadding(FMargin(LogoTexture ? 16.0f : 20.0f, 0.0f, 0.0f, 0.0f));
+	}
+
+	// 메뉴: 로고 아래 좌측 세로 목록(오른쪽은 비워 그림이 보이게)
+	USizeBox* MenuSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("MenuBox"));
+	MenuSize->SetWidthOverride(CXTitle::MenuWidth);
+	MenuBox = MenuSize;
+	if (UVerticalBoxSlot* S = TitleBlock->AddChildToVerticalBox(MenuSize))
+	{
+		S->SetHorizontalAlignment(HAlign_Left);
+		// 글자 제목일 때는 예전 위치(게임명 아래 ~440)에 오도록 간격만 둔다. 로고일 때는 UpdateLogoLayout이 다시 잡는다.
+		S->SetPadding(FMargin(0.0f, 96.0f, 0.0f, 0.0f));
+	}
+	UVerticalBox* MenuList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MenuList"));
+	MenuSize->AddChild(MenuList);
+	AddMenuItem(MenuList, CXTitle::Continue, FText::FromString(TEXT("CONTINUE")));
+	AddMenuItem(MenuList, CXTitle::NewGame, FText::FromString(TEXT("NEW GAME")));
+	AddMenuItem(MenuList, CXTitle::Settings, FText::FromString(TEXT("SETTINGS")));
+	AddMenuItem(MenuList, CXTitle::Quit, FText::FromString(TEXT("QUIT GAME")));
+	if (bKeyArt)
+	{
+		for (UCXMenuItemWidget* Item : Items)
+		{
+			Item->SetKeyArtStyle(true);
+		}
+	}
+
+	SaveWarningText = MakeText(TEXT("SAVE DATA COULD NOT BE LOADED"), 16, TEXT("Bold"), 120, CXMenuStyle::Warning);
+	SaveWarningText->SetVisibility(ESlateVisibility::Collapsed);
+	// 메뉴 목록 바로 아래(항목 수가 바뀌어도 따라감)
+	if (UVerticalBoxSlot* S = MenuList->AddChildToVerticalBox(SaveWarningText))
+	{
+		S->SetPadding(FMargin(21.0f, 18.0f, 0.0f, 0.0f));
+	}
+
+	// 하단 중앙 플레이어 슬롯 2개
+	UHorizontalBox* SlotRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("SlotRow"));
+	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(SlotRow))
+	{
+		S->SetAnchors(FAnchors(0.5f, 1.0f));
+		S->SetAlignment(FVector2D(0.5f, 1.0f));
+		S->SetAutoSize(true);
+		S->SetPosition(FVector2D(0.0f, -110.0f));
+	}
+	const TCHAR* SlotNames[UCXGameInstance::NumPlayerSlots] = { TEXT("P1  BROTHER"), TEXT("P2  SISTER") };
+	for (int32 i = 0; i < UCXGameInstance::NumPlayerSlots; ++i)
+	{
+		UCXPlayerSlotWidget* PlayerSlot = WidgetTree->ConstructWidget<UCXPlayerSlotWidget>(UCXPlayerSlotWidget::StaticClass());
+		PlayerSlot->Setup(i, FText::FromString(SlotNames[i]));
+		if (UHorizontalBoxSlot* S = SlotRow->AddChildToHorizontalBox(PlayerSlot))
+		{
+			S->SetPadding(FMargin(i == 0 ? 0.0f : 40.0f, 0.0f, 0.0f, 0.0f));
+		}
+		PlayerSlots.Add(PlayerSlot);
+	}
+
+	DevicePromptText = MakeText(TEXT(""), 20, TEXT("Bold"), 200, CXMenuStyle::Warning);
+	DevicePromptText->SetJustification(ETextJustify::Center);
+	DevicePromptText->SetShadowOffset(FVector2D(2.0f, 2.0f));
+	DevicePromptText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.9f));
+	DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
+	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(DevicePromptText))
+	{
+		S->SetAnchors(FAnchors(0.5f, 1.0f));
+		S->SetAlignment(FVector2D(0.5f, 1.0f));
+		S->SetAutoSize(true);
+		S->SetPosition(FVector2D(0.0f, -232.0f));
+	}
+
+	HintText = MakeText(FString::Printf(TEXT("[A / ENTER]  SELECT        [B / ESC]  BACK            %s"), *VersionLabel), 14, TEXT("Regular"), 160,
+		bKeyArt ? FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) : CXMenuStyle::TextDim);
+	if (bKeyArt)
+	{
+		HintText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		HintText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f));
+	}
+	if (UCanvasPanelSlot* S = Content->AddChildToCanvas(HintText))
+	{
+		S->SetAnchors(FAnchors(1.0f, 1.0f));
+		S->SetAlignment(FVector2D(1.0f, 1.0f));
+		S->SetAutoSize(true);
+		S->SetPosition(FVector2D(-60.0f, -40.0f));
+	}
+
+	// 3) 확인창 레이어
+	ModalLayer = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("ModalLayer"));
+	AddFill(ModalLayer);
+	SetModalHost(ModalLayer);
+
+	// 4) 검정 페이드(진입/게임 시작)
+	FadeImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Fade"));
+	FadeImage->SetColorAndOpacity(FLinearColor::Black);
+	FadeImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+	AddFill(FadeImage);
+
+	Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	// 첫 프레임 전(지오메트리 없음)에는 기준 해상도로 잡아 둔다
+	UpdateLogoLayout(FVector2D(1920.0, 1080.0));
+}
+
+void UCXTitleMenuWidget::UpdateLogoLayout(const FVector2D& ScreenSize)
+{
+	if (!LogoBox || !LogoTexture || ScreenSize.X <= 1.0 || ScreenSize.Y <= 1.0 || ScreenSize.Equals(LogoLayoutSize, 0.5))
+	{
+		return;
+	}
+	LogoLayoutSize = ScreenSize;
+
+	// 화면 폭 비율로 크기를 정하되, 높이 상한과 화면 오른쪽 끝을 넘지 않게. 비율은 텍스처 그대로.
+	const float Aspect = (float)LogoTexture->GetSizeX() / FMath::Max(1.0f, (float)LogoTexture->GetSizeY());
+	float Width = ScreenSize.X * LogoWidthFraction;
+	Width = FMath::Min(Width, (float)ScreenSize.Y * LogoMaxHeightFraction * Aspect);
+	Width = FMath::Min(Width, (float)(ScreenSize.X - LeftColumnPosition.X * 2.0));
+	Width = FMath::Max(Width, 200.0f);
+	const float Height = Width / Aspect;
+	LogoBox->SetWidthOverride(Width);
+	LogoBox->SetHeightOverride(Height);
+
+	// 로고 PNG의 투명 여백만큼 아래 줄을 당기고, 글자 왼쪽 끝에 맞춘다
+	const float InsetX = Width * LogoInsetLeft;
+	const float InsetY = Height * LogoInsetBottom;
+	if (UVerticalBoxSlot* S = SubtitleRow ? Cast<UVerticalBoxSlot>(SubtitleRow->Slot) : nullptr)
+	{
+		S->SetPadding(FMargin(InsetX, -InsetY, 0.0f, 0.0f));
+	}
+	if (UVerticalBoxSlot* S = MenuBox ? Cast<UVerticalBoxSlot>(MenuBox->Slot) : nullptr)
+	{
+		S->SetPadding(FMargin(FMath::Max(0.0f, InsetX - CXTitle::ItemLabelInset), LogoMenuGap, 0.0f, 0.0f));
+	}
+}
+
+void UCXTitleMenuWidget::UpdateLogoPulse(float GlowIntro)
+{
+	if (!LogoImage || !LogoGlowImage)
+	{
+		return;
+	}
+	// 0→1→0 숨쉬기(주기 LogoPulsePeriod초)
+	const float Pulse = 0.5f - 0.5f * FMath::Cos(LogoTime * UE_TWO_PI / FMath::Max(0.1f, LogoPulsePeriod));
+	LogoImage->SetRenderOpacity(FMath::Lerp(LogoPulseMinOpacity, 1.0f, Pulse));
+	LogoGlowImage->SetRenderOpacity(LogoGlowMaxOpacity * Pulse * GlowIntro);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 수명
+
+void UCXTitleMenuWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	UCXGameInstance* GI = UCXGameInstance::Get(this);
+	if (GI)
+	{
+		// 시작화면에 올 때마다 게임패드 확인은 다시 받는다(키보드 슬롯은 항상 READY).
+		GI->ClearAllSlotGamepads();
+		GI->PendingContinueSave = nullptr;
+	}
+
+	FocusPlayer = GI ? GI->ResolvePlayerForInput(false, INPUTDEVICEID_NONE) : 0;
+	bGamepadAttached = FSlateApplication::IsInitialized() && FSlateApplication::Get().IsGamepadAttached();
+	RefreshSaveState();
+	RefreshSlots();
+
+	DeviceConnectionHandle = IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().AddUObject(this, &UCXTitleMenuWidget::HandleDeviceConnectionChange);
+
+	// 진입 연출: 첫 실행만 풀 연출, 타이틀로 돌아온 경우 0.3초 페이드
+	bShortIntro = GI && GI->bTitleIntroPlayed;
+	if (GI)
+	{
+		GI->bTitleIntroPlayed = true;
+	}
+	IntroTime = 0.0f;
+	bBuzzPlayed = false;
+	UpdateIntro(0.0f);
+}
+
+void UCXTitleMenuWidget::NativeDestruct()
+{
+	IPlatformInputDeviceMapper::Get().GetOnInputDeviceConnectionChange().Remove(DeviceConnectionHandle);
+	Super::NativeDestruct();
+}
+
+void UCXTitleMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// 로고 크기는 화면 폭을 따라간다(해상도·화면비·DPI 스케일이 바뀌어도)
+	UpdateLogoLayout(FVector2D(MyGeometry.GetLocalSize()));
+	LogoTime += InDeltaTime;
+
+	if (IntroTime >= 0.0f)
+	{
+		UpdateIntro(InDeltaTime);
+	}
+	else
+	{
+		UpdateLogoPulse(1.0f);
+	}
+
+	// 설정 메뉴/확인창이 위에 떠 있는 동안 배경 그림을 더 어둡게(패널 글자가 그림에 묻히지 않게)
+	Backdrop->SetOverlayDim(bSettingsOpen || IsModalOpen());
+
+	// 게임패드 연결 상태(NOT CONNECTED 표시, 패드가 모두 빠지면 READY 해제)
+	GamepadPollTimer -= InDeltaTime;
+	if (GamepadPollTimer <= 0.0f && FSlateApplication::IsInitialized())
+	{
+		GamepadPollTimer = CXTitle::GamepadPollInterval;
+		const bool bAttached = FSlateApplication::Get().IsGamepadAttached();
+		if (bAttached != bGamepadAttached)
+		{
+			bGamepadAttached = bAttached;
+			if (!bAttached)
+			{
+				if (UCXGameInstance* GI = UCXGameInstance::Get(this))
+				{
+					GI->ClearAllSlotGamepads();
+				}
+			}
+			RefreshSlots();
+		}
+	}
+
+	if (DevicePromptRemaining > 0.0f)
+	{
+		DevicePromptRemaining = FMath::Max(0.0f, DevicePromptRemaining - InDeltaTime);
+		const float Pulse = 0.55f + 0.45f * FMath::Cos((CXTitle::DevicePromptTime - DevicePromptRemaining) * UE_TWO_PI * 1.5f);
+		DevicePromptText->SetRenderOpacity(Pulse * FMath::Min(1.0f, DevicePromptRemaining / 0.3f));
+		if (DevicePromptRemaining <= 0.0f)
+		{
+			DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (bStarting)
+	{
+		StartFadeElapsed += InDeltaTime;
+		FadeImage->SetRenderOpacity(FMath::Clamp(StartFadeElapsed / StartFadeTime, 0.0f, 1.0f));
+		if (StartFadeElapsed >= StartFadeTime && !PendingMap.IsEmpty())
+		{
+			const FString Map = MoveTemp(PendingMap);
+			PendingMap.Reset();
+			UGameplayStatics::OpenLevel(this, FName(*Map));
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// 진입 연출
+
+void UCXTitleMenuWidget::UpdateIntro(float DeltaTime)
+{
+	using namespace CXTitle;
+	IntroTime += DeltaTime;
+	const float T = IntroTime;
+
+	if (bShortIntro)
+	{
+		FadeImage->SetRenderOpacity(1.0f - Ramp(T, 0.0f, ShortIntro));
+		if (LogoBox)
+		{
+			const float A = FMath::InterpEaseOut(0.0f, 1.0f, Ramp(T, 0.0f, ShortIntro), 2.0f);
+			LogoBox->SetRenderTranslation(FVector2D(0.0f, LogoRise * 0.5f * (1.0f - A)));
+			UpdateLogoPulse(1.0f);
+		}
+		if (T >= ShortIntro)
+		{
+			FinishIntro();
+		}
+		return;
+	}
+
+	FadeImage->SetRenderOpacity(1.0f - Ramp(T, 0.0f, BackdropFade));
+
+	if (LogoBox)
+	{
+		// 로고: 페이드인 + 아래에서 살짝 떠오름. 네온 번짐(글로우 복사본)은 조금 뒤에 지직거리며 켜진다.
+		const float A = FMath::InterpEaseOut(0.0f, 1.0f, Ramp(T, TitleStart, FMath::Max(0.05f, LogoFadeTime)), 2.0f);
+		LogoBox->SetRenderOpacity(A);
+		LogoBox->SetRenderTranslation(FVector2D(0.0f, LogoRise * (1.0f - A)));
+		UpdateLogoPulse(FlickerAlpha(T - TitleStart - GlowIgnite));
+	}
+	else
+	{
+		TitleText->SetRenderOpacity(FlickerAlpha(T - TitleStart));
+	}
+	if (!bBuzzPlayed && T >= TitleStart)
+	{
+		bBuzzPlayed = true;
+		if (SoundNeonBuzz)
+		{
+			UGameplayStatics::PlaySound2D(this, SoundNeonBuzz, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+		}
+	}
+
+	const float Sub = Ramp(T, SubtitleStart, 0.3f);
+	TitleUnderline->SetRenderOpacity(Sub);
+	TitleUnderline->SetRenderScale(FVector2D(FMath::Max(0.01f, Sub), 1.0f));
+	TitleUnderline->SetRenderTransformPivot(FVector2D(0.0f, 0.5f));
+	SubtitleText->SetRenderOpacity(Sub);
+
+	// 메뉴 슬라이드인(항목별 0.04초 간격)
+	int32 Shown = 0;
+	for (UCXMenuItemWidget* Item : Items)
+	{
+		if (!Item || Item->GetVisibility() == ESlateVisibility::Collapsed)
+		{
+			continue;
+		}
+		const float A = FMath::InterpEaseOut(0.0f, 1.0f, Ramp(T, MenuStart + MenuStagger * Shown, MenuSlide), 2.0f);
+		Item->SetIntroOffset(-40.0f * (1.0f - A), A);
+		++Shown;
+	}
+
+	const float Footer = Ramp(T, FooterStart, 0.3f);
+	for (UCXPlayerSlotWidget* PlayerSlot : PlayerSlots)
+	{
+		PlayerSlot->SetRenderOpacity(Footer);
+	}
+	HintText->SetRenderOpacity(Footer);
+	SaveWarningText->SetRenderOpacity(Footer);
+
+	if (T >= IntroEnd)
+	{
+		FinishIntro();
+	}
+}
+
+void UCXTitleMenuWidget::FinishIntro()
+{
+	IntroTime = -1.0f;
+	FadeImage->SetRenderOpacity(0.0f);
+	TitleText->SetRenderOpacity(1.0f);
+	TitleText->SetRenderTranslation(FVector2D::ZeroVector);
+	UpdateLogoPulse(1.0f);
+	TitleUnderline->SetRenderOpacity(1.0f);
+	TitleUnderline->SetRenderScale(FVector2D(1.0f, 1.0f));
+	SubtitleText->SetRenderOpacity(1.0f);
+	for (UCXMenuItemWidget* Item : Items)
+	{
+		if (Item)
+		{
+			Item->SetIntroOffset(0.0f, 1.0f);
+		}
+	}
+	for (UCXPlayerSlotWidget* PlayerSlot : PlayerSlots)
+	{
+		PlayerSlot->SetRenderOpacity(1.0f);
+	}
+	HintText->SetRenderOpacity(1.0f);
+	SaveWarningText->SetRenderOpacity(1.0f);
+	// 연출 스킵 입력이 메뉴 동작으로 이어지지 않게 짧게 잠금
+	LockInput();
+}
+
+bool UCXTitleMenuWidget::HandleAnyInput()
+{
+	if (IntroTime >= 0.0f && !bShortIntro && !bStarting)
+	{
+		FinishIntro();
+		return true;
+	}
+	return false;
+}
+
+bool UCXTitleMenuWidget::CanAcceptInput() const
+{
+	// 게임 시작 페이드 중 입력은 전부 무시(8장), 진입 연출 중에도 무시
+	return Super::CanAcceptInput() && !bStarting && IntroTime < 0.0f;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 세이브 / 슬롯 상태
+
+void UCXTitleMenuWidget::RefreshSaveState()
+{
+	UCXSaveGame* Save = nullptr;
+	const ECXSaveLoadResult Result = UCXSaveGame::LoadSlot(Save);
+	LoadedSave = Save;
+	bSaveExists = Result != ECXSaveLoadResult::NoSave;
+
+	// 이어하기는 정상 세이브가 있을 때만. 손상이면 숨기고 경고(새 게임 덮어쓰기 확인창은 그대로).
+	const bool bCanContinue = Result == ECXSaveLoadResult::Loaded;
+	SetItemShown(CXTitle::Continue, bCanContinue);
+	if (bCanContinue)
+	{
+		FindItem(CXTitle::Continue)->SetInfo(Save->GetSummaryText());
+	}
+	SaveWarningText->SetVisibility(Result == ECXSaveLoadResult::Corrupt ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	SetFocusItem(bCanContinue ? CXTitle::Continue : CXTitle::NewGame);
+}
+
+void UCXTitleMenuWidget::RefreshSlots()
+{
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	for (int32 i = 0; i < PlayerSlots.Num(); ++i)
+	{
+		const ECXInputDeviceType Device = GI ? GI->GetSlotDeviceType(i) : (i == 0 ? ECXInputDeviceType::KeyboardMouse : ECXInputDeviceType::Gamepad);
+		const bool bReady = GI ? GI->IsSlotReady(i) : (Device == ECXInputDeviceType::KeyboardMouse);
+		PlayerSlots[i]->SetState(Device, bReady, bGamepadAttached);
+	}
+}
+
+void UCXTitleMenuWidget::HandleGamepadStart(FInputDeviceId DeviceId)
+{
+	UCXGameInstance* GI = UCXGameInstance::Get(this);
+	if (!GI || GI->FindSlotByGamepad(DeviceId) != INDEX_NONE)
+	{
+		return;
+	}
+	// 둘 다 게임패드면 먼저 Start를 누른 패드가 P1, 다음이 P2
+	const int32 SlotIndex = GI->FindFirstUnassignedGamepadSlot();
+	if (SlotIndex == INDEX_NONE)
+	{
+		return;
+	}
+	GI->AssignSlotGamepad(SlotIndex, DeviceId);
+	bGamepadAttached = true;
+	RefreshSlots();
+	PlayUISound(ECXMenuSound::Confirm);
+
+	if (GI->AreAllSlotsReady())
+	{
+		DevicePromptRemaining = FMath::Min(DevicePromptRemaining, 0.3f);
+	}
+}
+
+void UCXTitleMenuWidget::HandleDeviceConnectionChange(EInputDeviceConnectionState NewState, FPlatformUserId UserId, FInputDeviceId DeviceId)
+{
+	if (NewState != EInputDeviceConnectionState::Disconnected)
+	{
+		return;
+	}
+	// READY였던 게임패드가 끊기면 다시 PRESS START
+	if (UCXGameInstance* GI = UCXGameInstance::Get(this))
+	{
+		const int32 SlotIndex = GI->FindSlotByGamepad(DeviceId);
+		if (SlotIndex != INDEX_NONE)
+		{
+			GI->ClearSlotGamepad(SlotIndex);
+			RefreshSlots();
+		}
+	}
+}
+
+void UCXTitleMenuWidget::OpenSettings()
+{
+	PlayUISound(ECXMenuSound::Confirm);
+	// 배경은 그대로 두고 메뉴/슬롯만 숨긴다(설정 패널 뒤로 글자가 겹쳐 보이지 않게)
+	Content->SetVisibility(ESlateVisibility::Hidden);
+	DevicePromptRemaining = 0.0f;
+	DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
+
+	TWeakObjectPtr<UCXTitleMenuWidget> WeakThis(this);
+	// 시작화면에서는 조작 장치 변경 가능
+	if (!UCXSettingsWidget::Open(this, true, [WeakThis]()
+		{
+			if (UCXTitleMenuWidget* Title = WeakThis.Get())
+			{
+				Title->HandleSettingsClosed();
+			}
+		}))
+	{
+		Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	else
+	{
+		bSettingsOpen = true;
+	}
+}
+
+void UCXTitleMenuWidget::HandleSettingsClosed()
+{
+	bSettingsOpen = false;
+	Content->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	// 바뀐 조작 장치에 맞춰 슬롯(READY / PRESS START) 다시 그림
+	bGamepadAttached = FSlateApplication::IsInitialized() && FSlateApplication::Get().IsGamepadAttached();
+	RefreshSlots();
+	// 들어갔던 항목에 포커스 복원(0.3)
+	SetFocusItem(CXTitle::Settings);
+
+	// 지정된 게임패드 수 > 연결된 수: 경고만(시작은 P2 PRESS START 단계에서 막힌다 — 설정 메뉴 기획 6장)
+	const int32 Missing = UCXGameUserSettings::GetCXGameUserSettings()->GetRequiredGamepadCount() - UCXGameInstance::GetConnectedGamepadCount();
+	if (Missing > 0)
+	{
+		ShowPrompt(Missing == 1 ? TEXT("1 MORE GAMEPAD REQUIRED") : FString::Printf(TEXT("%d MORE GAMEPADS REQUIRED"), Missing));
+	}
+}
+
+void UCXTitleMenuWidget::ShowPrompt(const FString& Message)
+{
+	DevicePromptText->SetText(FText::FromString(Message));
+	DevicePromptText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	DevicePromptRemaining = CXTitle::DevicePromptTime;
+	PlayUISound(ECXMenuSound::Denied);
+}
+
+void UCXTitleMenuWidget::ShowDevicePrompt()
+{
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	int32 Missing = INDEX_NONE;	// 안내 문구에 쓸 첫 미준비 슬롯
+	for (int32 i = 0; i < PlayerSlots.Num(); ++i)
+	{
+		const bool bReady = GI ? GI->IsSlotReady(i) : PlayerSlots[i]->IsReady();
+		if (!bReady)
+		{
+			PlayerSlots[i]->Pulse();
+			Missing = (Missing == INDEX_NONE) ? i : Missing;
+		}
+	}
+	Missing = (Missing == INDEX_NONE) ? 1 : Missing;
+	DevicePromptText->SetText(FText::FromString(FString::Printf(TEXT("CONNECT P%d DEVICE AND PRESS START"), Missing + 1)));
+	DevicePromptText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	DevicePromptRemaining = CXTitle::DevicePromptTime;
+	PlayUISound(ECXMenuSound::Denied);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 입력 / 동작
+
+bool UCXTitleMenuWidget::OnMenuInput(const FCXMenuInput& Input, int32 PlayerIndex)
+{
+	if (Input.Action == ECXMenuAction::Start)
+	{
+		if (Input.bFromGamepad && !Input.bRepeat)
+		{
+			HandleGamepadStart(Input.DeviceId);
+		}
+		return true;
+	}
+	return false;
+}
+
+void UCXTitleMenuWidget::OnItemActivated(FName ItemId)
+{
+	if (ItemId == CXTitle::Continue)
+	{
+		TryStartGame(true);
+	}
+	else if (ItemId == CXTitle::NewGame)
+	{
+		TryStartGame(false);
+	}
+	else if (ItemId == CXTitle::Settings)
+	{
+		OpenSettings();
+	}
+	else if (ItemId == CXTitle::Quit)
+	{
+		ShowConfirm(FText::FromString(TEXT("QUIT THE GAME?")), FText::GetEmpty(), [this]()
+		{
+			UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
+		});
+	}
+}
+
+bool UCXTitleMenuWidget::TryStartGame(bool bContinue)
+{
+	// 이어하기/새 게임은 두 플레이어 장치 확인이 끝나야 실행(5장)
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	if (GI && !GI->AreAllSlotsReady())
+	{
+		ShowDevicePrompt();
+		return false;
+	}
+
+	if (bContinue)
+	{
+		if (!LoadedSave)
+		{
+			return false;
+		}
+		if (UCXGameInstance* MutableGI = UCXGameInstance::Get(this))
+		{
+			MutableGI->PendingContinueSave = LoadedSave;
+		}
+		PlayUISound(ECXMenuSound::Confirm);
+		BeginStartGame(LoadedSave->MapName.IsEmpty() ? NewGameMap : LoadedSave->MapName);
+		return true;
+	}
+
+	auto StartNew = [this]()
+	{
+		UCXSaveGame::DeleteSlot();
+		// 새 게임 = 처음 하는 사람일 수 있다 → 튜토리얼 "봤음" 기록도 지워 다시 보여 준다(이어하기는 유지)
+		UCXGameUserSettings::GetCXGameUserSettings()->ResetTutorialSeen();
+		// 오프닝 컷신(시작화면 위 오버레이)을 보여 준 뒤 첫 맵으로. 컷신을 못 띄우면(텍스처 없음 등) 바로 시작.
+		TWeakObjectPtr<UCXTitleMenuWidget> WeakThis(this);
+		const FString Map = NewGameMap;
+		const bool bPlaying = UCXCutsceneWidget::Play(this, [WeakThis, Map]()
+		{
+			if (UCXTitleMenuWidget* Title = WeakThis.Get())
+			{
+				Title->BeginStartGame(Map);
+			}
+		}) != nullptr;
+		if (!bPlaying)
+		{
+			BeginStartGame(NewGameMap);
+		}
+	};
+
+	if (bSaveExists)
+	{
+		ShowConfirm(FText::FromString(TEXT("START A NEW GAME?")),
+			FText::FromString(TEXT("YOUR EXISTING SAVE WILL BE OVERWRITTEN. THIS CANNOT BE UNDONE.")),
+			StartNew);
+	}
+	else
+	{
+		// 세이브가 없으면 확인창 없이 바로(9장)
+		PlayUISound(ECXMenuSound::Confirm);
+		StartNew();
+	}
+	return true;
+}
+
+void UCXTitleMenuWidget::BeginStartGame(const FString& MapPath)
+{
+	if (bStarting)
+	{
+		return;
+	}
+	bStarting = true;
+	StartFadeElapsed = 0.0f;
+	PendingMap = MapPath;
+	// 화면 페이드와 같이 배경음도 내린다
+	if (UCXAudioSubsystem* Audio = UCXAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(StartFadeTime);
+	}
+	DevicePromptText->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+FString UCXTitleMenuWidget::GetDebugState() const
+{
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	return FString::Printf(TEXT("%s save=%d intro=%.2f starting=%d slots=[%d,%d] gamepad=%d"), *Super::GetDebugState(),
+		bSaveExists ? 1 : 0, IntroTime, bStarting ? 1 : 0,
+		GI && GI->IsSlotReady(0) ? 1 : 0, GI && GI->IsSlotReady(1) ? 1 : 0, bGamepadAttached ? 1 : 0);
+}

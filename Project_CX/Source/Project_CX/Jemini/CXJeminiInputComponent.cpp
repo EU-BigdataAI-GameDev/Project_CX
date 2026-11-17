@@ -1,0 +1,996 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CXJeminiInputComponent.h"
+#include "CXWardenTerminal.h"
+#include "CXJeminiDrone.h"
+#include "CXJeminiRuleComponent.h"
+#include "CXJeminiClient.h"
+#include "Interfaces/IHttpRequest.h"
+#include "CXPlayerLifeComponent.h"
+#include "CXSoloSubsystem.h"
+#include "CXUIFonts.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "TimerManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCXJeminiInput, Log, All);
+
+int32 UCXJeminiInputComponent::OpenChatCount = 0;
+
+namespace CXJeminiInput
+{
+	constexpr int32 MappingPriority = 5;
+	/** WARDEN으로 가는 채팅의 글자 수 한도(클라이언트 Left(200) / 서버 422). */
+	constexpr int32 WardenMaxChars = 200;
+	constexpr int32 VoiceChunkBytes = 32 * 1024;
+	constexpr int32 MaxVoiceBytes = 2 * 1024 * 1024;
+	const FLinearColor Accent(0.1f, 0.95f, 1.0f, 1.0f);
+}
+
+// ---------------------------------------------------------------- 채팅 입력창(Slate, WBP 없음)
+
+/**
+ *  분할 칸 아래쪽의 한 줄 입력창. Enter = 전송, Esc = 취소, 포커스를 잃으면 취소.
+ *  입력창이 처리하지 않은 키(W/A/S/D 등)는 여기서 삼켜 게임 뷰포트(이동·사격)로 새지 않게 한다.
+ *  2026-11-13 #25: WARDEN과 말할 때는 라벨/힌트를 바꾸고 n/200 글자 수를 보인다. 입력·포커스·확정 이벤트를 LogCXJeminiInput에 남긴다
+ *  (스페이스 뒤 글자가 씹히는 증상의 원인 확인용 - 로그만, 동작은 그대로).
+ */
+class SCXJeminiChatBox : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false), _bWarden(false) {}
+		/** 미리 넣어 둘 문장(튜토리얼 예시). 포커스를 받으면 전체 선택된다. */
+		SLATE_ARGUMENT(FString, InitialText)
+		/** 위아래 분할이면 두 칸 경계(화면 세로 중앙)에 놓는다. 좌우 분할은 아래쪽 가운데. */
+		SLATE_ARGUMENT(bool, bVerticalCenter)
+		/** WARDEN과 말하는 중: 라벨·힌트를 바꾸고 n/200 글자 수를 보여 준다. */
+		SLATE_ARGUMENT(bool, bWarden)
+	SLATE_END_ARGS()
+
+	TFunction<void(const FString&)> OnSubmit;
+	TFunction<void()> OnCancel;
+
+	virtual ~SCXJeminiChatBox() override
+	{
+		if (FocusHandle.IsValid() && FSlateApplication::IsInitialized())
+		{
+			FSlateApplication::Get().OnFocusChanging().Remove(FocusHandle);
+		}
+	}
+
+	void Construct(const FArguments& InArgs)
+	{
+		bWarden = InArgs._bWarden;
+		// 제미니 단말 입력줄 — 시스템 폰트(IBM Plex Mono, 한글은 서브 폰트)
+		// 2026-11-10 게임 화면 글자 +3pt(17/16 → 20/19), 입력창 폭 760 → 900
+		// 2026-11-12 QA: 글자 -1pt(19/18), 폭 900 → 840
+		FSlateFontInfo Font = UCXUIFonts::Slate(ECXFontRole::System, 19, TEXT("Regular"));
+		FSlateFontInfo LabelFont = UCXUIFonts::Slate(ECXFontRole::System, 18, TEXT("SemiBold"));
+
+		ChildSlot
+		.HAlign(HAlign_Center)
+		.VAlign(InArgs._bVerticalCenter ? VAlign_Center : VAlign_Bottom)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, InArgs._bVerticalCenter ? 0.0f : 150.0f))
+		[
+			SNew(SBox)
+			.WidthOverride(840.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FLinearColor(0.01f, 0.02f, 0.04f, 0.88f))
+				.Padding(FMargin(14.0f, 10.0f))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(0.0f, 0.0f, 12.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(bWarden ? TEXT("WARDEN >") : TEXT("JEMINI >")))
+						.Font(LabelFont)
+						.ColorAndOpacity(bWarden ? FLinearColor(1.0f, 0.3f, 0.22f, 1.0f) : CXJeminiInput::Accent)
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SAssignNew(TextBox, SEditableTextBox)
+						.Font(Font)
+						.HintText(FText::FromString(bWarden ? TEXT("WARDEN에게 말하기 (Enter 전송 / Esc 취소)") : TEXT("제미니에게 부탁하기 (Enter 전송 / Esc 취소)")))
+						.ClearKeyboardFocusOnCommit(false)
+						.SelectAllTextWhenFocused(true)
+						.OnTextChanged(this, &SCXJeminiChatBox::HandleChanged)
+						.OnTextCommitted(this, &SCXJeminiChatBox::HandleCommitted)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SAssignNew(CounterText, STextBlock)
+						.Visibility(bWarden ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+						.Text(FText::FromString(FString::Printf(TEXT("0/%d"), CXJeminiInput::WardenMaxChars)))
+						.Font(LabelFont)
+						.ColorAndOpacity(FLinearColor(0.6f, 0.75f, 0.8f, 0.9f))
+					]
+				]
+			]
+		];
+
+		if (!InArgs._InitialText.IsEmpty() && TextBox.IsValid())
+		{
+			TextBox->SetText(FText::FromString(InArgs._InitialText));
+		}
+
+		if (FSlateApplication::IsInitialized())
+		{
+			FocusHandle = FSlateApplication::Get().OnFocusChanging().AddRaw(this, &SCXJeminiChatBox::HandleFocusChanging);
+		}
+	}
+
+	TSharedPtr<SWidget> GetFocusTarget() const { return TextBox; }
+
+	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+	{
+		// 진단: IME 조합 중에는 VK_PROCESSKEY라 키 이름이 평소와 다를 수 있다
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox key down: %s char=0x%04X repeat=%d"), *InKeyEvent.GetKey().ToString(), static_cast<int32>(InKeyEvent.GetCharacter()), InKeyEvent.IsRepeat() ? 1 : 0);
+		if (InKeyEvent.GetKey() == EKeys::Escape)
+		{
+			Cancel();
+			return FReply::Handled();
+		}
+		return FReply::Unhandled();
+	}
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+	{
+		// 입력창이 처리하지 않고 올라온 키는 게임으로 보내지 않는다
+		return FReply::Handled();
+	}
+
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+
+	void Cancel()
+	{
+		if (bClosed)
+		{
+			return;
+		}
+		bClosed = true;
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox cancel (len=%d)"), TextBox.IsValid() ? TextBox->GetText().ToString().Len() : 0);
+		if (OnCancel)
+		{
+			OnCancel();
+		}
+	}
+
+private:
+	static FString TypeOf(const TSharedPtr<SWidget>& Widget)
+	{
+		return Widget.IsValid() ? Widget->GetTypeAsString() : FString(TEXT("none"));
+	}
+
+	void HandleFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldPath, const TSharedPtr<SWidget>& OldWidget, const FWidgetPath& NewPath, const TSharedPtr<SWidget>& NewWidget)
+	{
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox focus: %s -> %s (cause=%d user=%d)"), *TypeOf(OldWidget), *TypeOf(NewWidget), static_cast<int32>(FocusEvent.GetCause()), FocusEvent.GetUser());
+	}
+
+	void HandleChanged(const FText& Text)
+	{
+		const FString Str = Text.ToString();
+		FString Tail;
+		for (int32 i = FMath::Max(0, Str.Len() - 3); i < Str.Len(); ++i)
+		{
+			Tail += FString::Printf(TEXT("%04X "), static_cast<int32>(Str[i]));
+		}
+		const TSharedPtr<SWidget> Focused = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetKeyboardFocusedWidget() : nullptr;
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox text changed: len=%d tail=[%s] focus=%s closed=%d"), Str.Len(), *Tail, *TypeOf(Focused), bClosed ? 1 : 0);
+		if (bWarden && CounterText.IsValid())
+		{
+			CounterText->SetText(FText::FromString(FString::Printf(TEXT("%d/%d"), Str.Len(), CXJeminiInput::WardenMaxChars)));
+			CounterText->SetColorAndOpacity(Str.Len() > CXJeminiInput::WardenMaxChars ? FLinearColor(1.0f, 0.55f, 0.1f, 1.0f) : FLinearColor(0.6f, 0.75f, 0.8f, 0.9f));
+		}
+	}
+
+	void HandleCommitted(const FText& Text, ETextCommit::Type CommitType)
+	{
+		UE_LOG(LogCXJeminiInput, Log, TEXT("ChatBox commit: type=%d len=%d closed=%d"), static_cast<int32>(CommitType), Text.ToString().Len(), bClosed ? 1 : 0);
+		if (bClosed)
+		{
+			return;
+		}
+		if (CommitType == ETextCommit::OnEnter)
+		{
+			bClosed = true;
+			if (OnSubmit)
+			{
+				OnSubmit(Text.ToString());
+			}
+		}
+		else if (CommitType == ETextCommit::OnUserMovedFocus || CommitType == ETextCommit::OnCleared)
+		{
+			Cancel();
+		}
+	}
+
+	TSharedPtr<SEditableTextBox> TextBox;
+	TSharedPtr<STextBlock> CounterText;
+	FDelegateHandle FocusHandle;
+	bool bWarden = false;
+	bool bClosed = false;
+};
+
+// ---------------------------------------------------------------- 컴포넌트
+
+UCXJeminiInputComponent::UCXJeminiInputComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+	// Server RPC(Server_SubmitText / Server_VoiceChunk)를 쓰려면 복제 컴포넌트여야 한다
+	SetIsReplicatedByDefault(true);
+}
+
+UCXJeminiInputComponent* UCXJeminiInputComponent::EnsureOn(APawn* Pawn)
+{
+	if (!Pawn)
+	{
+		return nullptr;
+	}
+	if (UCXJeminiInputComponent* Existing = Pawn->FindComponentByClass<UCXJeminiInputComponent>())
+	{
+		return Existing;
+	}
+	UCXJeminiInputComponent* Component = NewObject<UCXJeminiInputComponent>(Pawn, TEXT("CXJeminiInput"));
+	Pawn->AddInstanceComponent(Component);
+	Component->RegisterComponent();
+	return Component;
+}
+
+void UCXJeminiInputComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	BuildInputAssets();
+}
+
+void UCXJeminiInputComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CloseChat();
+	// 마이크 스트림은 GC 소멸자가 아니라 여기서 닫는다(Docs/Debug_log.md 2026-11-07 PIE 종료 크래시)
+	ShutdownVoice();
+	if (APlayerController* PC = BoundController.Get(); PC && JeminiInput)
+	{
+		PC->PopInputComponent(JeminiInput);
+	}
+	BoundController.Reset();
+	Super::EndPlay(EndPlayReason);
+}
+
+void UCXJeminiInputComponent::OnUnregister()
+{
+	ShutdownVoice();
+	Super::OnUnregister();
+}
+
+void UCXJeminiInputComponent::ShutdownVoice()
+{
+	Recorder.Shutdown();
+	bDebugFeeding = false;
+	DebugSamples.Reset();
+	ClearLiveCaption();
+	FinalPartialWav.Reset();
+	if (PartialRequest.IsValid())
+	{
+		// 취소하면 완료 콜백이 bOk=false로 오지만 세션 번호가 바뀌어 무시된다(약한 포인터라 컴포넌트가 사라져도 안전)
+		const FHttpRequestPtr Request = MoveTemp(PartialRequest);
+		PartialRequest.Reset();
+		Request->OnProcessRequestComplete().Unbind();
+		Request->CancelRequest();
+	}
+	bPartialInFlight = false;
+}
+
+bool UCXJeminiInputComponent::DebugStartMicRecording()
+{
+	OnTalkPressed();
+	return Recorder.IsRecording();
+}
+
+void UCXJeminiInputComponent::DebugStopMicRecording()
+{
+	OnTalkReleased();
+}
+
+void UCXJeminiInputComponent::BuildInputAssets()
+{
+	ChatAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_Chat"));
+	ChatAction->ValueType = EInputActionValueType::Boolean;
+	TalkAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_Talk"));
+	TalkAction->ValueType = EInputActionValueType::Boolean;
+	TalkKeyAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_TalkKey"));
+	TalkKeyAction->ValueType = EInputActionValueType::Boolean;
+
+	// 키보드 Enter = 채팅, 게임패드 Y(FaceButton_Top) = 누르는 동안 녹음 — 기존 바인딩 어디에도 없는 키
+	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Jemini"));
+	MappingContext->MapKey(ChatAction, EKeys::Enter);
+	MappingContext->MapKey(TalkAction, EKeys::Gamepad_FaceButton_Top);
+	// 솔로 모드(키보드 1인): V를 누르는 동안 녹음 — 일반 모드에서는 OnTalkKeyPressed가 무시한다
+	MappingContext->MapKey(TalkKeyAction, EKeys::V);
+}
+
+void UCXJeminiInputComponent::TryBindInput()
+{
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	if (!Pawn || !Pawn->IsLocallyControlled())
+	{
+		return;
+	}
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (!PC || !PC->GetLocalPlayer() || !ChatAction)
+	{
+		return;
+	}
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+	{
+		Subsystem->AddMappingContext(MappingContext, CXJeminiInput::MappingPriority);
+	}
+	// 폰 InputComponent 대신 전용 입력 컴포넌트를 컨트롤러 스택에 올린다 — 사망 중 Pawn->DisableInput, 채팅 중 폰 입력 차단과 무관하게 동작
+	JeminiInput = NewObject<UEnhancedInputComponent>(Pawn, TEXT("CXJeminiInputBindings"));
+	JeminiInput->RegisterComponent();
+	JeminiInput->BindAction(ChatAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnChatPressed);
+	JeminiInput->BindAction(TalkAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnTalkPressed);
+	JeminiInput->BindAction(TalkAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkReleased);
+	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnTalkKeyPressed);
+	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkKeyReleased);
+	PC->PushInputComponent(JeminiInput);
+	BoundController = PC;
+	bInputBound = true;
+}
+
+void UCXJeminiInputComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (!bInputBound)
+	{
+		TryBindInput();
+	}
+
+	if (Recorder.IsRecording())
+	{
+		// 쓰러져 있어도 녹음은 계속(제미니 기능 기획 2-8 — 쓰러진 사람도 "살려줘"라고 말할 수 있다)
+		Recorder.Poll();
+		if (Recorder.GetRecordedSeconds() >= MaxVoiceSeconds - 0.1f)
+		{
+			// 최대 길이 → 자동 전송
+			OnTalkReleased();
+		}
+	}
+	TickDebugFeed(DeltaTime);
+	TickLiveCaption();
+}
+
+float UCXJeminiInputComponent::GetRecordSeconds() const
+{
+	if (bDebugFeeding)
+	{
+		return DebugSampleRate > 0 ? static_cast<float>(DebugPlayhead / DebugSampleRate) : 0.0f;
+	}
+	return Recorder.GetRecordedSeconds();
+}
+
+bool UCXJeminiInputComponent::CanTalkNow() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	if (!Pawn)
+	{
+		return false;
+	}
+	// 기능 B: WARDEN 단말기 앞의 여동생은 제미니 대신 WARDEN과 말한다(드론이 바빠도 된다)
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Pawn))
+	{
+		// 2026-11-13 #25: 분석 중에도 입력창은 열린다(제출하면 WARDEN이 마지막 한 개를 보관했다가 이어서 보낸다). 해결된 뒤에는 FindTalkTarget이 없다.
+		return !Warden->IsSolved();
+	}
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone)
+	{
+		return false;
+	}
+	// 클라이언트는 게임모드가 없어 복제값(요청 중 / 드론 작업 중)만 본다
+	if (GetOwner()->HasAuthority() ? Drone->CanAcceptRequest() : !Drone->IsBusy())
+	{
+		return true;
+	}
+	// 드론 작업 중이어도 작전 제안 대기·등록된 규칙이 있으면 말할 수 있다("응/아니"·"규칙 취소").
+	// 최종 판단은 서버 ACXJeminiDrone::BeginRequest(게임 오버 등 포함).
+	const UCXJeminiRuleComponent* Rules = Drone->GetRuleComponent();
+	return !Drone->IsRequestPending() && Drone->GetAction() != ECXJeminiAction::Idle
+		&& Rules && (Rules->GetProposal().Num() > 0 || Rules->GetRules().Num() > 0);
+}
+
+void UCXJeminiInputComponent::MarkBlocked()
+{
+	LastBlockedTime = GetWorld()->GetTimeSeconds();
+}
+
+void UCXJeminiInputComponent::SetNotice(const FString& Text)
+{
+	Notice = Text;
+	NoticeTime = GetWorld()->GetTimeSeconds();
+}
+
+// ---------------------------------------------------------------- 키보드 채팅
+
+void UCXJeminiInputComponent::OnChatPressed()
+{
+	if (ChatWidget.IsValid() || IsRecording())
+	{
+		return;
+	}
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return;
+	}
+	OpenChat();
+}
+
+bool UCXJeminiInputComponent::OpenChatWithText(const FString& Text)
+{
+	if (ChatWidget.IsValid() || IsRecording() || !CanTalkNow())
+	{
+		return false;
+	}
+	OpenChat(Text);
+	return ChatWidget.IsValid();
+}
+
+void UCXJeminiInputComponent::OpenChat(const FString& InitialText)
+{
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
+	if (!PC || !LocalPlayer || !Viewport || !FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+
+	// 2026-11-12 QA: 2인 분할이면 채팅창을 두 칸 경계(화면 정가운데)에 놓는다. 좌우 분할 = 가로 중앙·아래쪽, 위아래 분할 = 세로 중앙.
+	const ESplitScreenType::Type Split = Viewport->GetCurrentSplitscreenConfiguration();
+	const bool bSplit = Split == ESplitScreenType::TwoPlayer_Vertical || Split == ESplitScreenType::TwoPlayer_Horizontal;
+	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox)
+		.bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal)
+		.bWarden(ACXWardenTerminal::FindTalkTarget(Pawn) != nullptr)
+		.InitialText(InitialText);
+	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
+	Box->OnSubmit = [WeakThis](const FString& Text)
+	{
+		if (UCXJeminiInputComponent* Self = WeakThis.Get())
+		{
+			Self->HandleChatSubmit(Text);
+		}
+	};
+	Box->OnCancel = [WeakThis]()
+	{
+		if (UCXJeminiInputComponent* Self = WeakThis.Get())
+		{
+			Self->CloseChat();
+		}
+	};
+	ChatWidget = Box;
+	ChatContainer = Box;
+	++OpenChatCount;
+
+	// 분할이면 전체 화면 위(두 칸 경계 가운데), 아니면 자기 칸에만 표시 + 입력 중 이 폰의 게임 입력 끄기(게임 자체는 계속 진행)
+	bChatGlobal = bSplit;
+	if (bSplit)
+	{
+		Viewport->AddViewportWidgetContent(Box, 50);
+	}
+	else
+	{
+		Viewport->AddViewportWidgetForPlayer(LocalPlayer, Box, 50);
+	}
+	PC->FlushPressedKeys();
+	Pawn->DisableInput(PC);
+	FSlateApplication::Get().SetKeyboardFocus(Box->GetFocusTarget(), EFocusCause::SetDirectly);
+}
+
+void UCXJeminiInputComponent::CloseChat()
+{
+	if (!ChatWidget.IsValid())
+	{
+		return;
+	}
+	TSharedPtr<SWidget> Widget = ChatContainer;
+	ChatWidget.Reset();
+	ChatContainer.Reset();
+	OpenChatCount = FMath::Max(0, OpenChatCount - 1);
+
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	UWorld* World = GetWorld();
+	UGameViewportClient* Viewport = World ? World->GetGameViewport() : nullptr;
+	if (Viewport && Widget.IsValid() && bChatGlobal)
+	{
+		Viewport->RemoveViewportWidgetContent(Widget.ToSharedRef());
+	}
+	else if (Viewport && PC && PC->GetLocalPlayer() && Widget.IsValid())
+	{
+		Viewport->RemoveViewportWidgetForPlayer(PC->GetLocalPlayer(), Widget.ToSharedRef());
+	}
+	bChatGlobal = false;
+	if (Pawn && PC)
+	{
+		// 쓰러진 채 채팅했으면 폰 입력은 계속 꺼 둔다(부활할 때 UCXPlayerLifeComponent가 켠다)
+		if (UCXPlayerLifeComponent::IsPawnAlive(Pawn))
+		{
+			Pawn->EnableInput(PC);
+		}
+		PC->FlushPressedKeys();
+	}
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().SetAllUserFocusToGameViewport();
+	}
+}
+
+void UCXJeminiInputComponent::HandleChatSubmit(const FString& Text)
+{
+	// Slate 콜백 안에서 위젯을 지우지 않도록 다음 틱에 닫는다
+	const FString Trimmed = Text.TrimStartAndEnd();
+	UE_LOG(LogCXJeminiInput, Log, TEXT("Chat submit: len=%d warden=%d%s"), Trimmed.Len(), ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())) ? 1 : 0,
+		Trimmed.Len() > CXJeminiInput::WardenMaxChars ? TEXT(" (over 200 chars: WARDEN gets the first 200)") : TEXT(""));
+	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
+	GetWorld()->GetTimerManager().SetTimerForNextTick([WeakThis, Trimmed]()
+	{
+		if (UCXJeminiInputComponent* Self = WeakThis.Get())
+		{
+			Self->CloseChat();
+			if (!Trimmed.IsEmpty())
+			{
+				Self->SendText(Trimmed);
+			}
+		}
+	});
+}
+
+void UCXJeminiInputComponent::SendText(const FString& Text)
+{
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return;
+	}
+	if (GetOwner()->HasAuthority())
+	{
+		Server_SubmitText_Implementation(Text);
+	}
+	else
+	{
+		Server_SubmitText(Text);
+	}
+}
+
+bool UCXJeminiInputComponent::DebugSubmitText(const FString& Text)
+{
+	if (!CanTalkNow())
+	{
+		return false;
+	}
+	SendText(Text);
+	return true;
+}
+
+void UCXJeminiInputComponent::Server_SubmitText_Implementation(const FString& Text)
+{
+	// 기능 B: WARDEN 단말기 앞이면 설득 대화로(서버가 위치를 다시 확인)
+	if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+	{
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Server_SubmitText -> WARDEN (len=%d)"), Text.Len());
+		Warden->SubmitText(Cast<APawn>(GetOwner()), Text.Left(CXJeminiInput::WardenMaxChars));
+		return;
+	}
+	if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+	{
+		Drone->SubmitText(Cast<APawn>(GetOwner()), Text.Left(300));
+	}
+}
+
+// ---------------------------------------------------------------- 게임패드 음성
+
+void UCXJeminiInputComponent::OnTalkPressed()
+{
+	if (ChatWidget.IsValid() || IsRecording())
+	{
+		return;
+	}
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return;
+	}
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())); Warden && Warden->IsRequestPending())
+	{
+		// 음성은 보관할 수 없으니 분석이 끝난 뒤에 말하도록 알린다(조용히 녹음해서 버리지 않는다)
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Voice talk blocked: WARDEN is analyzing"));
+		MarkBlocked();
+		SetNotice(TEXT("WARDEN ANALYZING - WAIT"));
+		return;
+	}
+	if (!Recorder.Start())
+	{
+		SetNotice(FCXJeminiVoiceRecorder::IsAnyRecording() ? TEXT("MIC BUSY") : TEXT("NO MICROPHONE"));
+		return;
+	}
+	BeginLiveCaption();
+}
+
+void UCXJeminiInputComponent::OnTalkKeyPressed()
+{
+	// 일반 모드에서는 V를 쓰지 않는다(키보드 플레이어는 Enter 채팅만). 솔로 모드의 조작 캐릭터만.
+	if (UCXSoloSubsystem::IsActive())
+	{
+		OnTalkPressed();
+	}
+}
+
+void UCXJeminiInputComponent::OnTalkKeyReleased()
+{
+	// 솔로가 도중에 꺼져도 녹음 중이면 뗀 것으로 마무리(OnTalkReleased는 녹음 중이 아니면 무시)
+	OnTalkReleased();
+}
+
+void UCXJeminiInputComponent::OnTalkReleased()
+{
+	if (!IsRecording())
+	{
+		return;
+	}
+	const TArray<uint8> Wav = StopRecording();
+	if (Wav.Num() == 0)
+	{
+		EndLiveCaptionRecording(false, Wav);
+		SetNotice(UCXSoloSubsystem::IsActive() ? TEXT("HOLD [V] AND SPEAK") : TEXT("HOLD [Y] AND SPEAK"));
+		return;
+	}
+	const bool bSubmitted = SendVoice(Wav);
+	EndLiveCaptionRecording(bSubmitted, Wav);
+}
+
+TArray<uint8> UCXJeminiInputComponent::StopRecording()
+{
+	if (bDebugFeeding)
+	{
+		bDebugFeeding = false;
+		const int32 Frames = FMath::Min(DebugSamples.Num() / DebugChannels, static_cast<int32>(DebugPlayhead));
+		if (Frames < DebugSampleRate * 0.3f)
+		{
+			DebugSamples.Reset();
+			return {};
+		}
+		const TArray<float> Fed(DebugSamples.GetData(), Frames * DebugChannels);
+		DebugSamples.Reset();
+		return FCXJeminiVoiceRecorder::EncodeWav16kMono(Fed, DebugChannels, DebugSampleRate);
+	}
+	return Recorder.Stop();
+}
+
+bool UCXJeminiInputComponent::SendVoice(const TArray<uint8>& Wav)
+{
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return false;
+	}
+	if (GetOwner()->HasAuthority())
+	{
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			return Warden->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
+		}
+		ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+		return Drone && Drone->SubmitVoice(Cast<APawn>(GetOwner()), Wav);
+	}
+	// 원격 클라이언트: RPC 크기 제한 때문에 조각으로 보낸다
+	for (int32 Offset = 0; Offset < Wav.Num(); Offset += CXJeminiInput::VoiceChunkBytes)
+	{
+		const int32 Size = FMath::Min(CXJeminiInput::VoiceChunkBytes, Wav.Num() - Offset);
+		TArray<uint8> Chunk(Wav.GetData() + Offset, Size);
+		Server_VoiceChunk(Chunk, Offset + Size >= Wav.Num());
+	}
+	return true;
+}
+
+void UCXJeminiInputComponent::Server_VoiceChunk_Implementation(const TArray<uint8>& Chunk, bool bFinal)
+{
+	if (PendingVoice.Num() + Chunk.Num() > CXJeminiInput::MaxVoiceBytes)
+	{
+		PendingVoice.Reset();
+		return;
+	}
+	PendingVoice.Append(Chunk);
+	if (bFinal)
+	{
+		if (ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())))
+		{
+			Warden->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
+		}
+		else if (ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this))
+		{
+			Drone->SubmitVoice(Cast<APawn>(GetOwner()), PendingVoice);
+		}
+		PendingVoice.Reset();
+	}
+}
+
+// ---------------------------------------------------------------- 실시간 자막(말하는 도중 STT, 로컬 전용)
+
+bool UCXJeminiInputComponent::CanUseLiveCaptions() const
+{
+	// 호스트(로컬 협동 두 폰 모두 여기)에서만: 자막 요청은 이 PC의 Jemini 서버로 간다.
+	// 원격 클라이언트는 HUD도 서버 주소도 따로라 최종 Heard 말풍선만 쓴다.
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	return bLiveCaptions && Pawn && Pawn->HasAuthority() && Pawn->IsLocallyControlled() && ACXJeminiDrone::Get(this) != nullptr;
+}
+
+void UCXJeminiInputComponent::BeginLiveCaption()
+{
+	++CaptionSession;
+	LiveCaption.Reset();
+	FinalPartialWav.Reset();
+	// 첫 요청은 LiveCaptionMinSeconds가 쌓이자마자(간격 대기 없이)
+	LastPartialTime = -100.0;
+	CaptionState = CanUseLiveCaptions() ? ECXLiveCaptionState::Listening : ECXLiveCaptionState::None;
+	if (CaptionState == ECXLiveCaptionState::None)
+	{
+		const APawn* Pawn = Cast<APawn>(GetOwner());
+		UE_LOG(LogCXJeminiInput, Log, TEXT("Live caption: off (enabled=%d authority=%d local=%d drone=%d)"), bLiveCaptions ? 1 : 0,
+			Pawn && Pawn->HasAuthority() ? 1 : 0, Pawn && Pawn->IsLocallyControlled() ? 1 : 0, ACXJeminiDrone::Get(this) ? 1 : 0);
+	}
+}
+
+void UCXJeminiInputComponent::EndLiveCaptionRecording(bool bSubmitted, const TArray<uint8>& FinalWav)
+{
+	if (CaptionState != ECXLiveCaptionState::Listening)
+	{
+		return;
+	}
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!bSubmitted || !Drone)
+	{
+		ClearLiveCaption();
+		return;
+	}
+	// 최종 응답(드론 대사)이 올 때까지 마지막 자막 유지 + 전체 WAV로 한 번 더 받아 적기
+	CaptionState = ECXLiveCaptionState::Pending;
+	PendingStartTime = GetWorld()->GetTimeSeconds();
+	PendingDialogueSeq = Drone->GetDialogueSeq();
+	if (bPartialInFlight)
+	{
+		FinalPartialWav = FinalWav;
+	}
+	else
+	{
+		SendPartial(FinalWav);
+	}
+}
+
+void UCXJeminiInputComponent::ClearLiveCaption()
+{
+	CaptionState = ECXLiveCaptionState::None;
+	LiveCaption.Reset();
+	FinalPartialWav.Reset();
+	// 늦게 오는 응답은 세션 번호로 버린다
+	++CaptionSession;
+}
+
+TArray<uint8> UCXJeminiInputComponent::SnapshotWav() const
+{
+	if (bDebugFeeding)
+	{
+		const int32 MaxFrames = FMath::FloorToInt(MaxVoiceSeconds * DebugSampleRate);
+		const int32 Frames = FMath::Min3(DebugSamples.Num() / DebugChannels, static_cast<int32>(DebugPlayhead), MaxFrames);
+		if (Frames <= 0)
+		{
+			return {};
+		}
+		const TArray<float> Fed(DebugSamples.GetData(), Frames * DebugChannels);
+		return FCXJeminiVoiceRecorder::EncodeWav16kMono(Fed, DebugChannels, DebugSampleRate);
+	}
+	return Recorder.EncodeSnapshot(MaxVoiceSeconds);
+}
+
+void UCXJeminiInputComponent::TickLiveCaption()
+{
+	if (CaptionState == ECXLiveCaptionState::Listening)
+	{
+		if (!IsRecording())
+		{
+			// 녹음이 다른 경로로 끝남(EndPlay 등)
+			ClearLiveCaption();
+			return;
+		}
+		const double Now = FPlatformTime::Seconds();
+		if (!bPartialInFlight && Now - LastPartialTime >= LiveCaptionInterval && GetRecordSeconds() >= LiveCaptionMinSeconds)
+		{
+			SendPartial(SnapshotWav());
+		}
+	}
+	else if (CaptionState == ECXLiveCaptionState::Pending)
+	{
+		const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+		const float Waited = GetWorld()->GetTimeSeconds() - PendingStartTime;
+		// 기능 B: WARDEN에게 말한 경우 — WARDEN 응답이 올 때까지(최대 15초) 마지막 자막 유지
+		if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindTalkTarget(Cast<APawn>(GetOwner())); Warden && Warden->IsRequestPending() && Waited <= 15.0f)
+		{
+			return;
+		}
+		// 드론 대사가 바뀜 = 최종 응답 도착(이제 HUD가 Heard 말풍선을 그린다). 요청이 끝났는데 대사가 없거나 너무 오래면 지운다.
+		if (!Drone || Drone->GetDialogueSeq() != PendingDialogueSeq || (!Drone->IsRequestPending() && Waited > 1.0f) || Waited > 15.0f)
+		{
+			ClearLiveCaption();
+		}
+	}
+}
+
+void UCXJeminiInputComponent::SendPartial(const TArray<uint8>& Wav)
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (!Drone || Wav.Num() < 64)
+	{
+		return;
+	}
+	CXJemini::FEndpoint Endpoint = Drone->GetEndpoint();
+	Endpoint.TimeoutSec = LiveCaptionTimeout;
+	UE_LOG(LogCXJeminiInput, Log, TEXT("Live caption: send %d bytes (rec %.2fs, state %d)"), Wav.Num(), GetRecordSeconds(), static_cast<int32>(CaptionState));
+	bPartialInFlight = true;
+	LastPartialTime = FPlatformTime::Seconds();
+	++PartialSent;
+	const int32 Session = CaptionSession;
+	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
+	PartialRequest = CXJemini::SendSttPartial(Endpoint, Wav, FOnCXJeminiPartial::CreateLambda([WeakThis, Session](bool bOk, const FString& Text)
+	{
+		UCXJeminiInputComponent* Self = WeakThis.Get();
+		if (!Self)
+		{
+			return;
+		}
+		Self->bPartialInFlight = false;
+		Self->PartialRequest.Reset();
+		if (Session != Self->CaptionSession || Self->CaptionState == ECXLiveCaptionState::None)
+		{
+			return;
+		}
+		// null·실패면 이전 글자 유지(처음부터 없으면 아무것도 안 보임 = 기존 동작)
+		if (bOk)
+		{
+			++Self->PartialReceived;
+			Self->LiveCaption = Text.Left(60);
+		}
+		// 뗀 뒤 보낼 전체 WAV가 기다리고 있으면 이어서
+		if (Self->CaptionState == ECXLiveCaptionState::Pending && Self->FinalPartialWav.Num() > 0)
+		{
+			const TArray<uint8> Final = MoveTemp(Self->FinalPartialWav);
+			Self->FinalPartialWav.Reset();
+			Self->SendPartial(Final);
+		}
+	}));
+}
+
+FString UCXJeminiInputComponent::GetLiveCaptionDebug() const
+{
+	static const TCHAR* Names[] = { TEXT("None"), TEXT("Listening"), TEXT("Pending") };
+	return FString::Printf(TEXT("caption=%s text=\"%s\" sent=%d received=%d inflight=%d rec=%.2fs"), Names[static_cast<int32>(CaptionState)], *LiveCaption,
+		PartialSent, PartialReceived, bPartialInFlight ? 1 : 0, GetRecordSeconds());
+}
+
+// ---------------------------------------------------------------- 테스트: WAV 파일을 마이크처럼 흘려 넣기
+
+namespace CXJeminiInput
+{
+	/** RIFF WAV(16bit PCM) → float 인터리브 샘플. */
+	static bool DecodeWav16(const TArray<uint8>& Bytes, TArray<float>& OutSamples, int32& OutChannels, int32& OutRate)
+	{
+		auto Read32 = [&Bytes](int32 At)
+		{
+			return static_cast<uint32>(Bytes[At]) | (static_cast<uint32>(Bytes[At + 1]) << 8) | (static_cast<uint32>(Bytes[At + 2]) << 16) | (static_cast<uint32>(Bytes[At + 3]) << 24);
+		};
+		auto Read16 = [&Bytes](int32 At) { return static_cast<uint16>(Bytes[At] | (Bytes[At + 1] << 8)); };
+		if (Bytes.Num() < 44 || FMemory::Memcmp(Bytes.GetData(), "RIFF", 4) != 0 || FMemory::Memcmp(Bytes.GetData() + 8, "WAVE", 4) != 0)
+		{
+			return false;
+		}
+		int32 Bits = 0;
+		OutChannels = 0;
+		OutRate = 0;
+		int32 At = 12;
+		while (At + 8 <= Bytes.Num())
+		{
+			const uint32 Size = Read32(At + 4);
+			const int32 Body = At + 8;
+			if (FMemory::Memcmp(Bytes.GetData() + At, "fmt ", 4) == 0 && Body + 16 <= Bytes.Num())
+			{
+				OutChannels = Read16(Body + 2);
+				OutRate = static_cast<int32>(Read32(Body + 4));
+				Bits = Read16(Body + 14);
+			}
+			else if (FMemory::Memcmp(Bytes.GetData() + At, "data", 4) == 0)
+			{
+				if (Bits != 16 || OutChannels <= 0 || OutRate <= 0)
+				{
+					return false;
+				}
+				const int32 Count = FMath::Min(static_cast<int32>(Size), Bytes.Num() - Body) / 2;
+				OutSamples.SetNumUninitialized(Count);
+				for (int32 i = 0; i < Count; ++i)
+				{
+					OutSamples[i] = static_cast<int16>(Read16(Body + i * 2)) / 32768.0f;
+				}
+				return Count > 0;
+			}
+			At = Body + static_cast<int32>(Size) + static_cast<int32>(Size & 1);
+		}
+		return false;
+	}
+}
+
+bool UCXJeminiInputComponent::DebugFeedVoiceFile(const FString& WavPath)
+{
+	if (ChatWidget.IsValid() || IsRecording())
+	{
+		return false;
+	}
+	if (!CanTalkNow())
+	{
+		MarkBlocked();
+		return false;
+	}
+	TArray<uint8> Bytes;
+	const FString Path = FPaths::ConvertRelativePathToFull(WavPath.TrimQuotes());
+	if (!FFileHelper::LoadFileToArray(Bytes, *Path) || !CXJeminiInput::DecodeWav16(Bytes, DebugSamples, DebugChannels, DebugSampleRate))
+	{
+		UE_LOG(LogCXJeminiInput, Warning, TEXT("DebugFeedVoiceFile: cannot read 16-bit PCM WAV '%s'"), *Path);
+		DebugSamples.Reset();
+		return false;
+	}
+	DebugPlayhead = 0.0;
+	bDebugFeeding = true;
+	BeginLiveCaption();
+	UE_LOG(LogCXJeminiInput, Log, TEXT("DebugFeedVoiceFile: %s (%.2fs, %d ch, %d Hz) live captions %s"), *Path,
+		static_cast<float>(DebugSamples.Num()) / (DebugChannels * DebugSampleRate), DebugChannels, DebugSampleRate,
+		CaptionState == ECXLiveCaptionState::Listening ? TEXT("on") : TEXT("off"));
+	return true;
+}
+
+void UCXJeminiInputComponent::TickDebugFeed(float DeltaTime)
+{
+	if (!bDebugFeeding)
+	{
+		return;
+	}
+	// 실시간과 같은 속도로 흘려 넣고, 파일 끝(또는 최대 길이)이면 버튼을 뗀 것처럼 전송
+	DebugPlayhead += DeltaTime * DebugSampleRate;
+	const double TotalFrames = static_cast<double>(DebugSamples.Num() / DebugChannels);
+	if (DebugPlayhead >= TotalFrames || DebugPlayhead / DebugSampleRate >= MaxVoiceSeconds - 0.1f)
+	{
+		DebugPlayhead = FMath::Min(DebugPlayhead, TotalFrames);
+		OnTalkReleased();
+	}
+}

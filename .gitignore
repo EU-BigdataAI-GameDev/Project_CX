@@ -80,3 +80,23 @@ Saved/
 Binaries/
 Intermediate/
 DerivedDataCache/
+# 사운드 전달용 임시 폴더(언리얼 임포트 후 원본 삭제)
+Sounds/
+
+# Jemini server secrets/logs
+Jemini/.env
+Jemini/**/.env
+Jemini/logs/
+Jemini/**/__pycache__/
+Jemini/.venv/
+Jemini/dist/
+Jemini/build/
+Jemini/*.spec
+
+# Jemini live-caption STT model (tools/download_stt_model.py)
+Jemini/models/
+
+# 원본/중복 텍스처(FBX에 포함됨)
+Art/Source/Brother/RailBlaster/Textures_2K/
+Art/Source/Brother/RailBlaster/RailBlaster.fbx
+Art/Source/Brother/RailBlaster/RailBlaster_Game.fbm/

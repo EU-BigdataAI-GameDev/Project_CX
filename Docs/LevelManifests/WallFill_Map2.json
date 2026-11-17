@@ -1,0 +1,2332 @@
+{
+ "level": "/Game/Project_CX/Maps/Map2_SoulCity2.Map2_SoulCity2",
+ "tag": "GEN_WallFill",
+ "note": "add-only wall hole fills; remove = delete actors tagged GEN_WallFill",
+ "actors": [
+  {
+   "label": "FILL_S1_StartBackdrop",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a",
+   "v": 1,
+   "loc": [
+    740.0,
+    -1380.0,
+    149.8
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.0,
+    0.94,
+    1.43
+   ],
+   "bounds": [
+    710,
+    770,
+    -1980,
+    -780,
+    -300,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_EndBackdrop",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_03a.SM_Slums_Wall_03a",
+   "ref": "SM_Slums_Wall_03a2",
+   "v": 1,
+   "loc": [
+    740.0,
+    14940.0,
+    83.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.1667,
+    0.94,
+    1.6
+   ],
+   "bounds": [
+    710,
+    770,
+    14240,
+    15640,
+    -420,
+    586
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_000",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    -500.0,
+    -260.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.133,
+    2.2667
+   ],
+   "bounds": [
+    660,
+    685,
+    -800,
+    -200,
+    -600,
+    80
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_001",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    -500.0,
+    420.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.2545,
+    2.2666
+   ],
+   "bounds": [
+    660,
+    685,
+    -800,
+    -200,
+    80,
+    760
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_010",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    100.0,
+    -260.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.133,
+    2.2667
+   ],
+   "bounds": [
+    660,
+    685,
+    -200,
+    400,
+    -600,
+    80
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_011",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    100.0,
+    420.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.0448,
+    2.2619
+   ],
+   "bounds": [
+    660,
+    685,
+    -200,
+    400,
+    80,
+    760
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_020",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    700.0,
+    -260.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.2545,
+    2.2666
+   ],
+   "bounds": [
+    660,
+    685,
+    400,
+    1000,
+    -600,
+    80
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_A_021",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    700.0,
+    420.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.0,
+    1.0448,
+    2.2619
+   ],
+   "bounds": [
+    660,
+    685,
+    400,
+    1000,
+    80,
+    760
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_000",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    1350.0,
+    -325.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1000,
+    1700,
+    -600,
+    -50
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_001",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    1350.0,
+    225.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1000,
+    1700,
+    -50,
+    500
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_002",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    1350.0,
+    775.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.0448,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1000,
+    1700,
+    500,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_010",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    2050.0,
+    -325.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1700,
+    2400,
+    -600,
+    -50
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_011",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    2050.0,
+    225.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1700,
+    2400,
+    -50,
+    500
+   ]
+  },
+  {
+   "label": "FILL_S1_BackWall_B_012",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    2050.0,
+    775.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.8333
+   ],
+   "bounds": [
+    660,
+    685,
+    1700,
+    2400,
+    500,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_000",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    2675.0,
+    -37.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.133,
+    2.4167
+   ],
+   "bounds": [
+    660,
+    685,
+    2400,
+    2950,
+    -400,
+    325
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_001",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    2675.0,
+    687.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8301,
+    0.6998,
+    2.4167
+   ],
+   "bounds": [
+    660,
+    685,
+    2400,
+    2950,
+    325,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_010",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    3225.0,
+    -37.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.0448,
+    2.4166
+   ],
+   "bounds": [
+    660,
+    685,
+    2950,
+    3500,
+    -400,
+    325
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_011",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    3225.0,
+    687.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8301,
+    0.6998,
+    2.4167
+   ],
+   "bounds": [
+    660,
+    685,
+    2950,
+    3500,
+    325,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_020",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    3775.0,
+    -37.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.0448,
+    2.4166
+   ],
+   "bounds": [
+    660,
+    685,
+    3500,
+    4050,
+    -400,
+    325
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_021",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    3775.0,
+    687.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.0448,
+    2.4166
+   ],
+   "bounds": [
+    660,
+    685,
+    3500,
+    4050,
+    325,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_030",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    4325.0,
+    -37.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.0448,
+    2.4116
+   ],
+   "bounds": [
+    660,
+    685,
+    4050,
+    4600,
+    -400,
+    325
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_A_031",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    4325.0,
+    687.5
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8333,
+    1.0448,
+    2.4166
+   ],
+   "bounds": [
+    660,
+    685,
+    4050,
+    4600,
+    325,
+    1050
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_000",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    4950.0,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    4600,
+    5300,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_001",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    4950.0,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.0448,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    4600,
+    5300,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_002",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    4950.0,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3292,
+    0.6998,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    4600,
+    5300,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_010",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    5650.0,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.0448,
+    1.9958
+   ],
+   "bounds": [
+    660,
+    685,
+    5300,
+    6000,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_011",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    5650.0,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3292,
+    0.6998,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    5300,
+    6000,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S2_BackWall_B_012",
+   "folder": "Art/S2_Split/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    5650.0,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.3333,
+    1.2545,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    5300,
+    6000,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_000",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6283.3,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.2545,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    6000,
+    6567,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_001",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6283.3,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.133,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    6000,
+    6567,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_002",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6283.3,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.2545,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    6000,
+    6567,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_010",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6850.0,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.2545,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    6567,
+    7133,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_011",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6850.0,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    6567,
+    7133,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_012",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    6850.0,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    6567,
+    7133,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_020",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7416.7,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.133,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    7133,
+    7700,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_021",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7416.7,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8855,
+    0.6998,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    7133,
+    7700,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_022",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7416.7,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8855,
+    0.6998,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    7133,
+    7700,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_030",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7983.3,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9958
+   ],
+   "bounds": [
+    660,
+    685,
+    7700,
+    8267,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_031",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7983.3,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.133,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    7700,
+    8267,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_032",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    7983.3,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9958
+   ],
+   "bounds": [
+    660,
+    685,
+    7700,
+    8267,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_040",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    8550.0,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9958
+   ],
+   "bounds": [
+    660,
+    685,
+    8267,
+    8833,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_041",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    8550.0,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.133,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    8267,
+    8833,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_042",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    8550.0,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8855,
+    0.6998,
+    2.0
+   ],
+   "bounds": [
+    660,
+    685,
+    8267,
+    8833,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_050",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9116.7,
+    -100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    8833,
+    9400,
+    -400,
+    200
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_051",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9116.7,
+    500.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9999
+   ],
+   "bounds": [
+    660,
+    685,
+    8833,
+    9400,
+    200,
+    800
+   ]
+  },
+  {
+   "label": "FILL_S3_BackWall_052",
+   "folder": "Art/S3_Tenement/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9116.7,
+    1100.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.8889,
+    1.0448,
+    1.9958
+   ],
+   "bounds": [
+    660,
+    685,
+    8833,
+    9400,
+    800,
+    1400
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_000",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9733.3,
+    -91.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.133,
+    2.0556
+   ],
+   "bounds": [
+    660,
+    685,
+    9400,
+    10067,
+    -400,
+    217
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_001",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9733.3,
+    525.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2183,
+    0.6998,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    9400,
+    10067,
+    217,
+    833
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_002",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    9733.3,
+    1141.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.0448,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    9400,
+    10067,
+    833,
+    1450
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_010",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    10400.0,
+    -91.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.0448,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    10067,
+    10733,
+    -400,
+    217
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_011",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    10400.0,
+    525.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2183,
+    0.6998,
+    2.0556
+   ],
+   "bounds": [
+    660,
+    685,
+    10067,
+    10733,
+    217,
+    833
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_012",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    10400.0,
+    1141.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.0448,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    10067,
+    10733,
+    833,
+    1450
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_020",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    11066.7,
+    -91.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.0448,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    10733,
+    11400,
+    -400,
+    217
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_021",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    11066.7,
+    525.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2183,
+    0.6998,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    10733,
+    11400,
+    217,
+    833
+   ]
+  },
+  {
+   "label": "FILL_S4_BackWall_022",
+   "folder": "Art/S4_RooftopMarket/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    672.5,
+    11066.7,
+    1141.7
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.2222,
+    1.2545,
+    2.0555
+   ],
+   "bounds": [
+    660,
+    685,
+    10733,
+    11400,
+    833,
+    1450
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_000",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    10966.7,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    10600,
+    11333,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_001",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    10966.7,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.133,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    10600,
+    11333,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_002",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    10966.7,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3285
+   ],
+   "bounds": [
+    1320,
+    1345,
+    10600,
+    11333,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_010",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    11700.0,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    11333,
+    12067,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_011",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    11700.0,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.133,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    11333,
+    12067,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_012",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    11700.0,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4401,
+    0.6998,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    11333,
+    12067,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_020",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    12433.3,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12067,
+    12800,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_021",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02d.SM_Slums_Wall_02d",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    12433.3,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4401,
+    0.6998,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12067,
+    12800,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_022",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02k.SM_Slums_Wall_02k",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    12433.3,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.2545,
+    2.3332
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12067,
+    12800,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_030",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13166.7,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12800,
+    13533,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_031",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13166.7,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12800,
+    13533,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_032",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13166.7,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.133,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    12800,
+    13533,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_040",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13900.0,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3285
+   ],
+   "bounds": [
+    1320,
+    1345,
+    13533,
+    14267,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_041",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02c.SM_Slums_Wall_02c",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13900.0,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4401,
+    0.6998,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    13533,
+    14267,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_042",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    13900.0,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3285
+   ],
+   "bounds": [
+    1320,
+    1345,
+    13533,
+    14267,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_050",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    14633.3,
+    -450.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3285
+   ],
+   "bounds": [
+    1320,
+    1345,
+    14267,
+    15000,
+    -800,
+    -100
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_051",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    14633.3,
+    250.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.0448,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    14267,
+    15000,
+    -100,
+    600
+   ]
+  },
+  {
+   "label": "FILL_S5_BackWall_052",
+   "folder": "Art/S5_CaveDescent/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02a.SM_Slums_Wall_02a",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    1332.5,
+    14633.3,
+    950.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    2.4444,
+    1.133,
+    2.3333
+   ],
+   "bounds": [
+    1320,
+    1345,
+    14267,
+    15000,
+    600,
+    1300
+   ]
+  },
+  {
+   "label": "FILL_S0_StartBackdropLow_000",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02e.SM_Slums_Wall_02e",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    787.5,
+    -1470.0,
+    -475.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.5333,
+    1.0448,
+    1.4969
+   ],
+   "bounds": [
+    775,
+    800,
+    -1700,
+    -1240,
+    -700,
+    -250
+   ]
+  },
+  {
+   "label": "FILL_S0_StartBackdropLow_010",
+   "folder": "Art/S1_FloodedCanal/WallFill",
+   "kind": "art",
+   "mesh": "/Game/SoulCity/Environment/Meshes/Building_Slum/SM_Slums_Wall_02b.SM_Slums_Wall_02b",
+   "ref": null,
+   "v": 2,
+   "loc": [
+    787.5,
+    -1010.0,
+    -475.0
+   ],
+   "rot": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "scale": [
+    1.5333,
+    1.0448,
+    1.5
+   ],
+   "bounds": [
+    775,
+    800,
+    -1240,
+    -780,
+    -700,
+    -250
+   ]
+  }
+ ]
+}
