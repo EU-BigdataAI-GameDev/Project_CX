@@ -587,7 +587,7 @@ void UCXPauseMenuWidget::RebuildControlsColumn(int32 PlayerIndex)
 		{ TEXT("사격 (자동 조준)"), TEXT("마우스 좌클릭"), TEXT("RT") },
 		{ TEXT("조준 고정"), TEXT("마우스 우클릭"), TEXT("LT") },
 		{ TEXT("상호작용 (문 버튼)"), TEXT("F"), TEXT("X") },
-		{ TEXT("제미니·WARDEN에게 말하기"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
+		{ TEXT("제미니·WARDEN 대화"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
 	};
 	static const FRow SisterRows[] = {
 		{ TEXT("이동"), TEXT("W A S D"), TEXT("L 스틱") },
@@ -595,7 +595,7 @@ void UCXPauseMenuWidget::RebuildControlsColumn(int32 PlayerIndex)
 		{ TEXT("해킹 시작·확인 / 상호작용"), TEXT("F"), TEXT("X") },
 		{ TEXT("해킹 조작"), TEXT("방향키"), TEXT("D-패드") },
 		{ TEXT("해킹 취소"), TEXT("BACKSPACE"), TEXT("B") },
-		{ TEXT("제미니·WARDEN에게 말하기"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
+		{ TEXT("제미니·WARDEN 대화"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
 	};
 	const TArrayView<const FRow> Rows = PlayerIndex == 0 ? MakeArrayView(BrotherRows) : MakeArrayView(SisterRows);
 	for (const FRow& Row : Rows)

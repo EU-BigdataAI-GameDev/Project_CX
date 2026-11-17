@@ -1,10 +1,10 @@
-# [FIX] 패키징 쿠킹 누락 방지(타이틀·컷신 등)와 패키징·콘솔 명령 문서
+# [FIX] 패키징 빌드 오류 수정(PostEditChange)·쿠킹 누락 방지와 패키징·콘솔 명령 문서
 
 - 브랜치: `fix/lkj-package-cook-dirs` → `develop`
 
 ## 개요 (Overview)
 
-코드가 경로 문자열로 불러오는 에셋(타이틀 키아트·로고, 컷신 이미지 등)은 패키징 때 자동으로 쿠킹되지 않아, 에디터 PIE에서는 보이지만 exe에서는 빠질 수 있었습니다. 해당 폴더를 `DirectoriesToAlwaysCook`에 추가하고, 패키징·배포 체크리스트와 시연용 콘솔 명령 목록 문서를 정리했습니다.
+패키징이 `CXUIFonts.cpp`의 에디터 전용 호출(`Font->PostEditChange()`) 때문에 게임 타깃 컴파일에서 실패하던 것을 고쳤습니다(에디터 빌드는 통과해서 몰랐음). 또한 코드가 경로 문자열로 불러오는 에셋(타이틀 키아트·로고, 컷신 이미지 등)은 패키징 때 자동으로 쿠킹되지 않아, 에디터 PIE에서는 보이지만 exe에서는 빠질 수 있었습니다. 해당 폴더를 `DirectoriesToAlwaysCook`에 추가하고, 패키징·배포 체크리스트와 시연용 콘솔 명령 목록 문서를 정리했습니다.
 
 ## 관련 이슈 (Related Issues)
 
@@ -12,11 +12,12 @@
 
 ## 변경 사항 (Changes)
 
+- `CXUIFonts.cpp`: `Font->PostEditChange()`를 `#if WITH_EDITOR`로 감쌈(`C2039: PostEditChange는 UFont의 멤버가 아닙니다`로 패키징 실패). 게임 타깃(`Project_CX Win64 Development`) 컴파일 성공 확인
 - `Config/DefaultGame.ini` `DirectoriesToAlwaysCook`에 추가: `/Game/Project_CX/Title`, `/Game/Project_CX/Cutscene`, `/Game/Project_CX/Characters/Brother`, `/Game/Project_CX/Characters/Drone`, `/Game/Project_CX/Environment/Materials`
 - `Docs/Guide/패키징_배포_체크리스트.md`: 빌드 전 점검, 쿠킹 설정, 빌드(에디터·명령줄), 빌드 폴더 점검(`.env`·서버 exe 없음), 압축·전달, 팀원 PC 요구사항, 패키징본 실행 확인, 실행 방법 템플릿, 알려진 한계
 - `Docs/Guide/콘솔_명령_목록.md`: 시연 시나리오별 순서(제미니·WARDEN·맵 이동·컷신·튜토리얼)와 전체 `CX…` 명령 표, 엔진 기본 명령
 - `CLAUDE.md` 문서 표, `Docs/Guide/빌드_실행.md`에 링크 추가
-- 코드 변경 없음(설정과 문서만)
+- 코드 변경은 위 한 줄(에디터 전용 호출 가드)뿐
 
 ---
 

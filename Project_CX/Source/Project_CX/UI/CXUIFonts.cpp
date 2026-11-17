@@ -154,7 +154,10 @@ bool UCXUIFonts::ConfigureCompositeFont(UFont* Font, const TArray<FName>& Typefa
 #if WITH_EDITORONLY_DATA
 	Composite.MakeDirty();
 #endif
+#if WITH_EDITOR
+	// PostEditChange는 에디터 전용(UObject::PostEditChange는 WITH_EDITOR에서만 선언된다) — 패키징(게임 타깃) 컴파일이 막히지 않게 감싼다
 	Font->PostEditChange();
+#endif
 	Font->MarkPackageDirty();
 	return true;
 }
