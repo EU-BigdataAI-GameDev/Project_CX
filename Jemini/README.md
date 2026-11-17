@@ -55,7 +55,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 - 모델: `models/faster-whisper-small/`(464MB, gitignore). `python tools/download_stt_model.py`(`--test my.wav`로 확인). 없으면 서버 첫 실행 때 자동으로 받는다(`STT_AUTO_DOWNLOAD`).
 - 서버 시작 후 백그라운드로 모델을 읽는다(약 1.5초). 읽는 중·꺼짐·실패·무음이면 `text: null` → 게임은 무시(기존처럼 최종 말풍선만).
 - 속도(12코어, 4스레드): 음성 1~4초 모두 요청당 약 0.85초(Whisper가 30초 창을 처리해 길이와 거의 무관).
-- 끄기: `.env` `STT_ENABLED=false`. 허깅페이스 Space(무료 CPU)에서는 끄는 것을 권장.
+- 끄기: `.env` `STT_ENABLED=false`. 외부 배포 서버(무료 CPU)에서는 끄는 것을 권장(Dockerfile이 끈다).
 
 ## 규칙 요약
 
@@ -76,7 +76,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 패키징한 게임에 서버 넣기:
 1. `Jemini\tools\build_exe.bat` → `Jemini/dist/jemini-server/jemini-server.exe`(파이썬 없이 실행되는 폴더형 exe). 실시간 자막 모델을 받아 exe 옆 `models/`에 넣는다(폴더 약 680MB: 실행 파일 205MB + 모델 464MB).
 2. `Tools\copy_jemini_to_package.bat <Project_CX.exe가 있는 폴더> --with-key`
-   - `--with-key`는 `.env`(API 키)까지 복사한다. **내 PC·발표 노트북용만.** 남에게 주는 빌드에는 키를 넣지 말고 허깅페이스 Space 주소를 쓴다(아래 2단계).
+   - `--with-key`는 `.env`(API 키)까지 복사한다. **내 PC·발표 노트북용만.** 남에게 주는 빌드에는 키를 넣지 말고 배포한 서버(Render) 주소를 쓴다(아래 2단계).
 3. 서버 로그: `Jemini/logs/jemini.jsonl`(요청), 창 없이 실행될 때 출력은 `Jemini/logs/server.log`.
 
 끄고 싶으면 `DefaultGame.ini` `[/Script/Project_CX.CXJeminiServerSubsystem] bAutoStartServer=False`.
@@ -86,18 +86,14 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 - 서버 주소: `Project_CX/Config/DefaultGame.ini` `[/Script/Project_CX.CXJeminiDrone]`의 `ServerUrl` (**따옴표 필수** — 따옴표가 없으면 `//` 뒤가 잘린다), `ApiToken`.
 - 게임: 키보드 `Enter` → 채팅 → `Enter`, 게임패드 `Y` 누르는 동안 녹음. 콘솔 `CXJemini 총알 채워줘`, `CXJeminiBattery 3`.
 
-## 허깅페이스 Space 배포 (2단계)
+## 외부 서버 배포 (2단계) — Render
 
-1. huggingface.co → New Space → SDK **Docker** → 이름 입력(무료 CPU).
-2. Space Settings → **Secrets**: `GEMINI_API_KEY`, `API_TOKEN`(아무 긴 문자열). 필요하면 Variables에 `GEMINI_MODEL`.
-3. 이 `Jemini/` 폴더 내용을 Space 저장소에 push(`.env`, `.venv`는 제외 — `.dockerignore`/`.gitignore`가 막음).
-   ```bash
-   git clone https://huggingface.co/spaces/<계정>/<스페이스>
-   # Jemini/ 안의 app/ prompts/ Dockerfile requirements.txt README.md .dockerignore 복사 후
-   git add . && git commit -m "deploy" && git push
-   ```
-4. 빌드가 끝나면 `https://<계정>-<스페이스>.hf.space/health` 확인 → UE ini `ServerUrl`을 그 주소로, `ApiToken`을 같은 값으로.
-5. 무료 Space는 쉬면 잠든다 → 발표 직전에 `/health`로 깨워 둘 것.
+키는 서버에만 둔다. 배포판(게임 zip)에는 키를 넣지 않고 서버 주소와 `API_TOKEN`만 넣는다.
+허깅페이스 Docker Space는 2026년 7월부터 무료 계정에서 만들 수 없어 Render(무료 웹 서비스)로 배포한다.
+
+- 단계별 절차, 저장소 구조, 환경변수, 운영 메모는 **`../Docs/Jemini/서버_배포_가이드.md`**.
+- 요약: 서버 파일만 배포용 저장소(`jemini-server`)에 복사(`tools/deploy_to_repo.ps1`) → GitHub에 push → Render가 Dockerfile로 빌드(`GEMINI_API_KEY`, `API_TOKEN` 환경변수) → `https://<서비스>.onrender.com/health` 확인 → 게임 `DefaultGame.ini`의 `ServerUrl`·`ApiToken` 교체.
+- Space·Render 이미지는 실시간 자막(faster-whisper)을 끈다(`STT_ENABLED=false`, 의존성은 `requirements-space.txt`). 음성 명령 자체는 동작한다.
 
 ## 시연 화면 (3단계, Streamlit)
 

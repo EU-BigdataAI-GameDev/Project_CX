@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,3 +18,12 @@ def write_log(path: Path, record: dict[str, Any]) -> None:
     line = json.dumps(record, ensure_ascii=False, default=str)
     with _lock, path.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+_KEY_PATTERN = re.compile(r"AIza[0-9A-Za-z_\-]{20,}")
+_server_log = logging.getLogger("uvicorn.error")
+
+
+def log_llm_error(kind: str, error: object) -> None:
+    """LLM 호출 실패 이유를 표준 오류(호스팅 서비스의 Logs 화면)에 남긴다. 키처럼 보이는 문자열은 가린다."""
+    _server_log.warning("LLM_ERROR (%s): %s", kind, _KEY_PATTERN.sub("<redacted>", str(error))[:300])

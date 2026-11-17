@@ -28,6 +28,20 @@ void UCXJeminiServerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		// 원격 서버(허깅페이스 Space 등)는 띄울 필요가 없다
 		State = EState::Remote;
 		UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: remote server %s — not launching locally"), *BaseUrl);
+
+		// 무료 허깅페이스 Space는 한동안 안 쓰면 잠든다(깨어나는 데 1분 안팎). 게임을 켜는 순간 /health로 미리 깨워
+		// 첫 제미니·WARDEN 요청이 "통신 지연"으로 끝나지 않게 한다. 응답 내용은 쓰지 않는다.
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> WarmUp = FHttpModule::Get().CreateRequest();
+		WarmUp->SetURL(BaseUrl + TEXT("/health"));
+		WarmUp->SetVerb(TEXT("GET"));
+		WarmUp->SetTimeout(90.0f);
+		WarmUp->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr, FHttpResponsePtr Response, bool bConnected)
+		{
+			UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: remote warm-up %s (HTTP %d)"),
+				(bConnected && Response.IsValid() && Response->GetResponseCode() == 200) ? TEXT("ok") : TEXT("no response"),
+				Response.IsValid() ? Response->GetResponseCode() : 0);
+		});
+		WarmUp->ProcessRequest();
 		return;
 	}
 	CheckThenLaunch(BaseUrl, Host, Port);
