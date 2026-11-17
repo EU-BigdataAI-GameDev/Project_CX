@@ -20,6 +20,7 @@
 #include "CXLevelExit.h"
 #include "CXSfx.h"
 #include "CXUIFonts.h"
+#include "CXTutorialSubsystem.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -139,6 +140,10 @@ void ACoopHUD::DrawHUD()
 
 	UIScale = FMath::Clamp(FMath::Min(Canvas->ClipX / CoopHUDLayout::RefWidth, Canvas->ClipY / CoopHUDLayout::RefHeight), 0.5f, 2.0f) * CoopHUDLayout::HudGrow;
 	FrameBlockers.Reset();
+	for (bool& bValid : bTutorialSpotValid)
+	{
+		bValid = false;
+	}
 
 	APawn* MyPawn = GetOwningPawn();
 	const bool bIsSister = Cast<ASisterCharacter>(MyPawn) != nullptr;
@@ -242,6 +247,8 @@ void ACoopHUD::DrawHUD()
 	DrawJemini(MyPawn, bDead, bIsSister, MyCombat);
 	DrawFlowNotices(MyPawn, bDead);
 	DrawZoneBanner();
+	// 튜토리얼 카드는 다른 HUD 위, 맵 이동 페이드 아래
+	DrawTutorial(bIsSister, MyColor);
 	DrawTravelFade();
 }
 
@@ -268,6 +275,8 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		const float X = Canvas->ClipX - CoopHUDLayout::Margin * S() - W;
 		const float Y = CoopHUDLayout::Margin * S();
 		Panel(X, Y, W, H, Accent);
+		// 튜토리얼 강조: 배터리 패널 + 아래 상태 줄·말 걸기 안내 줄까지
+		SetTutorialSpot(ECXTutorialSpot::JeminiPanel, X, Y, W, H + 56.0f * S());
 		Label(TEXT("JEMINI  //  DRONE"), X + Pad, Y + 6.0f * S(), JeminiColor.CopyWithNewOpacity(0.8f), GameFont(ECXHudFont::Tiny), 1.0f);
 		// 서버가 LLM 대신 mock 키워드 판별로 처리 중(한도 초과 등) — 제목 옆에 작게
 		if (Drone->IsServerMock())
@@ -634,6 +643,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 			Label(Rows[r].Text, X + Pad, Y + Pad * 0.7f + r * LineH, Rows[r].Color, Rows[r].bHeader ? GameFont(ECXHudFont::Tiny) : BodyFont, 1.0f);
 		}
 		AddBlocker(X, Y, W, H);
+		SetTutorialSpot(ECXTutorialSpot::EvidencePanel, X, Y, W, H);
 		EvidencePanelBottom = Y + H;
 	}
 
@@ -949,6 +959,7 @@ void ACoopHUD::DrawSisterHackLink()
 	const float Y = Canvas->ClipY - CoopHUDLayout::Margin * S() - H;
 	const FLinearColor Accent = bActive ? SisterColor : SisterColor.CopyWithNewOpacity(bInSignal ? 0.85f : 0.55f);
 	Panel(X, Y, W, H, Accent);
+	SetTutorialSpot(ECXTutorialSpot::HackLinkPanel, X, Y, W, H);
 
 	const float Pad = 16.0f * S();
 	Label(TEXT("HACK LINK"), X + Pad, Y + 8.0f * S(), SisterColor.CopyWithNewOpacity(0.8f), GameFont(ECXHudFont::Tiny), 1.0f);
@@ -3057,5 +3068,265 @@ void ACoopHUD::DrawCircuitRelay(const APawn& MyPawn)
 			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.88f * Fade), X + 2.0f * S(), Y + 2.0f * S(), W - 4.0f * S(), 30.0f * S());
 		}
 		Label(Msg, X + W * 0.5f, MsgY, MsgColor.CopyWithNewOpacity(Fade), SysFont(ECXHudFont::Small), 1.1f, true);
+	}
+}
+
+// ---------------------------------------------------------------- 튜토리얼(코치 마크, Docs/Guide/튜토리얼_가이드.md)
+
+void ACoopHUD::SetTutorialSpot(ECXTutorialSpot Spot, float X, float Y, float W, float H)
+{
+	const int32 Index = static_cast<int32>(Spot);
+	if (Index > 0 && Index < static_cast<int32>(ECXTutorialSpot::Count))
+	{
+		TutorialSpots[Index] = FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H));
+		bTutorialSpotValid[Index] = true;
+	}
+}
+
+void ACoopHUD::DrawTutorial(bool bIsSister, const FLinearColor& MyColor)
+{
+	const UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this);
+	FCXTutorialView View;
+	if (!Tutorial || !Canvas || !Tutorial->GetView(bIsSister, View))
+	{
+		return;
+	}
+
+	// 월드가 멈춰 있어도(Info 카드) 깜빡임·등장 페이드가 돌도록 실시간 기준(Pulse()는 월드 시간이라 쓰지 않는다)
+	const float CW = Canvas->ClipX;
+	const float CH = Canvas->ClipY;
+	const float Fade = FMath::Clamp(View.Age / 0.2f, 0.0f, 1.0f);
+	const float Blink = 0.5f + 0.5f * FMath::Sin(View.RealTime * 5.0f);
+	const float Scale = S() * CoopHUDLayout::TextScale;
+	const float Edge = CoopHUDLayout::Margin * S();
+	const FLinearColor Backing(0.01f, 0.015f, 0.03f, 0.9f * Fade);
+	const FLinearColor Accent = MyColor.CopyWithNewOpacity(Fade);
+
+	// 대상이 아닌 칸: 파트너의 설명 카드 때문에 멈춰 있다는 것만 알린다
+	if (View.bWaitingNotice)
+	{
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, View.DimAlpha * Fade), 0.0f, 0.0f, CW, CH);
+		const FString Text = TEXT("파트너가 안내를 읽고 있습니다…");
+		UFont* Font = SysFont(ECXHudFont::Medium);
+		float TW = 0.0f, TH = 0.0f;
+		GetTextSize(Text, TW, TH, Font, Scale);
+		const float W = TW + 56.0f * S();
+		const float H = TH + 24.0f * S();
+		const float X = (CW - W) * 0.5f;
+		const float Y = (CH - H) * 0.5f;
+		DrawRect(Backing, X, Y, W, H);
+		DrawRect(Accent, X, Y, W, 2.0f * S());
+		Label(Text, CW * 0.5f, Y + 12.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, (0.6f + 0.4f * Blink) * Fade), Font, 1.0f, true);
+		return;
+	}
+
+	// 1) 강조 상자 위치: HUD 요소(이번 프레임에 그린 영역) 또는 월드 액터 투영
+	FBox2D Spot(ForceInit);
+	bool bSpot = false;
+	if (View.Spot == ECXTutorialSpot::WorldTarget)
+	{
+		const AActor* Target = View.SpotActor.Get();
+		if (Target && PlayerOwner)
+		{
+			FVector Origin, Extent;
+			Target->GetActorBounds(true, Origin, Extent);
+			FVector ViewLoc;
+			FRotator ViewRot;
+			PlayerOwner->GetPlayerViewPoint(ViewLoc, ViewRot);
+			if (FVector::DotProduct(Origin - ViewLoc, ViewRot.Vector()) > 0.0f)
+			{
+				const FVector Center = Project(Origin, false);
+				const FVector Top = Project(Origin + FVector(0.0f, 0.0f, Extent.Z), false);
+				const float Half = FMath::Clamp(FMath::Abs(static_cast<float>(Center.Y - Top.Y)) * 1.7f, 40.0f * S(), 150.0f * S());
+				if (Center.X > 0.0f && Center.X < CW && Center.Y > 0.0f && Center.Y < CH)
+				{
+					Spot = FBox2D(FVector2D(Center.X - Half * 1.25f, Center.Y - Half), FVector2D(Center.X + Half * 1.25f, Center.Y + Half));
+					bSpot = true;
+				}
+			}
+		}
+	}
+	else if (View.Spot != ECXTutorialSpot::None && bTutorialSpotValid[static_cast<int32>(View.Spot)])
+	{
+		Spot = TutorialSpots[static_cast<int32>(View.Spot)].ExpandBy(8.0f * S());
+		bSpot = true;
+	}
+	if (bSpot)
+	{
+		Spot.Min.X = FMath::Clamp(Spot.Min.X, 0.0, static_cast<double>(CW));
+		Spot.Min.Y = FMath::Clamp(Spot.Min.Y, 0.0, static_cast<double>(CH));
+		Spot.Max.X = FMath::Clamp(Spot.Max.X, 0.0, static_cast<double>(CW));
+		Spot.Max.Y = FMath::Clamp(Spot.Max.Y, 0.0, static_cast<double>(CH));
+		bSpot = Spot.Max.X - Spot.Min.X > 4.0 && Spot.Max.Y - Spot.Min.Y > 4.0;
+	}
+	const float SX = bSpot ? static_cast<float>(Spot.Min.X) : 0.0f;
+	const float SY = bSpot ? static_cast<float>(Spot.Min.Y) : 0.0f;
+	const float SW = bSpot ? static_cast<float>(Spot.Max.X - Spot.Min.X) : 0.0f;
+	const float SH = bSpot ? static_cast<float>(Spot.Max.Y - Spot.Min.Y) : 0.0f;
+
+	// 2) 나머지 화면 어둡게(강조 상자 안은 비워 둔다)
+	const float Dim = View.DimAlpha * Fade;
+	if (Dim > 0.01f)
+	{
+		const FLinearColor DimColor(0.0f, 0.0f, 0.0f, Dim);
+		if (bSpot)
+		{
+			DrawRect(DimColor, 0.0f, 0.0f, CW, SY);
+			DrawRect(DimColor, 0.0f, SY + SH, CW, CH - (SY + SH));
+			DrawRect(DimColor, 0.0f, SY, SX, SH);
+			DrawRect(DimColor, SX + SW, SY, CW - (SX + SW), SH);
+		}
+		else
+		{
+			DrawRect(DimColor, 0.0f, 0.0f, CW, CH);
+		}
+	}
+
+	// 3) 강조 상자: 네온 테두리(맥박) + 모서리 브래킷 — 자기 플레이어 색
+	if (bSpot)
+	{
+		const FLinearColor Line = MyColor.CopyWithNewOpacity((0.55f + 0.45f * Blink) * Fade);
+		const float T = 2.0f * S();
+		DrawRect(Line, SX, SY, SW, T);
+		DrawRect(Line, SX, SY + SH - T, SW, T);
+		DrawRect(Line, SX, SY, T, SH);
+		DrawRect(Line, SX + SW - T, SY, T, SH);
+		const float Arm = FMath::Min(16.0f * S(), FMath::Min(SW, SH) * 0.35f);
+		const float Thick = 4.0f * S();
+		const float Out = 4.0f * S() + 3.0f * S() * Blink;	// 브래킷이 바깥으로 살짝 숨 쉰다
+		const float L = SX - Out, R = SX + SW + Out, Tp = SY - Out, B = SY + SH + Out;
+		DrawRect(Accent, L, Tp, Arm, Thick);
+		DrawRect(Accent, L, Tp, Thick, Arm);
+		DrawRect(Accent, R - Arm, Tp, Arm, Thick);
+		DrawRect(Accent, R - Thick, Tp, Thick, Arm);
+		DrawRect(Accent, L, B - Thick, Arm, Thick);
+		DrawRect(Accent, L, B - Arm, Thick, Arm);
+		DrawRect(Accent, R - Arm, B - Thick, Arm, Thick);
+		DrawRect(Accent, R - Thick, B - Arm, Thick, Arm);
+	}
+
+	// 4) 카드 내용 크기 — 한글은 SysFont(IBM Plex Mono + 한글 서브 폰트, 베타 종료 안내와 같은 방식)
+	const bool bBanner = View.Mode == ECXTutorialMode::Hint;
+	UFont* HeadFont = GameFont(ECXHudFont::Tiny);
+	UFont* TitleFont = SysFont(ECXHudFont::Large);
+	UFont* BodyFont = SysFont(ECXHudFont::Medium);
+	UFont* FootFont = SysFont(ECXHudFont::Small);
+	const float TitleMul = bBanner ? 1.05f : 1.25f;
+	const float Pad = (bBanner ? 14.0f : 20.0f) * S();
+	const float MaxW = FMath::Max(200.0f * S(), FMath::Min((bBanner ? 780.0f : 840.0f) * S(), CW - 2.0f * Edge));
+	const float TextMaxW = MaxW - 2.0f * Pad;
+
+	TArray<FString> Body;
+	if (!View.Line1.IsEmpty())
+	{
+		Body.Append(WrapText(View.Line1, BodyFont, Scale, TextMaxW, 2));
+	}
+	if (!View.Line2.IsEmpty())
+	{
+		Body.Append(WrapText(View.Line2, BodyFont, Scale, TextMaxW, 2));
+	}
+	const FString Head = FString::Printf(TEXT("TUTORIAL  //  %02d"), View.StepNumber);
+	float HeadW = 0.0f, HeadH = 0.0f, TitleW = 0.0f, TitleH = 0.0f, BodyW = 0.0f, BodyH = 0.0f, FootW = 0.0f, FootH = 0.0f, Dummy = 0.0f;
+	GetTextSize(Head, HeadW, HeadH, HeadFont, Scale);
+	GetTextSize(View.Title, TitleW, TitleH, TitleFont, Scale * TitleMul);
+	GetTextSize(TEXT("가"), Dummy, BodyH, BodyFont, Scale);
+	BodyH += 3.0f * S();
+	for (const FString& Line : Body)
+	{
+		float LW = 0.0f, LH = 0.0f;
+		GetTextSize(Line, LW, LH, BodyFont, Scale);
+		BodyW = FMath::Max(BodyW, LW);
+	}
+	// 예시 문장 칩(키보드 플레이어는 [1]~[3] 키 표시)
+	const float ChipKeyW = View.bChipKeys ? 46.0f * S() : 0.0f;
+	const float ChipPad = 12.0f * S();
+	const float ChipH = BodyH + 8.0f * S();
+	const float ChipGap = 6.0f * S();
+	float ChipW = 0.0f;
+	for (const FString& Chip : View.Chips)
+	{
+		float LW = 0.0f, LH = 0.0f;
+		GetTextSize(Chip, LW, LH, BodyFont, Scale);
+		ChipW = FMath::Max(ChipW, LW + ChipKeyW + 2.0f * ChipPad);
+	}
+	if (!View.Footer.IsEmpty())
+	{
+		GetTextSize(View.Footer, FootW, FootH, FootFont, Scale);
+	}
+
+	const float ContentW = FMath::Max(FMath::Max(TitleW, BodyW), FMath::Max3(ChipW, FootW, bBanner ? 0.0f : HeadW));
+	const float W = FMath::Clamp(ContentW + 2.0f * Pad, FMath::Min((bBanner ? 300.0f : 520.0f) * S(), MaxW), MaxW);
+	const float H = 1.6f * Pad + (bBanner ? 0.0f : HeadH + 4.0f * S()) + TitleH + 6.0f * S() + Body.Num() * BodyH
+		+ (View.Chips.Num() > 0 ? 10.0f * S() + View.Chips.Num() * (ChipH + ChipGap) : 0.0f)
+		+ (View.Footer.IsEmpty() ? 0.0f : 12.0f * S() + FootH);
+
+	// 5) 카드 위치: Hint = 칸 아래 가운데 띠, Action = 가운데 아래쪽(적을 가리지 않게), Info = 정가운데. 강조 상자와 겹치면 비킨다.
+	float X = (CW - W) * 0.5f;
+	float Y = bBanner ? CH - Edge - H - 6.0f * S() : (View.Mode == ECXTutorialMode::Action ? CH * 0.62f : (CH - H) * 0.5f);
+	Y = FMath::Clamp(Y, FMath::Min(Edge, FMath::Max(0.0f, (CH - H) * 0.5f)), FMath::Max(0.0f, CH - H - Edge * 0.5f));
+	if (bSpot && Spot.Intersect(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H))))
+	{
+		const float Gap = 16.0f * S();
+		const float Below = SY + SH + Gap;
+		const float Above = SY - H - Gap;
+		if (Below + H <= CH - Edge * 0.5f)
+		{
+			Y = Below;
+		}
+		else if (Above >= Edge * 0.5f)
+		{
+			Y = Above;
+		}
+		else if (SX - W - Gap >= Edge * 0.5f)
+		{
+			X = SX - W - Gap;	// 위아래 자리가 없으면 옆으로
+		}
+		else if (SX + SW + Gap + W <= CW - Edge * 0.5f)
+		{
+			X = SX + SW + Gap;
+		}
+	}
+
+	// 6) 카드
+	DrawRect(Backing, X, Y, W, H);
+	DrawRect(Accent, X, Y, W, 2.0f * S());
+	DrawRect(Accent, X, Y, 4.0f * S(), H);
+	DrawRect(MyColor.CopyWithNewOpacity(0.45f * Fade), X, Y + H - 1.0f * S(), W, 1.0f * S());
+	DrawLine(X + W - 14.0f * S(), Y + H, X + W, Y + H - 14.0f * S(), MyColor.CopyWithNewOpacity(0.6f * Fade), 1.5f);
+
+	float RowY = Y + 0.8f * Pad;
+	if (!bBanner)
+	{
+		Label(Head, X + Pad, RowY, MyColor.CopyWithNewOpacity(0.8f * Fade), HeadFont, 1.0f);
+		RowY += HeadH + 4.0f * S();
+	}
+	Label(View.Title, X + Pad, RowY, bBanner ? Accent : FLinearColor(1.0f, 1.0f, 1.0f, Fade), TitleFont, TitleMul);
+	RowY += TitleH + 6.0f * S();
+	for (const FString& Line : Body)
+	{
+		Label(Line, X + Pad, RowY, FLinearColor(1.0f, 1.0f, 1.0f, 0.92f * Fade), BodyFont, 1.0f);
+		RowY += BodyH;
+	}
+	if (View.Chips.Num() > 0)
+	{
+		RowY += 10.0f * S();
+		for (int32 i = 0; i < View.Chips.Num(); ++i)
+		{
+			const float ChipX = X + Pad;
+			const float ChipRowW = W - 2.0f * Pad;
+			DrawRect(MyColor.CopyWithNewOpacity(0.14f * Fade), ChipX, RowY, ChipRowW, ChipH);
+			DrawRect(MyColor.CopyWithNewOpacity(0.7f * Fade), ChipX, RowY, 2.0f * S(), ChipH);
+			if (View.bChipKeys)
+			{
+				Label(FString::Printf(TEXT("[%d]"), i + 1), ChipX + ChipPad, RowY + 4.0f * S(), Accent, BodyFont, 1.0f);
+			}
+			Label(View.Chips[i], ChipX + ChipPad + ChipKeyW, RowY + 4.0f * S(), FLinearColor(1.0f, 1.0f, 1.0f, 0.95f * Fade), BodyFont, 1.0f);
+			RowY += ChipH + ChipGap;
+		}
+	}
+	if (!View.Footer.IsEmpty())
+	{
+		RowY += 12.0f * S();
+		Label(View.Footer, X + W * 0.5f, RowY, MyColor.CopyWithNewOpacity((0.6f + 0.4f * Blink) * Fade), FootFont, 1.0f, true);
 	}
 }

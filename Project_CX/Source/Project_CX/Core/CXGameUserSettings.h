@@ -87,7 +87,25 @@ public:
 
 	static bool IsValidSlot(int32 PlayerIndex) { return PlayerIndex == 0 || PlayerIndex == 1; }
 
+	// --- 튜토리얼(Docs/Guide/튜토리얼_가이드.md) — 단계마다 한 번만 보여 주기 위한 "봤음" 기록과 전체 on/off ---
+	// 세이브(CX_Slot0)가 아니라 여기 두는 이유: 세이브는 세이브포인트에서만 쓰고 새 게임 때 지워진다.
+	// 바꾸는 즉시 SaveSettings로 GameUserSettings.ini에 쓴다. 시작화면 NEW GAME이 ResetTutorialSeen을 부른다.
+	bool IsTutorialEnabled() const { return bTutorialEnabled; }
+	void SetTutorialEnabled(bool bEnabled);
+	bool IsTutorialSeen(const FString& StepId) const { return TutorialSeenSteps.Contains(StepId); }
+	void MarkTutorialSeen(const FString& StepId);
+	void ResetTutorialSeen();
+	const TArray<FString>& GetTutorialSeenSteps() const { return TutorialSeenSteps; }
+
 protected:
+	/** 튜토리얼 전체 on/off(콘솔 CXTutorialEnable 0|1). */
+	UPROPERTY(Config)
+	bool bTutorialEnabled = true;
+
+	/** 이미 본 튜토리얼 단계 Id(FCXTutorialStepDef::Id). */
+	UPROPERTY(Config)
+	TArray<FString> TutorialSeenSteps;
+
 	/** 전체 음량(0~100). */
 	UPROPERTY(Config)
 	int32 MasterVolume = DefaultMasterVolume;

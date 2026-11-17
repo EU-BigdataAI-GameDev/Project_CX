@@ -77,6 +77,9 @@ public:
 	 */
 	bool RequestJeminiReload();
 
+	/** 마지막으로 쏜 월드 시각(쏜 적 없으면 음수). 튜토리얼 "첫 사격" 완료 판정용(UCXTutorialSubsystem). */
+	double GetLastShotWorldTime() const { return LastShotWorldTime; }
+
 	/** HUD: 탄약 0 + 장전 중 아님 → 제미니에게 재장전 요청 안내. */
 	bool NeedsJeminiReload() const { return CurrentAmmo <= 0 && !bIsReloading; }
 

@@ -54,6 +54,8 @@ class SCXJeminiChatBox : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SCXJeminiChatBox) : _bVerticalCenter(false), _bWarden(false) {}
+		/** 미리 넣어 둘 문장(튜토리얼 예시). 포커스를 받으면 전체 선택된다. */
+		SLATE_ARGUMENT(FString, InitialText)
 		/** 위아래 분할이면 두 칸 경계(화면 세로 중앙)에 놓는다. 좌우 분할은 아래쪽 가운데. */
 		SLATE_ARGUMENT(bool, bVerticalCenter)
 		/** WARDEN과 말하는 중: 라벨·힌트를 바꾸고 n/200 글자 수를 보여 준다. */
@@ -129,6 +131,11 @@ public:
 				]
 			]
 		];
+
+		if (!InArgs._InitialText.IsEmpty() && TextBox.IsValid())
+		{
+			TextBox->SetText(FText::FromString(InArgs._InitialText));
+		}
 
 		if (FSlateApplication::IsInitialized())
 		{
@@ -436,7 +443,17 @@ void UCXJeminiInputComponent::OnChatPressed()
 	OpenChat();
 }
 
-void UCXJeminiInputComponent::OpenChat()
+bool UCXJeminiInputComponent::OpenChatWithText(const FString& Text)
+{
+	if (ChatWidget.IsValid() || IsRecording() || !CanTalkNow())
+	{
+		return false;
+	}
+	OpenChat(Text);
+	return ChatWidget.IsValid();
+}
+
+void UCXJeminiInputComponent::OpenChat(const FString& InitialText)
 {
 	APawn* Pawn = Cast<APawn>(GetOwner());
 	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
@@ -452,7 +469,8 @@ void UCXJeminiInputComponent::OpenChat()
 	const bool bSplit = Split == ESplitScreenType::TwoPlayer_Vertical || Split == ESplitScreenType::TwoPlayer_Horizontal;
 	TSharedRef<SCXJeminiChatBox> Box = SNew(SCXJeminiChatBox)
 		.bVerticalCenter(Split == ESplitScreenType::TwoPlayer_Horizontal)
-		.bWarden(ACXWardenTerminal::FindTalkTarget(Pawn) != nullptr);
+		.bWarden(ACXWardenTerminal::FindTalkTarget(Pawn) != nullptr)
+		.InitialText(InitialText);
 	TWeakObjectPtr<UCXJeminiInputComponent> WeakThis(this);
 	Box->OnSubmit = [WeakThis](const FString& Text)
 	{

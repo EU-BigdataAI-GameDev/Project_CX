@@ -104,6 +104,9 @@ public:
 	/** 재개 직후 게임플레이 입력 무시 중(A/Enter가 점프·사격으로 새지 않게). */
 	bool IsGameplayInputBlocked() const;
 
+	/** 지금부터 Seconds초 동안 게임플레이 입력 무시(튜토리얼 설명 카드를 닫은 직후 — 확인 키가 점프·사격으로 새지 않게). */
+	void BlockGameplayInput(float Seconds);
+
 	/** 프리프로세서: 메뉴가 없을 때 ESC/Start. 인게임 월드면 열기 시도 후 소비(true), 시작화면 등이면 false(흘려보냄). */
 	bool HandlePauseKey(bool bFromGamepad, FInputDeviceId DeviceId);
 

@@ -809,6 +809,8 @@ bool UCXTitleMenuWidget::TryStartGame(bool bContinue)
 	auto StartNew = [this]()
 	{
 		UCXSaveGame::DeleteSlot();
+		// 새 게임 = 처음 하는 사람일 수 있다 → 튜토리얼 "봤음" 기록도 지워 다시 보여 준다(이어하기는 유지)
+		UCXGameUserSettings::GetCXGameUserSettings()->ResetTutorialSeen();
 		BeginStartGame(NewGameMap);
 	};
 
