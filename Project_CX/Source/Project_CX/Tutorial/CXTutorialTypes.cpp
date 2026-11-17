@@ -62,7 +62,7 @@ namespace CXTutorial
 				Def.Id = TEXT("JeminiHello");
 				Def.Brother = { ECXTutorialMode::Hint, TEXT("제미니에게 말 걸기"), TEXT("{talk_do} 제미니에게 인사해 보세요."), TEXT("예)  안녕, 제미니!"), ECXTutorialSpot::JeminiPanel };
 				Def.Sister = Def.Brother;
-				Def.StartDelay = 4.0f;
+				Def.StartDelay = 0.5f;
 				Def.Timeout = 30.0f;
 				Out.Add(Def);
 			}

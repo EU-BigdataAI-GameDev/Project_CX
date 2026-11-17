@@ -353,11 +353,11 @@ bool UCXTutorialSubsystem::ShouldTrigger(const FCXTutorialStepDef& Def, AActor*&
 
 	case ECXTutorialStep::JeminiHello:
 	{
-		// 1단계를 본 뒤(Map1이 아니면 1단계가 없으니 바로), 조용할 때
+		// 이동·점프 안내(1단계)가 끝나면 바로(Map1이 아니면 1단계가 없으니 바로). 거미는 전투 안내가 따로 맡으므로 조용함은 따지지 않는다.
 		const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(World);
 		const int32 MoveIndex = static_cast<int32>(ECXTutorialStep::Move);
 		return (IsSeen(MoveIndex) || !bMap1) && Drone && !Drone->IsBusy() && (bBrotherAlive || bSisterAlive) && !bNearWarden
-			&& !(Hack && Hack->IsHacking()) && CanPauseNow() && IsCalm();
+			&& !(Hack && Hack->IsHacking()) && CanPauseNow();
 	}
 
 	case ECXTutorialStep::JeminiRule:
