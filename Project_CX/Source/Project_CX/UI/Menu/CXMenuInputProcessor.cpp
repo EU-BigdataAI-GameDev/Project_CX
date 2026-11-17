@@ -5,6 +5,7 @@
 #include "CXMenuStyle.h"
 #include "CXJeminiInputComponent.h"
 #include "CXTutorialSubsystem.h"
+#include "CXSoloSubsystem.h"
 #include "InputCoreTypes.h"
 #include "Input/Events.h"
 
@@ -71,6 +72,18 @@ bool FCXMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, cons
 		// ESC 메뉴 재개 직후 0.15초: 게임플레이 입력 무시(A/Enter가 점프·사격으로 새지 않게)
 		if (Subsystem->IsGameplayInputBlocked())
 		{
+			return true;
+		}
+		// 솔로 모드(숨김): Tab = 조작 캐릭터 전환(채팅·해킹·사망 등 막힌 상태는 서브시스템이 거절). 솔로가 아니면 건드리지 않는다.
+		if (!bGamepad && Key == EKeys::Tab && UCXSoloSubsystem::IsActive())
+		{
+			if (!InKeyEvent.IsRepeat())
+			{
+				if (UCXSoloSubsystem* Solo = UCXSoloSubsystem::GetForGameInstance(Subsystem->GetGameInstance()))
+				{
+					Solo->TrySwitchControl();
+				}
+			}
 			return true;
 		}
 		// 메뉴가 없을 때는 ESC / 게임패드 Start만 본다 → 인게임이면 일시정지 메뉴 열기

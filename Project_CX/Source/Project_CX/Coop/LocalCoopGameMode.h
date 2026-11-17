@@ -324,6 +324,20 @@ public:
 	UFUNCTION(Exec)
 	void CXTutorialState();
 
+	// ---------------------------------------------------------------- 1인 강제 플레이(숨김 솔로 모드, Docs/Guide/솔로_모드_가이드.md)
+
+	/**
+	 *  숨김 솔로 모드 — 게임패드 없이 키보드 하나로 2인 협동을 혼자 플레이(시연용). 설정은 건드리지 않는다.
+	 *  인자 없음/0 = 오빠 조작(여동생 AI 자동 해킹), 1 = 여동생 조작(오빠 AI 자동 사격), off = 일반 2인 모드로 복귀.
+	 *  Tab = 조작 캐릭터 전환. 예) CXSolo / CXSolo 1 / CXSolo off
+	 */
+	UFUNCTION(Exec)
+	void CXSolo(const FString& Mode = TEXT(""));
+
+	/** 솔로 모드에서 조작 캐릭터를 바꾼다(Tab과 같음). 켜져 있지 않으면 무시. */
+	UFUNCTION(Exec)
+	void CXSoloSwap();
+
 protected:
 	virtual void BeginPlay() override;
 
