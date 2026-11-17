@@ -12,6 +12,7 @@
 #include "CombatDamageable.h"
 #include "Sound/SoundBase.h"
 #include "CXGameInstance.h"
+#include "CXGameUserSettings.h"
 #include "CXJeminiDrone.h"
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiRuleComponent.h"
@@ -32,6 +33,19 @@
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+
+namespace
+{
+	/** 여동생이 키보드를 쓰면 해킹 안내를 키보드 표기로 바꾼다(D-패드 → 방향키, B → Backspace, X → F). */
+	bool SisterUsesKeyboard()
+	{
+		const UCXGameUserSettings* Settings = UCXGameUserSettings::GetCXGameUserSettings();
+		return Settings && Settings->GetSlotDevice(1) == ECXInputDeviceType::KeyboardMouse;
+	}
+	FString DpadLabel() { return SisterUsesKeyboard() ? FString(TEXT("ARROWS")) : FString(TEXT("D-PAD")); }
+	FString AbortKey() { return SisterUsesKeyboard() ? FString(TEXT("[BACKSPACE]")) : FString(TEXT("[B]")); }
+	FString KeyHint(const FString& GamepadHint) { return SisterUsesKeyboard() ? FString(TEXT("[F]")) : GamepadHint; }
+}
 
 namespace CoopHUDLayout
 {
@@ -979,7 +993,7 @@ void ACoopHUD::DrawSisterHackLink()
 		const float Blink = 0.5f + 0.5f * Pulse(7.0f);
 		DrawRect(SisterColor.CopyWithNewOpacity(0.22f * Blink), X, Y, W, H);
 		Label(TEXT("TERMINAL ONLINE"), X + Pad, Y + 24.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.1f);
-		Label(FString::Printf(TEXT("%s  BREACH"), *HackKeyHint), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
+		Label(FString::Printf(TEXT("%s  BREACH"), *KeyHint(HackKeyHint)), X + Pad, Y + 62.0f * S(), SisterColor.CopyWithNewOpacity(Blink), GameFont(ECXHudFont::Small), 1.0f);
 	}
 	else if (bInSignal)
 	{
@@ -1059,7 +1073,7 @@ void ACoopHUD::DrawHackTerminalMarker(const AActor& Terminal, bool bActive, floa
 	if (bActive)
 	{
 		DrawRect(C, P.X - 3.0f * S(), P.Y - 3.0f * S(), 6.0f * S(), 6.0f * S());
-		Label(FString::Printf(TEXT("%s HACK"), *HackKeyHint), P.X, P.Y - R - 20.0f * S(), C, GameFont(ECXHudFont::Small), 1.0f, true);
+		Label(FString::Printf(TEXT("%s HACK"), *KeyHint(HackKeyHint)), P.X, P.Y - R - 20.0f * S(), C, GameFont(ECXHudFont::Small), 1.0f, true);
 	}
 	else
 	{
@@ -1653,7 +1667,7 @@ void ACoopHUD::DrawEnemyHackSession(const USisterHackComponent& Hack)
 	const FLinearColor TimeColor = (TimeLeft < 1.0f && !bGranted) ? DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(10.0f)) : Accent;
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), X + Pad, FootY - 10.0f * S(), BarW, 4.0f * S());
 	DrawRect(TimeColor, X + Pad, FootY - 10.0f * S(), BarW * TimeFrac, 4.0f * S());
-	Label(FString::Printf(TEXT("D-PAD  ENTER SEQUENCE        [B]  ABORT        %.1fs"), TimeLeft),
+	Label(FString::Printf(TEXT("%s  ENTER SEQUENCE        %s  ABORT        %.1fs"), *DpadLabel(), *AbortKey(), TimeLeft),
 		X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f, true);
 
 	// 판정 연출(패널 아래) — 칸마다 정답 플래시는 생략(5칸 빠른 입력이라 시끄럽다), 소리만
@@ -2032,8 +2046,8 @@ void ACoopHUD::DrawHackSession(const USisterHackComponent& Hack)
 		}
 	}
 	const FString Hint = bFreq
-		? FString::Printf(TEXT("%s  LOCK SIGNAL        [B]  ABORT%s"), *HackKeyHint, *TimeText)
-		: FString::Printf(TEXT("D-PAD UP/DOWN  DIGIT      LEFT/RIGHT  MOVE      %s  SUBMIT      [B]  ABORT"), *HackKeyHint);
+		? FString::Printf(TEXT("%s  LOCK SIGNAL        %s  ABORT%s"), *KeyHint(HackKeyHint), *AbortKey(), *TimeText)
+		: FString::Printf(TEXT("%s UP/DOWN  DIGIT      LEFT/RIGHT  MOVE      %s  SUBMIT      %s  ABORT"), *DpadLabel(), *KeyHint(HackKeyHint), *AbortKey());
 	Label(Hint, X + W * 0.5f, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f, true);
 
 	// 판정 연출
@@ -2227,7 +2241,7 @@ void ACoopHUD::DrawMemoryHackSession(const USisterHackComponent& Hack, const AHa
 	const float BarW = X + W - Pad - RX;
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), BarX, FootY - 14.0f * S(), BarW, 4.0f * S());
 	DrawRect(Accent, BarX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
-	Label(FString::Printf(TEXT("D-PAD  MOVE      %s  SELECT NODE      [B]  ABORT"), *HackKeyHint), BarX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
+	Label(FString::Printf(TEXT("%s  MOVE      %s  SELECT NODE      %s  ABORT"), *DpadLabel(), *KeyHint(HackKeyHint), *AbortKey()), BarX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	if (bDenied || bRoundClear || bGranted)
 	{
@@ -2905,11 +2919,11 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	}
 	else if (!bGranted && Mismatches > 0)
 	{
-		Label(FString::Printf(TEXT("%d MISMATCHED - %s ON A PATH TO CUT IT"), Mismatches, *HackKeyHint), RX, StateY, DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), SysFont(ECXHudFont::Tiny), 1.0f);
+		Label(FString::Printf(TEXT("%d MISMATCHED - %s ON A PATH TO CUT IT"), Mismatches, *KeyHint(HackKeyHint)), RX, StateY, DeniedColor.CopyWithNewOpacity(0.6f + 0.4f * Pulse(6.0f)), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 	else if (!bGranted)
 	{
-		Label(FString::Printf(TEXT("%s ON A SOURCE OR SINK TO START A PATH"), *HackKeyHint), RX, StateY, FLinearColor(1.0f, 1.0f, 1.0f, 0.6f), SysFont(ECXHudFont::Tiny), 1.0f);
+		Label(FString::Printf(TEXT("%s ON A SOURCE OR SINK TO START A PATH"), *KeyHint(HackKeyHint)), RX, StateY, FLinearColor(1.0f, 1.0f, 1.0f, 0.6f), SysFont(ECXHudFont::Tiny), 1.0f);
 	}
 
 	// 하단: 진행 바(이어진 짝 / 전체) + 조작 안내
@@ -2917,7 +2931,7 @@ void ACoopHUD::DrawCircuitHackSession(const USisterHackComponent& Hack, const AH
 	const float BarW = X + W - Pad - RX;
 	DrawRect(Accent.CopyWithNewOpacity(0.15f), RX, FootY - 14.0f * S(), BarW, 4.0f * S());
 	DrawRect(Accent, RX, FootY - 14.0f * S(), BarW * Hack.GetProgress(), 4.0f * S());
-	Label(FString::Printf(TEXT("D-PAD  MOVE / DRAW      %s  START / CUT      [B]  ABORT"), *HackKeyHint), RX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
+	Label(FString::Printf(TEXT("%s  MOVE / DRAW      %s  START / CUT      %s  ABORT"), *DpadLabel(), *KeyHint(HackKeyHint), *AbortKey()), RX, FootY, FLinearColor(1.0f, 1.0f, 1.0f, 0.65f), GameFont(ECXHudFont::Tiny), 1.0f);
 
 	// 판정 연출: 짝 연결 / MISMATCH / 성공
 	if (bMismatch || bLinkFlash || bGranted)
