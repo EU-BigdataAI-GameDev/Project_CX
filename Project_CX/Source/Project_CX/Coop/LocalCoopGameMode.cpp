@@ -47,7 +47,7 @@ ALocalCoopGameMode::ALocalCoopGameMode()
 	// 분할 화면 각 칸에 자기 정보를 그리는 협동 HUD
 	HUDClass = ACoopHUD::StaticClass();
 
-	// Map1 배경음(수노, 96bpm — 2마디 5초). 반복 20~205초(74마디), 크로스페이드 1마디(2.5초)로 박자 정렬(Docs/배경음_제작기록.md)
+	// Map1 배경음(수노, 96bpm — 2마디 5초). 반복 20~205초(74마디), 크로스페이드 1마디(2.5초)로 박자 정렬(Docs/Assets/배경음_제작기록.md)
 	FCXMusicTrack Map1Track;
 	Map1Track.Music = TSoftObjectPtr<USoundBase>(FSoftObjectPath(TEXT("/Game/Project_CX/Audio/BGM/SW_BGM_Map1.SW_BGM_Map1")));
 	Map1Track.LoopStart = 20.0f;
@@ -59,7 +59,7 @@ ALocalCoopGameMode::ALocalCoopGameMode()
 	MapMusic.Add(TEXT("Map1_SoulCity1"), Map1Track);
 
 	// Map2 배경음(수노 "District 5 - Undercurrent", 101.29bpm — 1마디 2.369초, 첫 다운비트 0.112초).
-	// 인트로(0~19.07초, 8마디)는 처음 한 번, 이후 19.07~194.41초 반복(크로스페이드 1마디 → 실제 반복 73마디, 끝 타격음 전에서 이음)(Docs/배경음_제작기록.md)
+	// 인트로(0~19.07초, 8마디)는 처음 한 번, 이후 19.07~194.41초 반복(크로스페이드 1마디 → 실제 반복 73마디, 끝 타격음 전에서 이음)(Docs/Assets/배경음_제작기록.md)
 	FCXMusicTrack Map2Track;
 	Map2Track.Music = TSoftObjectPtr<USoundBase>(FSoftObjectPath(TEXT("/Game/Project_CX/Audio/BGM/SW_BGM_Map2.SW_BGM_Map2")));
 	Map2Track.LoopStart = 19.07f;

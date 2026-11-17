@@ -117,7 +117,7 @@ UE 없이 돌아가야 과제 제출 조건(정상 실행 가능한 Python 소�
 - 잡담 chat / 탄약 가득 AMMO_FULL / 퍼즐 없음 NO_PUZZLE / 탄약 0 → 재장전 ok(배터리 100→95, 비행 후 장전, 30발) / 단말기 대행 ok(-20, HACKED) / 적 대행 ok(-10, 제한 시간 정지 후 Granted, 거미 그로기) / 요청 중 잠금.
 - 실제 키 입력: Enter 채팅창 열림·입력·Enter 전송, Esc 취소(일시정지 안 열림), 닫은 뒤 Esc는 일시정지 정상.
 
-### 드론 모델 + 표정(2026-11-06, `Docs/SupportDrone_UE_Prompt.md`)
+### 드론 모델 + 표정(2026-11-06, `Docs/Assets/SupportDrone_UE_Prompt.md`)
 - 임포트: `Content/Project_CX/Characters/Drone/SM_SupportDrone`(67 x 44.2 x 54cm, 슬롯 5개), `Textures/T_Drone_FaceAtlas`(Nearest, 밉 없음, UI 압축, sRGB). 클래식 FBX 경로로 머티리얼·텍스처 임포트 끔.
 - 소켓: 클래식 임포터가 `SOCKET_` 접두사를 떼서 `Thruster`/`Screen`으로 들어옴 → `SOCKET_Thruster`/`SOCKET_Screen`으로 이름 변경.
 - **스크린 방향은 +Y**(문서의 +X와 다름, 캡처 `Docs/Screenshots/Drone/import_screen_faces_plusY.png`) → 코드에서 메시 Yaw -90(`MeshYawOffset`)으로 액터 +X에 맞추고, 액터는 카메라 쪽으로 돌아본다.

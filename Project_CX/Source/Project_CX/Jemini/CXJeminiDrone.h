@@ -16,7 +16,7 @@ class USoundBase;
 class AHackTerminal;
 class UCXJeminiRuleComponent;
 
-/** 드론 표정(Docs/SupportDrone_UE_Prompt.md 6장 E_DroneEmotion). 값 = 머티리얼 Emotion 파라미터 = 아틀라스 열. */
+/** 드론 표정(Docs/Assets/SupportDrone_UE_Prompt.md 6장 E_DroneEmotion). 값 = 머티리얼 Emotion 파라미터 = 아틀라스 열. */
 UENUM(BlueprintType)
 enum class ECXDroneEmotion : uint8
 {
@@ -84,7 +84,7 @@ struct FCXJeminiEnemyQuery
  *  - 요청 처리 중이거나 드론 작업 중(Action != Idle)이면 새 요청을 받지 않는다(HUD JEMINI BUSY).
  *  - 쓰러진(부활 대기) 플레이어도 말할 수 있다(speaker = 말한 사람).
  *  - 배터리: 맵 이동은 게임 인스턴스, 이어하기는 세이브(CX_Slot0)로 이어진다. 세이브 복도에서 저장하면 100으로 충전.
- *  - 메시는 SM_SupportDrone(블렌더 제작, Docs/SupportDrone_UE_Prompt.md). 없으면 엔진 구체로 대신한다.
+ *  - 메시는 SM_SupportDrone(블렌더 제작, Docs/Assets/SupportDrone_UE_Prompt.md). 없으면 엔진 구체로 대신한다.
  *  - 표정: Emotion(Neutral/Happy/Sad/Angry) → 스크린(M_Drone_Screen)·발광(M_Drone_EmotionGlow)·추진기·라이트 색을 한 번에.
  *    응답에 따라 잠깐 반응(ok = 기쁨, 거절·배터리 부족·연결 실패 = 슬픔) 후 기본 표정(배터리 20% 이하 = 슬픔, 플레이어 다운 = 화남)으로 돌아온다.
  *    (기획 문서의 BP_SupportDrone 기능은 프로젝트 규칙(C++ 우선)에 따라 이 클래스에 C++로 구현)

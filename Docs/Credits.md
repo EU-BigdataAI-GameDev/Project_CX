@@ -20,7 +20,7 @@
 | **Kenney — UI Audio** (kenney.nl, `kenney_ui-audio`) | 클릭·롤오버·스위치 UI 효과음(OGG) | CC0 1.0 (퍼블릭 도메인, 크레딧 의무 없음 — 감사 표기로 기재) |
 | **Kenney — Sci-Fi Sounds** (kenney.nl, `kenney_sci-fi-sounds`) | 레이저·임팩트·엔진·포스필드·컴퓨터 노이즈(OGG) | CC0 1.0 |
 | **SoulCity** 에셋팩(프로젝트 `Content/SoulCity/`) | 발소리 `Footstep_Dirt01~08` / `Footstep_Dirt_Cue` | 프로젝트에 포함된 에셋팩 라이선스를 따름. 원본은 옮기지 않고 그대로 참조 |
-| **Suno AI** (무료 요금제, Instrumental) | 배경음 `District 5 - Signal`, `District 5 - No Way Out` | Suno 이용 약관(무료 요금제 — 비상업 용도). 제작 과정: `Docs/배경음_제작기록.md` |
+| **Suno AI** (무료 요금제, Instrumental) | 배경음 `District 5 - Signal`, `District 5 - No Way Out` | Suno 이용 약관(무료 요금제 — 비상업 용도). 제작 과정: `Docs/Assets/배경음_제작기록.md` |
 
 - AI 효과음 생성 도구는 쓰지 않았다(효과음 적용 기획 v1.1). Suno는 배경음 전용.
 - Kenney 원본 OGG는 언리얼로 가져온 뒤 `Sounds/` 전달 폴더에서 삭제했다. 원본이 다시 필요하면 kenney.nl에서 같은 팩을 받으면 된다.
