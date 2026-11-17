@@ -30,6 +30,7 @@
 #include "CXJeminiDrone.h"
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiRuleComponent.h"
+#include "CXTutorialSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
@@ -353,6 +354,11 @@ void ALocalCoopGameMode::CXJeminiSelfTest(int32 bQuitWhenDone)
 	JeminiSelfTestWait = 0.0f;
 	bJeminiSelfTestQuit = bQuitWhenDone != 0;
 	UE_LOG(LogTemp, Log, TEXT("CXJeminiSelfTest: start"));
+	// 자체 확인이 튜토리얼 일시정지·슬로모션에 걸리지 않게 이 맵에서는 끈다
+	if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this))
+	{
+		Tutorial->SuppressForThisMap(TEXT("CXJeminiSelfTest"));
+	}
 	GetWorldTimerManager().SetTimer(JeminiSelfTestTimer, this, &ALocalCoopGameMode::TickJeminiSelfTest, 0.25f, true, 0.5f);
 }
 
@@ -847,6 +853,11 @@ void ALocalCoopGameMode::CXJeminiAdviceSelfTest(int32 bQuitWhenDone)
 	AdviceTestFails = 0;
 	AdviceTestQuit = bQuitWhenDone;
 	UE_LOG(LogTemp, Log, TEXT("CXJeminiAdviceSelfTest: start"));
+	// 자체 확인이 튜토리얼 일시정지·슬로모션에 걸리지 않게 이 맵에서는 끈다
+	if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this))
+	{
+		Tutorial->SuppressForThisMap(TEXT("CXJeminiAdviceSelfTest"));
+	}
 	AdviceSelfTestStep();
 }
 
@@ -938,6 +949,11 @@ void ALocalCoopGameMode::CXWardenSelfTest(int32 bQuitWhenDone)
 	WardenTestFails = 0;
 	WardenTestQuit = bQuitWhenDone;
 	UE_LOG(LogTemp, Log, TEXT("CXWardenSelfTest: start"));
+	// 자체 확인이 튜토리얼 일시정지·슬로모션에 걸리지 않게 이 맵에서는 끈다
+	if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this))
+	{
+		Tutorial->SuppressForThisMap(TEXT("CXWardenSelfTest"));
+	}
 	WardenSelfTestStep();
 }
 
@@ -1085,6 +1101,39 @@ void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)
 {
 	const ACXCoopExitDoor* Door = ACXCoopExitDoor::DebugSpawnExitDoor(this, OffsetY, OffsetX);
 	UE_LOG(LogTemp, Log, TEXT("CXSpawnExitDoor: %s"), Door ? *Door->GetActorLocation().ToString() : TEXT("failed"));
+}
+
+// ---------------------------------------------------------------- 튜토리얼(Docs/Guide/튜토리얼_가이드.md)
+
+void ALocalCoopGameMode::CXTutorialReset()
+{
+	if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this))
+	{
+		Tutorial->ResetSeen();
+		UE_LOG(LogTemp, Log, TEXT("CXTutorialReset: %s"), *Tutorial->GetDebugState());
+	}
+}
+
+void ALocalCoopGameMode::CXTutorialShow(const FString& Id)
+{
+	UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this);
+	const bool bShown = Tutorial && Tutorial->ForceShow(Id);
+	UE_LOG(LogTemp, Log, TEXT("CXTutorialShow %s: %s"), *Id, bShown ? TEXT("shown") : TEXT("failed (unknown id, menu open, or no player for that card)"));
+}
+
+void ALocalCoopGameMode::CXTutorialEnable(int32 bEnabled)
+{
+	if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this))
+	{
+		Tutorial->SetEnabled(bEnabled != 0);
+		UE_LOG(LogTemp, Log, TEXT("CXTutorialEnable: %s"), *Tutorial->GetDebugState());
+	}
+}
+
+void ALocalCoopGameMode::CXTutorialState()
+{
+	const UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::Get(this);
+	UE_LOG(LogTemp, Log, TEXT("CXTutorialState: %s"), Tutorial ? *Tutorial->GetDebugState() : TEXT("no tutorial subsystem"));
 }
 
 AActor* ALocalCoopGameMode::DebugSpawnMemoryTerminal(int32 LocalPlayerIndex, float OffsetY, float DepthX)

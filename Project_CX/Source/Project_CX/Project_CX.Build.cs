@@ -58,7 +58,8 @@ public class Project_CX : ModuleRules
 			"Project_CX/Jemini/Warden",
 			"Project_CX/Title",
 			"Project_CX/UI",
-			"Project_CX/UI/Menu"
+			"Project_CX/UI/Menu",
+			"Project_CX/Tutorial"
 		});
 
 		// Uncomment if you are using Slate UI

@@ -179,9 +179,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "SpiderBot|Evidence")
 	FName DropEvidenceId;
 
-	/** 여동생 해킹 가능 거리(cm). 2026-11-04: 300 → 450(전투 중 접근 부담 완화). */
+	/**
+	 *  여동생 해킹 가능 거리(cm). 2026-11-04: 300 → 450(전투 중 접근 부담 완화).
+	 *  2026-11-17: 450 → 675(×1.5) — 퍼즐을 푸는 동안 거미가 닿아 항상 한 대 맞던 문제.
+	 *  HUD 마커([X] HACK)와 서버 재검증(이 값 + USisterHackComponent::EnemyHackServerRangeSlack)이 모두 이 값을 쓴다.
+	 */
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Hack")
-	float HackInteractRange = 450.0f;
+	float HackInteractRange = 675.0f;
 
 	/** 해킹 성공 그로기 시간(초) — 여동생 기획서 5초 → 3초로 변경(전투 시스템 기획 13장 7). */
 	UPROPERTY(EditDefaultsOnly, Category = "SpiderBot|Hack", meta = (ClampMin = "0.1"))

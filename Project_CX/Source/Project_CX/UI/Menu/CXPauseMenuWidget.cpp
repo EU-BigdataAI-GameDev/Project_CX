@@ -29,11 +29,13 @@
 namespace CXPause
 {
 	const FName Resume = TEXT("Resume");
+	const FName Controls = TEXT("Controls");
 	const FName Settings = TEXT("Settings");
 	const FName QuitToTitle = TEXT("QuitToTitle");
 
 	constexpr float PanelWidth = 600.0f;	// 게임 화면 글자 +3pt로 정보줄이 길어져 520 → 600
-	constexpr float PanelHeight = 400.0f;
+	constexpr float PanelHeight = 460.0f;	// 항목 4개(CONTROLS 추가)로 400 → 460
+	constexpr float ControlsWidth = 1180.0f;
 	constexpr int32 ItemFontSize = 28;
 	constexpr float TagPollInterval = 0.5f;
 	/** 스캔라인 간격(px)/진하기. */
@@ -170,6 +172,7 @@ void UCXPauseMenuWidget::BuildMenu()
 	}
 	const TPair<FName, const TCHAR*> ItemDefs[] = {
 		{ CXPause::Resume, TEXT("RESUME") },
+		{ CXPause::Controls, TEXT("CONTROLS") },
 		{ CXPause::Settings, TEXT("SETTINGS") },
 		{ CXPause::QuitToTitle, TEXT("QUIT TO TITLE") },
 	};
@@ -188,6 +191,47 @@ void UCXPauseMenuWidget::BuildMenu()
 	InfoText = MakeText(TEXT(""), 15, TEXT("Regular"), 160, CXMenuStyle::TextDim);
 	InfoText->SetFont(CXMenuStyle::MonoFont(17, TEXT("Regular"), 40));	// 시스템 정보줄(구역·저장) — 고정폭
 	Column->AddChildToVerticalBox(InfoText);
+
+	// 2-1) 조작법 화면(CONTROLS): 메뉴 패널 자리에 대신 뜬다. 내용은 열 때 조작 장치 설정대로 채운다(RebuildControlsColumn).
+	ControlsBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ControlsBox"));
+	ControlsBox->SetWidthOverride(CXPause::ControlsWidth);
+	ControlsBox->SetVisibility(ESlateVisibility::Collapsed);
+	if (UVerticalBoxSlot* S = CenterColumn->AddChildToVerticalBox(ControlsBox))
+	{
+		S->SetHorizontalAlignment(HAlign_Center);
+	}
+	{
+		UCXNeonPanelWidget* ControlsPanel = WidgetTree->ConstructWidget<UCXNeonPanelWidget>(UCXNeonPanelWidget::StaticClass(), TEXT("ControlsPanel"));
+		ControlsPanel->SetPanelPadding(FMargin(40.0f, 30.0f, 40.0f, 26.0f));
+		ControlsPanel->SetFrameColor(CXMenuStyle::Brother);
+		ControlsBox->AddChild(ControlsPanel);
+
+		UVerticalBox* ControlsColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ControlsColumn"));
+		ControlsPanel->SetPanelContent(ControlsColumn);
+		ControlsColumn->AddChildToVerticalBox(MakeText(TEXT("CONTROLS  //  조작법"), 30, TEXT("Bold"), 200, FLinearColor::White));
+		if (UVerticalBoxSlot* S = ControlsColumn->AddChildToVerticalBox(MakeRule()))
+		{
+			S->SetPadding(FMargin(0.0f, 12.0f, 0.0f, 16.0f));
+		}
+		UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ControlsColumns"));
+		ControlsColumn->AddChildToVerticalBox(Columns);
+		for (int32 i = 0; i < UCXGameInstance::NumPlayerSlots; ++i)
+		{
+			UVerticalBox* PlayerColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			if (UHorizontalBoxSlot* S = Columns->AddChildToHorizontalBox(PlayerColumn))
+			{
+				S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				S->SetPadding(FMargin(i == 0 ? 0.0f : 28.0f, 0.0f, 0.0f, 0.0f));
+			}
+			ControlsColumns.Add(PlayerColumn);
+		}
+		if (UVerticalBoxSlot* S = ControlsColumn->AddChildToVerticalBox(MakeRule()))
+		{
+			S->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 12.0f));
+		}
+		UTextBlock* ControlsFoot = MakeText(TEXT("일시정지  [ESC] / [START]          아무 키나 누르면 돌아갑니다"), 16, TEXT("Regular"), 60, CXMenuStyle::TextDim);
+		ControlsColumn->AddChildToVerticalBox(ControlsFoot);
+	}
 
 	// 3) 화면 하단: 플레이어 장치 태그(좌) + 조작 힌트(우). 아래 HUD 패널과 겹쳐도 읽히게 어두운 띠 위에 둔다.
 	UBorder* FooterStrip = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("FooterStrip"));
@@ -277,6 +321,8 @@ void UCXPauseMenuWidget::NativeConstruct()
 	InfoText->SetText(FText::FromString(FString::Printf(TEXT("%s  ·  DISTRICT 5"), *ResolveZoneName())));
 
 	bClosing = bQuitting = false;
+	bShowingControls = false;
+	ControlsBox->SetVisibility(ESlateVisibility::Collapsed);
 	OpenAlpha = 0.0f;
 	Clock = 0.0f;
 	RootOverlay->SetRenderOpacity(0.0f);
@@ -405,6 +451,10 @@ void UCXPauseMenuWidget::OnItemActivated(FName ItemId)
 		PlayUISound(ECXMenuSound::Confirm);
 		RequestResume();
 	}
+	else if (ItemId == CXPause::Controls)
+	{
+		OpenControls();
+	}
 	else if (ItemId == CXPause::Settings)
 	{
 		OpenSettings();
@@ -440,6 +490,132 @@ void UCXPauseMenuWidget::OpenSettings()
 	if (!Settings)
 	{
 		RootOverlay->SetVisibility(RootVisibilityBeforeSettings);
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// 조작법(CONTROLS)
+
+void UCXPauseMenuWidget::OpenControls()
+{
+	if (bShowingControls || !ControlsBox)
+	{
+		return;
+	}
+	PlayUISound(ECXMenuSound::Confirm);
+	for (int32 i = 0; i < ControlsColumns.Num(); ++i)
+	{
+		RebuildControlsColumn(i);
+	}
+	bShowingControls = true;
+	PanelVisibilityBeforeControls = PanelBox->GetVisibility();
+	PanelBox->SetVisibility(ESlateVisibility::Collapsed);
+	ControlsBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+	// 연 입력(Enter/A)이 바로 닫지 않게
+	LockInput();
+}
+
+void UCXPauseMenuWidget::CloseControls()
+{
+	if (!bShowingControls)
+	{
+		return;
+	}
+	bShowingControls = false;
+	ControlsBox->SetVisibility(ESlateVisibility::Collapsed);
+	PanelBox->SetVisibility(PanelVisibilityBeforeControls);
+	SetFocusItem(CXPause::Controls);
+	PlayUISound(ECXMenuSound::Back);
+	LockInput();
+}
+
+bool UCXPauseMenuWidget::HandleAnyInput()
+{
+	if (!bShowingControls)
+	{
+		return false;
+	}
+	if (CanAcceptInput())
+	{
+		CloseControls();
+	}
+	return true;
+}
+
+void UCXPauseMenuWidget::RebuildControlsColumn(int32 PlayerIndex)
+{
+	if (!ControlsColumns.IsValidIndex(PlayerIndex) || !ControlsColumns[PlayerIndex])
+	{
+		return;
+	}
+	UVerticalBox* Column = ControlsColumns[PlayerIndex];
+	Column->ClearChildren();
+
+	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	const ECXInputDeviceType Device = GI ? GI->GetSlotDeviceType(PlayerIndex) : (PlayerIndex == 0 ? ECXInputDeviceType::KeyboardMouse : ECXInputDeviceType::Gamepad);
+	const bool bPad = Device == ECXInputDeviceType::Gamepad;
+	const FLinearColor Color = CXMenuStyle::PlayerColor(PlayerIndex);
+
+	auto MakeText = [this](const FString& Str, const FSlateFontInfo& Font, const FLinearColor& TextColor)
+	{
+		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		T->SetText(FText::FromString(Str));
+		T->SetFont(Font);
+		T->SetColorAndOpacity(FSlateColor(TextColor));
+		return T;
+	};
+
+	// 머리말: P1 BROTHER — KEYBOARD & MOUSE
+	const FString Head = FString::Printf(TEXT("%s   ·   %s"), PlayerIndex == 0 ? TEXT("P1  BROTHER  오빠") : TEXT("P2  SISTER  여동생"),
+		bPad ? TEXT("GAMEPAD") : TEXT("KEYBOARD & MOUSE"));
+	if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(MakeText(Head, CXMenuStyle::Font(19, TEXT("Bold"), 80), Color)))
+	{
+		S->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+	}
+
+	// 조작 표 — 실제 바인딩: IMC_Default(이동·점프·사격·조준), UBrotherCombatComponent(패드 RT/LT), UCoopInteractComponent(F / X),
+	// USisterHackComponent(방향키·Backspace / D-패드·B), UCXJeminiInputComponent(Enter / Y). 튜토리얼 표기(CXTutorialTypes.cpp)와 같게 유지한다.
+	struct FRow
+	{
+		const TCHAR* Action;
+		const TCHAR* Keyboard;
+		const TCHAR* Gamepad;
+	};
+	static const FRow BrotherRows[] = {
+		{ TEXT("이동"), TEXT("W A S D"), TEXT("L 스틱") },
+		{ TEXT("점프"), TEXT("SPACE"), TEXT("A") },
+		{ TEXT("사격 (자동 조준)"), TEXT("마우스 좌클릭"), TEXT("RT") },
+		{ TEXT("조준 고정"), TEXT("마우스 우클릭"), TEXT("LT") },
+		{ TEXT("상호작용 (문 버튼)"), TEXT("F"), TEXT("X") },
+		{ TEXT("제미니·WARDEN에게 말하기"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
+	};
+	static const FRow SisterRows[] = {
+		{ TEXT("이동"), TEXT("W A S D"), TEXT("L 스틱") },
+		{ TEXT("점프"), TEXT("SPACE"), TEXT("A") },
+		{ TEXT("해킹 시작·확인 / 상호작용"), TEXT("F"), TEXT("X") },
+		{ TEXT("해킹 조작"), TEXT("방향키"), TEXT("D-패드") },
+		{ TEXT("해킹 취소"), TEXT("BACKSPACE"), TEXT("B") },
+		{ TEXT("제미니·WARDEN에게 말하기"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
+	};
+	const TArrayView<const FRow> Rows = PlayerIndex == 0 ? MakeArrayView(BrotherRows) : MakeArrayView(SisterRows);
+	for (const FRow& Row : Rows)
+	{
+		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(Line))
+		{
+			S->SetPadding(FMargin(0.0f, 3.0f));
+		}
+		USizeBox* ActionBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		ActionBox->SetWidthOverride(280.0f);
+		ActionBox->AddChild(MakeText(Row.Action, CXMenuStyle::Font(17, TEXT("Regular"), 20), CXMenuStyle::Text.CopyWithNewOpacity(0.7f)));
+		if (UHorizontalBoxSlot* S = Line->AddChildToHorizontalBox(ActionBox))
+		{
+			S->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* S = Line->AddChildToHorizontalBox(MakeText(bPad ? Row.Gamepad : Row.Keyboard, CXMenuStyle::MonoFont(17, TEXT("Medium"), 20), FLinearColor::White)))
+		{
+			S->SetVerticalAlignment(VAlign_Center);
+		}
 	}
 }
 
@@ -588,7 +764,7 @@ FString UCXPauseMenuWidget::ResolveZoneName() const
 
 FString UCXPauseMenuWidget::GetDebugState() const
 {
-	return FString::Printf(TEXT("%s closing=%d quitting=%d disconnect=%d resumeShown=%d"), *Super::GetDebugState(),
-		bClosing ? 1 : 0, bQuitting ? 1 : 0, bShowingDisconnect ? 1 : 0,
+	return FString::Printf(TEXT("%s closing=%d quitting=%d disconnect=%d controls=%d resumeShown=%d"), *Super::GetDebugState(),
+		bClosing ? 1 : 0, bQuitting ? 1 : 0, bShowingDisconnect ? 1 : 0, bShowingControls ? 1 : 0,
 		FindItem(CXPause::Resume) && FindItem(CXPause::Resume)->GetVisibility() != ESlateVisibility::Collapsed ? 1 : 0);
 }

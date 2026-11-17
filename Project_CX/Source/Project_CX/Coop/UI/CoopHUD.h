@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "HackTerminal.h"
+#include "CXTutorialTypes.h"
 #include "CoopHUD.generated.h"
 
 class UBrotherCombatComponent;
@@ -39,6 +40,7 @@ enum class ECXSpeakerBubble : uint8 { Final, Listening, Pending };
  *  - 예외(해킹 시스템 기획 11장 메모리 패턴): 메모리 패턴 단말기 세션 중 오빠 칸에 PATTERN RELAY 패널 — 패턴 점멸은 오빠 칸에만,
  *    여동생 칸은 같은 3x3 숫자판(점멸 없음) + 커서. 오빠가 중계 거리 밖이면 MOVE CLOSER // SIGNAL WEAK
  *  - 예외(맵2 개선 기획 3장 회로 연결): 세션 중 오빠 칸에 CIRCUIT RELAY 미니 격자(짝 색·번호). 여동생 칸은 짝 정보 없는 격자.
+ *  - 튜토리얼(코치 마크, Docs/Guide/튜토리얼_가이드.md): UCXTutorialSubsystem이 정한 카드를 자기 칸 맨 위에 그린다(DrawTutorial).
  */
 UCLASS()
 class ACoopHUD : public AHUD
@@ -278,6 +280,16 @@ private:
 	TArray<TWeakObjectPtr<AActor>> EnemyActors;
 	TArray<TWeakObjectPtr<AActor>> HackEnemyTargets;
 	FTimerHandle HackRefreshTimer;
+
+	/**
+	 *  튜토리얼 카드(자기 칸): 어둡게 덮기 + 강조 상자(네온 테두리) + 제목·본문 1~2줄·예시 칩·계속 안내.
+	 *  Hint는 칸 아래 가운데 작은 띠(덮지 않음), Action/Info는 가운데 카드. 일시정지 중에도 그려지므로 시간은 실시간 기준.
+	 */
+	void DrawTutorial(bool bIsSister, const FLinearColor& MyColor);
+	/** 이번 프레임에 그린 HUD 요소 영역(픽셀) — 튜토리얼 강조 상자가 감싼다. DrawHUD 시작 때 비운다. */
+	void SetTutorialSpot(ECXTutorialSpot Spot, float X, float Y, float W, float H);
+	FBox2D TutorialSpots[static_cast<int32>(ECXTutorialSpot::Count)];
+	bool bTutorialSpotValid[static_cast<int32>(ECXTutorialSpot::Count)] = {};
 
 	float UIScale = 1.0f;
 	/** 이번 프레임 증거 노트 패널의 아래 끝 Y(없으면 0). 제미니 규칙 목록이 이 아래로 밀린다. */

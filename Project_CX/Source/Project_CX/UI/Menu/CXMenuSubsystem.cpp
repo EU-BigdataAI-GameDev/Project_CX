@@ -296,6 +296,11 @@ bool UCXMenuSubsystem::IsGameplayInputBlocked() const
 	return FPlatformTime::Seconds() < GameplayInputBlockEnd;
 }
 
+void UCXMenuSubsystem::BlockGameplayInput(float Seconds)
+{
+	GameplayInputBlockEnd = FMath::Max(GameplayInputBlockEnd, FPlatformTime::Seconds() + FMath::Max(0.0f, Seconds));
+}
+
 bool UCXMenuSubsystem::HandlePauseKey(bool bFromGamepad, FInputDeviceId DeviceId)
 {
 	if (!IsPauseableWorld())

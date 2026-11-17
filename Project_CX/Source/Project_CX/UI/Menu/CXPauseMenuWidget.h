@@ -10,6 +10,7 @@ class UTextBlock;
 class UImage;
 class UOverlay;
 class USizeBox;
+class UVerticalBox;
 
 /**
  *  일시정지 메뉴 배경: 정지된 분할 화면 위 검정 55% 딤 + 약한 스캔라인(설정 메뉴 기획 0.5).
@@ -36,7 +37,8 @@ private:
  *  인게임 ESC(일시정지) 메뉴(.claude/Plans/ESC 메뉴 기획.md).
  *
  *  - 열기/닫기/월드 일시정지는 UCXMenuSubsystem(OpenPauseMenu / FinishClosePauseMenu)이 담당하고, 이 위젯은 화면과 항목 동작만 맡는다.
- *  - 항목: RESUME(기본 포커스) / SETTINGS(설정 메뉴, 조작 장치는 보기 전용) / QUIT TO TITLE(확인창 → 0.4초 검정 페이드 → 시작화면).
+ *  - 항목: RESUME(기본 포커스) / CONTROLS(조작법 — 두 플레이어 조작 표, 아무 입력이나 닫기) / SETTINGS(설정 메뉴, 조작 장치는 보기 전용)
+ *    / QUIT TO TITLE(확인창 → 0.4초 검정 페이드 → 시작화면).
  *  - 최상위 ESC/B, 게임패드 Start = RESUME과 동일(닫기). 닫을 때 0.15초 페이드아웃 후 재개.
  *  - 게임패드 연결 끊김: 상단 경고 + RESUME 숨김, 재연결되면 RECONNECTED + RESUME 복귀(6장).
  *  - 하단: 현재 구역명(ACoopHUD 구역명), 두 플레이어 장치/연결 태그, 조작 힌트.
@@ -61,6 +63,9 @@ public:
 
 	virtual FString GetDebugState() const override;
 
+	/** 조작법 화면이 떠 있으면 아무 키/클릭이나 닫기(입력은 소비). */
+	virtual bool HandleAnyInput() override;
+
 protected:
 	virtual void BuildMenu() override;
 	virtual void NativeConstruct() override;
@@ -83,6 +88,10 @@ protected:
 private:
 	void RefreshPlayerTags();
 	void OpenSettings();
+	/** 조작법 화면: 메뉴 패널 자리에 두 플레이어의 조작 표(각자 조작 장치 기준)를 보여 준다. */
+	void OpenControls();
+	void CloseControls();
+	void RebuildControlsColumn(int32 PlayerIndex);
 	void BeginQuitToTitle();
 	FString ResolveZoneName() const;
 	bool IsPlayerConnected(int32 PlayerIndex) const;
@@ -96,6 +105,11 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TagStatusTexts;
 	UPROPERTY(Transient) TObjectPtr<UOverlay> ModalLayer;
 	UPROPERTY(Transient) TObjectPtr<UImage> FadeImage;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> ControlsBox;
+	UPROPERTY(Transient) TArray<TObjectPtr<UVerticalBox>> ControlsColumns;
+	bool bShowingControls = false;
+	/** 조작법 화면이 떠 있는 동안 숨긴 메뉴 패널의 원래 표시 상태. */
+	ESlateVisibility PanelVisibilityBeforeControls = ESlateVisibility::SelfHitTestInvisible;
 
 	/** 열기 페이드 진행(0 → 1). */
 	float OpenAlpha = 0.0f;

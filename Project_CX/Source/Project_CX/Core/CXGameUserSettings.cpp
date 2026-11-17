@@ -106,6 +106,33 @@ bool UCXGameUserSettings::IsCharacterSwapLayout() const
 	return BrotherDevice == ECXInputDeviceType::Gamepad && SisterDevice == ECXInputDeviceType::KeyboardMouse;
 }
 
+void UCXGameUserSettings::SetTutorialEnabled(bool bEnabled)
+{
+	if (bTutorialEnabled != bEnabled)
+	{
+		bTutorialEnabled = bEnabled;
+		SaveSettings();
+	}
+}
+
+void UCXGameUserSettings::MarkTutorialSeen(const FString& StepId)
+{
+	if (!StepId.IsEmpty() && !TutorialSeenSteps.Contains(StepId))
+	{
+		TutorialSeenSteps.Add(StepId);
+		SaveSettings();
+	}
+}
+
+void UCXGameUserSettings::ResetTutorialSeen()
+{
+	if (TutorialSeenSteps.Num() > 0)
+	{
+		TutorialSeenSteps.Reset();
+		SaveSettings();
+	}
+}
+
 int32 UCXGameUserSettings::GetLocalPlayerIndexForSlot(int32 PlayerIndex) const
 {
 	const int32 Slot = IsValidSlot(PlayerIndex) ? PlayerIndex : 0;

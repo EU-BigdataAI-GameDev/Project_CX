@@ -306,6 +306,24 @@ public:
 	UFUNCTION(Exec)
 	void CXSpawnExitDoor(float OffsetY = 500.0f, float OffsetX = 150.0f);
 
+	// ---------------------------------------------------------------- 튜토리얼(Docs/Guide/튜토리얼_가이드.md)
+
+	/** 테스트용 콘솔 명령: 튜토리얼 "봤음" 기록을 모두 지운다(다음부터 다시 뜬다). */
+	UFUNCTION(Exec)
+	void CXTutorialReset();
+
+	/** 테스트용 콘솔 명령: 조건과 상관없이 그 단계를 바로 띄운다. Id = Move / FirstSpider / FirstTerminal / JeminiHello / JeminiRule / Warden 또는 1~6. */
+	UFUNCTION(Exec)
+	void CXTutorialShow(const FString& Id);
+
+	/** 콘솔 명령: 튜토리얼 전체 끄기(0) / 켜기(1). GameUserSettings.ini에 저장된다. */
+	UFUNCTION(Exec)
+	void CXTutorialEnable(int32 bEnabled = 1);
+
+	/** 테스트용 콘솔 명령: 튜토리얼 상태 한 줄 로그(켜짐·진행 중 단계·봤음 기록). */
+	UFUNCTION(Exec)
+	void CXTutorialState();
+
 protected:
 	virtual void BeginPlay() override;
 

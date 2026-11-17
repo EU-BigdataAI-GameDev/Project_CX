@@ -92,6 +92,12 @@ public:
 	/** 지금 이 플레이어가 제미니에게 말할 수 있는지(드론이 요청을 받을 수 있음 — 쓰러져 있어도 된다). */
 	bool CanTalkNow() const;
 
+	/**
+	 *  채팅 입력창을 열고 Text를 미리 넣어 둔다(전체 선택 상태 — Enter로 바로 전송, 타이핑하면 바뀜).
+	 *  튜토리얼의 예시 문장 넣기용(UCXTutorialSubsystem). 지금 말할 수 없거나 이미 열려 있으면 false.
+	 */
+	bool OpenChatWithText(const FString& Text);
+
 	/** 테스트: 채팅을 입력한 것처럼 전송(입력창 생략). */
 	UFUNCTION(BlueprintCallable, Category = "Jemini|Debug")
 	bool DebugSubmitText(const FString& Text);
@@ -146,7 +152,8 @@ private:
 	void OnTalkPressed();
 	void OnTalkReleased();
 
-	void OpenChat();
+	/** InitialText가 있으면 입력창에 미리 넣는다. */
+	void OpenChat(const FString& InitialText = FString());
 	void CloseChat();
 	void HandleChatSubmit(const FString& Text);
 

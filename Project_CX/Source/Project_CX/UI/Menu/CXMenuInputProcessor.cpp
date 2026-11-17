@@ -4,6 +4,7 @@
 #include "CXMenuSubsystem.h"
 #include "CXMenuStyle.h"
 #include "CXJeminiInputComponent.h"
+#include "CXTutorialSubsystem.h"
 #include "InputCoreTypes.h"
 #include "Input/Events.h"
 
@@ -59,6 +60,14 @@ bool FCXMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, cons
 
 	if (!Subsystem->HasActiveMenu())
 	{
+		// 튜토리얼 설명 카드(월드 일시정지)·슬로모션 안내가 떠 있으면 확인/건너뛰기 키는 튜토리얼 몫(ESC가 일시정지 메뉴를 열지 않는다)
+		if (UCXTutorialSubsystem* Tutorial = UCXTutorialSubsystem::GetForGameInstance(Subsystem->GetGameInstance()))
+		{
+			if (Tutorial->HandleKeyDown(Key, bGamepad, InKeyEvent.GetInputDeviceId(), InKeyEvent.IsRepeat()))
+			{
+				return true;
+			}
+		}
 		// ESC 메뉴 재개 직후 0.15초: 게임플레이 입력 무시(A/Enter가 점프·사격으로 새지 않게)
 		if (Subsystem->IsGameplayInputBlocked())
 		{
