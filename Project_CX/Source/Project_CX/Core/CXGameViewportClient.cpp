@@ -3,6 +3,7 @@
 #include "CXGameViewportClient.h"
 #include "CXGameUserSettings.h"
 #include "CXGameInstance.h"
+#include "CXSoloSubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -47,22 +48,8 @@ int32 UCXGameViewportClient::ResolveGamepadLocalPlayer(FInputDeviceId InputDevic
 	return Settings->GetLocalPlayerIndexForSlot(Slot);
 }
 
-void UCXGameViewportClient::RemapControllerInput(FInputKeyEventArgs& InOutKeyEvent)
+void UCXGameViewportClient::RedirectToLocalPlayer(FInputKeyEventArgs& InOutKeyEvent, const ULocalPlayer* Target)
 {
-	if (!InOutKeyEvent.Key.IsGamepadKey())
-	{
-		Super::RemapControllerInput(InOutKeyEvent);
-		return;
-	}
-	const int32 TargetIndex = ResolveGamepadLocalPlayer(InOutKeyEvent.InputDevice, InOutKeyEvent.ControllerId);
-	const UGameInstance* OwningGI = World ? World->GetGameInstance() : nullptr;
-	const ULocalPlayer* Target = (TargetIndex != INDEX_NONE && OwningGI) ? OwningGI->GetLocalPlayerByIndex(TargetIndex) : nullptr;
-	if (!Target)
-	{
-		Super::RemapControllerInput(InOutKeyEvent);
-		return;
-	}
-
 	// 대상 로컬 플레이어의 플랫폼 사용자에 매핑된 장치로 바꿔 보낸다(엔진 오프셋 처리와 같은 방식)
 	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 	const FPlatformUserId TargetUser = Target->GetPlatformUserId();
@@ -77,6 +64,39 @@ void UCXGameViewportClient::RemapControllerInput(FInputKeyEventArgs& InOutKeyEve
 		InOutKeyEvent.InputDevice = TargetDevice;
 	}
 	InOutKeyEvent.ControllerId = Target->GetControllerId();
+}
+
+void UCXGameViewportClient::RemapControllerInput(FInputKeyEventArgs& InOutKeyEvent)
+{
+	if (!InOutKeyEvent.Key.IsGamepadKey())
+	{
+		// 솔로 모드: 키보드/마우스는 조작 중인 캐릭터의 로컬 플레이어로(기본 키보드 = LocalPlayer 0이면 엔진 그대로)
+		if (UCXSoloSubsystem::IsActive())
+		{
+			const UGameInstance* SoloGI = World ? World->GetGameInstance() : nullptr;
+			if (SoloGI && SoloGI->GetNumLocalPlayers() >= 2)
+			{
+				const int32 SoloIndex = UCXGameUserSettings::GetCXGameUserSettings()->GetLocalPlayerIndexForSlot(UCXSoloSubsystem::GetControlledSlot());
+				const ULocalPlayer* SoloTarget = SoloIndex > 0 ? SoloGI->GetLocalPlayerByIndex(SoloIndex) : nullptr;
+				if (SoloTarget)
+				{
+					RedirectToLocalPlayer(InOutKeyEvent, SoloTarget);
+					return;
+				}
+			}
+		}
+		Super::RemapControllerInput(InOutKeyEvent);
+		return;
+	}
+	const int32 TargetIndex = ResolveGamepadLocalPlayer(InOutKeyEvent.InputDevice, InOutKeyEvent.ControllerId);
+	const UGameInstance* OwningGI = World ? World->GetGameInstance() : nullptr;
+	const ULocalPlayer* Target = (TargetIndex != INDEX_NONE && OwningGI) ? OwningGI->GetLocalPlayerByIndex(TargetIndex) : nullptr;
+	if (!Target)
+	{
+		Super::RemapControllerInput(InOutKeyEvent);
+		return;
+	}
+	RedirectToLocalPlayer(InOutKeyEvent, Target);
 }
 
 int32 UCXGameViewportClient::DebugResolveGamepadPlayer(const UObject* WorldContext, int32 InputDeviceId, int32 ControllerId)

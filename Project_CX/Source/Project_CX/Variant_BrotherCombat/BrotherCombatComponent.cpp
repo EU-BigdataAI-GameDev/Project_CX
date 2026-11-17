@@ -566,6 +566,37 @@ bool UBrotherCombatComponent::RequestJeminiReload()
 	return true;
 }
 
+bool UBrotherCombatComponent::SoloAutoFire()
+{
+	AActor* Target = FindNearestTarget(AimRange, false);
+	if (!Target)
+	{
+		if (bIsAiming)
+		{
+			StopAim();
+		}
+		return false;
+	}
+	// 조준 상태로 두면 Tick의 UpdateFacing이 적을 바라본다(플레이어의 우클릭 조준과 같은 상태)
+	CurrentTarget = Target;
+	bIsAiming = true;
+	if (CurrentAmmo <= 0)
+	{
+		if (!bIsReloading)
+		{
+			StartReload();
+		}
+		return false;
+	}
+	if (bIsReloading)
+	{
+		return false;
+	}
+	const int32 Before = CurrentAmmo;
+	Fire();
+	return CurrentAmmo < Before;
+}
+
 void UBrotherCombatComponent::Client_JeminiReload_Implementation()
 {
 	if (!bIsReloading && CurrentAmmo < MaxAmmo)

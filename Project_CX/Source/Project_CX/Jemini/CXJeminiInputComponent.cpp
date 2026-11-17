@@ -7,6 +7,7 @@
 #include "CXJeminiClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
+#include "CXSoloSubsystem.h"
 #include "CXUIFonts.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -320,11 +321,15 @@ void UCXJeminiInputComponent::BuildInputAssets()
 	ChatAction->ValueType = EInputActionValueType::Boolean;
 	TalkAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_Talk"));
 	TalkAction->ValueType = EInputActionValueType::Boolean;
+	TalkKeyAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_TalkKey"));
+	TalkKeyAction->ValueType = EInputActionValueType::Boolean;
 
 	// 키보드 Enter = 채팅, 게임패드 Y(FaceButton_Top) = 누르는 동안 녹음 — 기존 바인딩 어디에도 없는 키
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Jemini"));
 	MappingContext->MapKey(ChatAction, EKeys::Enter);
 	MappingContext->MapKey(TalkAction, EKeys::Gamepad_FaceButton_Top);
+	// 솔로 모드(키보드 1인): V를 누르는 동안 녹음 — 일반 모드에서는 OnTalkKeyPressed가 무시한다
+	MappingContext->MapKey(TalkKeyAction, EKeys::V);
 }
 
 void UCXJeminiInputComponent::TryBindInput()
@@ -349,6 +354,8 @@ void UCXJeminiInputComponent::TryBindInput()
 	JeminiInput->BindAction(ChatAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnChatPressed);
 	JeminiInput->BindAction(TalkAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnTalkPressed);
 	JeminiInput->BindAction(TalkAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkReleased);
+	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnTalkKeyPressed);
+	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkKeyReleased);
 	PC->PushInputComponent(JeminiInput);
 	BoundController = PC;
 	bInputBound = true;
@@ -635,6 +642,21 @@ void UCXJeminiInputComponent::OnTalkPressed()
 	BeginLiveCaption();
 }
 
+void UCXJeminiInputComponent::OnTalkKeyPressed()
+{
+	// 일반 모드에서는 V를 쓰지 않는다(키보드 플레이어는 Enter 채팅만). 솔로 모드의 조작 캐릭터만.
+	if (UCXSoloSubsystem::IsActive())
+	{
+		OnTalkPressed();
+	}
+}
+
+void UCXJeminiInputComponent::OnTalkKeyReleased()
+{
+	// 솔로가 도중에 꺼져도 녹음 중이면 뗀 것으로 마무리(OnTalkReleased는 녹음 중이 아니면 무시)
+	OnTalkReleased();
+}
+
 void UCXJeminiInputComponent::OnTalkReleased()
 {
 	if (!IsRecording())
@@ -645,7 +667,7 @@ void UCXJeminiInputComponent::OnTalkReleased()
 	if (Wav.Num() == 0)
 	{
 		EndLiveCaptionRecording(false, Wav);
-		SetNotice(TEXT("HOLD [Y] AND SPEAK"));
+		SetNotice(UCXSoloSubsystem::IsActive() ? TEXT("HOLD [V] AND SPEAK") : TEXT("HOLD [Y] AND SPEAK"));
 		return;
 	}
 	const bool bSubmitted = SendVoice(Wav);

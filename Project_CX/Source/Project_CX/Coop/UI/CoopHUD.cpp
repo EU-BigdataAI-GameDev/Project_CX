@@ -22,6 +22,7 @@
 #include "CXSfx.h"
 #include "CXUIFonts.h"
 #include "CXTutorialSubsystem.h"
+#include "CXSoloSubsystem.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -39,6 +40,11 @@ namespace
 	/** 여동생이 키보드를 쓰면 해킹 안내를 키보드 표기로 바꾼다(D-패드 → 방향키, B → Backspace, X → F). */
 	bool SisterUsesKeyboard()
 	{
+		// 솔로 모드(숨김): 여동생을 조작 중이면 키보드 표기
+		if (UCXSoloSubsystem::IsActive())
+		{
+			return UCXSoloSubsystem::GetControlledSlot() == 1;
+		}
 		const UCXGameUserSettings* Settings = UCXGameUserSettings::GetCXGameUserSettings();
 		return Settings && Settings->GetSlotDevice(1) == ECXInputDeviceType::KeyboardMouse;
 	}
@@ -221,6 +227,7 @@ void ACoopHUD::DrawHUD()
 		DrawPlayerHealth(*MyHealth, MyColor);
 		DrawJeminiHealthExtras(*MyHealth, MyLife);
 	}
+	DrawSoloLabel(bIsSister, MyColor);
 
 	if (MyPawn && !bDead)
 	{
@@ -454,7 +461,8 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 		{
 			Label(Input->GetNotice(), InfoX, InfoY, WarningColor.CopyWithNewOpacity(0.8f), SysFont(ECXHudFont::Small), 1.0f);
 		}
-		else if (!Input->IsChatOpen() && !IsBlocked(FBox2D(FVector2D(InfoX, InfoY), FVector2D(InfoX + 250.0f * S(), InfoY + 22.0f * S()))))
+		else if (!Input->IsChatOpen() && !UCXSoloSubsystem::IsAISlot(bIsSister ? 1 : 0)
+			&& !IsBlocked(FBox2D(FVector2D(InfoX, InfoY), FVector2D(InfoX + 250.0f * S(), InfoY + 22.0f * S()))))
 		{
 			// (해킹 패널이 이 자리를 덮으면 평소 안내는 숨긴다 — 녹음/막힘/알림은 그대로)
 			// 장치별 안내: 키보드 = Enter 채팅, 게임패드 = Y 누르고 말하기
@@ -464,15 +472,17 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 			{
 				bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
 			}
+			// 솔로 모드(키보드 1인)면 채팅(Enter)과 푸시투토크(V)를 함께 안내
+			const bool bSoloKeys = UCXSoloSubsystem::IsActive() && !bGamepad;
 			// 기능 B: WARDEN 단말기 앞의 여동생은 말이 WARDEN으로 간다
 			if (ACXWardenTerminal::FindTalkTarget(MyPawn))
 			{
-				Label(bGamepad ? TEXT("[Y] HOLD TO TALK TO WARDEN") : TEXT("[ENTER] TALK TO WARDEN"), InfoX, InfoY,
+				Label(bSoloKeys ? TEXT("[ENTER] CHAT / [V] TALK TO WARDEN") : (bGamepad ? TEXT("[Y] HOLD TO TALK TO WARDEN") : TEXT("[ENTER] TALK TO WARDEN")), InfoX, InfoY,
 					FLinearColor(1.0f, 0.35f, 0.25f, Input->CanTalkNow() ? 0.9f : 0.35f), SysFont(ECXHudFont::Tiny), 1.0f);
 			}
 			else
 			{
-				Label(bGamepad ? TEXT("[Y] HOLD TO TALK") : TEXT("[ENTER] TALK TO JEMINI"), InfoX, InfoY,
+				Label(bSoloKeys ? TEXT("[ENTER] CHAT / [V] HOLD TO TALK") : (bGamepad ? TEXT("[Y] HOLD TO TALK") : TEXT("[ENTER] TALK TO JEMINI")), InfoX, InfoY,
 					JeminiColor.CopyWithNewOpacity(Input->CanTalkNow() ? 0.55f : 0.25f), SysFont(ECXHudFont::Tiny), 1.0f);
 			}
 		}
@@ -856,6 +866,25 @@ void ACoopHUD::DrawPlayerTag(const FLinearColor& Color, const FString& SlotText,
 	Label(SlotText, X + 14.0f * S(), Y - 4.0f * S(), Color, GameFont(ECXHudFont::Small), 1.0f);
 	Label(DisplayName, X + 14.0f * S(), Y + 13.0f * S(), FLinearColor::White, GameFont(ECXHudFont::Large), 1.05f);
 	Label(RoleText, X + 14.0f * S(), Y + 50.0f * S(), Color.CopyWithNewOpacity(0.75f), GameFont(ECXHudFont::Tiny), 1.0f);
+}
+
+void ACoopHUD::DrawSoloLabel(bool bIsSister, const FLinearColor& Color)
+{
+	if (!UCXSoloSubsystem::IsActive())
+	{
+		return;
+	}
+	// 체력 바(Y +76) 아래 한 줄: 조작 중이면 안내, AI면 AUTO
+	const float X = CoopHUDLayout::Margin * S() + 14.0f * S();
+	const float Y = CoopHUDLayout::Margin * S() + 98.0f * S();
+	if (UCXSoloSubsystem::IsAISlot(bIsSister ? 1 : 0))
+	{
+		Label(TEXT("AUTO"), X, Y, Color.CopyWithNewOpacity(0.55f + 0.35f * Pulse(2.0f)), SysFont(ECXHudFont::Small), 1.0f);
+	}
+	else
+	{
+		Label(TEXT("SOLO MODE — [TAB] SWITCH"), X, Y, WarningColor.CopyWithNewOpacity(0.85f), SysFont(ECXHudFont::Tiny), 1.0f);
+	}
 }
 
 void ACoopHUD::DrawBrotherWeapon(const UBrotherCombatComponent& Combat)

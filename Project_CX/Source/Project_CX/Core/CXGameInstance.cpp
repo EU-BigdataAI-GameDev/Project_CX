@@ -2,6 +2,7 @@
 
 #include "CXGameInstance.h"
 #include "CXSaveGame.h"
+#include "CXSoloSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
@@ -19,6 +20,11 @@ UCXGameInstance* UCXGameInstance::Get(const UObject* WorldContextObject)
 
 ECXInputDeviceType UCXGameInstance::GetSlotDeviceType(int32 PlayerIndex) const
 {
+	// 솔로 모드(숨김, 설정은 건드리지 않음): 조작 슬롯 = 키보드, 나머지 = AI(게임패드로 취급 — "둘 다 키보드 불가" 규칙 유지)
+	if (IsValidSlot(PlayerIndex) && UCXSoloSubsystem::IsActive())
+	{
+		return PlayerIndex == UCXSoloSubsystem::GetControlledSlot() ? ECXInputDeviceType::KeyboardMouse : ECXInputDeviceType::Gamepad;
+	}
 	// 조작 장치는 설정(GameUserSettings.ini)이 유일한 기준
 	return IsValidSlot(PlayerIndex) ? UCXGameUserSettings::GetCXGameUserSettings()->GetSlotDevice(PlayerIndex) : ECXInputDeviceType::Gamepad;
 }
@@ -71,7 +77,8 @@ bool UCXGameInstance::IsSlotReady(int32 PlayerIndex) const
 	{
 		return false;
 	}
-	return GetSlotDeviceType(PlayerIndex) == ECXInputDeviceType::KeyboardMouse || SlotGamepads[PlayerIndex].IsValid();
+	// 솔로 모드(숨김): 패드가 없어도 연결된 것으로 처리
+	return UCXSoloSubsystem::IsActive() || GetSlotDeviceType(PlayerIndex) == ECXInputDeviceType::KeyboardMouse || SlotGamepads[PlayerIndex].IsValid();
 }
 
 bool UCXGameInstance::AreAllSlotsReady() const

@@ -5,6 +5,7 @@
 #include "CXMenuSubsystem.h"
 #include "CXNeonPanelWidget.h"
 #include "CXGameInstance.h"
+#include "CXSoloSubsystem.h"
 #include "CXSettingsWidget.h"
 #include "CXAudioSubsystem.h"
 #include "CoopHUD.h"
@@ -567,7 +568,7 @@ void UCXPauseMenuWidget::RebuildControlsColumn(int32 PlayerIndex)
 
 	// 머리말: P1 BROTHER — KEYBOARD & MOUSE
 	const FString Head = FString::Printf(TEXT("%s   ·   %s"), PlayerIndex == 0 ? TEXT("P1  BROTHER  오빠") : TEXT("P2  SISTER  여동생"),
-		bPad ? TEXT("GAMEPAD") : TEXT("KEYBOARD & MOUSE"));
+		UCXSoloSubsystem::IsAISlot(PlayerIndex) ? TEXT("SOLO  AI AUTO") : (bPad ? TEXT("GAMEPAD") : TEXT("KEYBOARD & MOUSE")));
 	if (UVerticalBoxSlot* S = Column->AddChildToVerticalBox(MakeText(Head, CXMenuStyle::Font(19, TEXT("Bold"), 80), Color)))
 	{
 		S->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
@@ -597,7 +598,34 @@ void UCXPauseMenuWidget::RebuildControlsColumn(int32 PlayerIndex)
 		{ TEXT("해킹 취소"), TEXT("BACKSPACE"), TEXT("B") },
 		{ TEXT("제미니·WARDEN 대화"), TEXT("ENTER  (채팅)"), TEXT("Y  (누른 채 말하기)") },
 	};
-	const TArrayView<const FRow> Rows = PlayerIndex == 0 ? MakeArrayView(BrotherRows) : MakeArrayView(SisterRows);
+	// 솔로 모드(숨김): 키보드로 마이크 푸시투토크(V)가 추가되고 Tab으로 캐릭터를 바꾼다. AI 쪽 열은 자동 동작 안내만.
+	static const FRow SoloBrotherRows[] = {
+		{ TEXT("이동"), TEXT("W A S D"), TEXT("L 스틱") },
+		{ TEXT("점프"), TEXT("SPACE"), TEXT("A") },
+		{ TEXT("사격 (자동 조준)"), TEXT("마우스 좌클릭"), TEXT("RT") },
+		{ TEXT("조준 고정"), TEXT("마우스 우클릭"), TEXT("LT") },
+		{ TEXT("상호작용 (문 버튼)"), TEXT("F"), TEXT("X") },
+		{ TEXT("제미니·WARDEN 채팅 / 말하기"), TEXT("ENTER / V (누른 채)"), TEXT("Y  (누른 채 말하기)") },
+		{ TEXT("조작 캐릭터 전환"), TEXT("TAB"), TEXT("-") },
+	};
+	static const FRow SoloSisterRows[] = {
+		{ TEXT("이동"), TEXT("W A S D"), TEXT("L 스틱") },
+		{ TEXT("점프"), TEXT("SPACE"), TEXT("A") },
+		{ TEXT("해킹 시작·확인 / 상호작용"), TEXT("F"), TEXT("X") },
+		{ TEXT("해킹 조작"), TEXT("방향키"), TEXT("D-패드") },
+		{ TEXT("해킹 취소"), TEXT("BACKSPACE"), TEXT("B") },
+		{ TEXT("제미니·WARDEN 채팅 / 말하기"), TEXT("ENTER / V (누른 채)"), TEXT("Y  (누른 채 말하기)") },
+		{ TEXT("조작 캐릭터 전환"), TEXT("TAB"), TEXT("-") },
+	};
+	static const FRow SoloAIRows[] = {
+		{ TEXT("SOLO MODE — AI"), TEXT("AUTO"), TEXT("AUTO") },
+	};
+	TArrayView<const FRow> Rows = PlayerIndex == 0 ? MakeArrayView(BrotherRows) : MakeArrayView(SisterRows);
+	if (UCXSoloSubsystem::IsActive())
+	{
+		Rows = UCXSoloSubsystem::IsAISlot(PlayerIndex) ? MakeArrayView(SoloAIRows)
+			: (PlayerIndex == 0 ? MakeArrayView(SoloBrotherRows) : MakeArrayView(SoloSisterRows));
+	}
 	for (const FRow& Row : Rows)
 	{
 		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -716,6 +744,10 @@ bool UCXPauseMenuWidget::IsPlayerConnected(int32 PlayerIndex) const
 		return false;
 	}
 	const UCXGameInstance* GI = UCXGameInstance::Get(this);
+	if (UCXSoloSubsystem::IsAISlot(PlayerIndex))
+	{
+		return true;	// 솔로 모드의 AI 슬롯은 패드가 필요 없다
+	}
 	if (GI && GI->GetSlotDeviceType(PlayerIndex) == ECXInputDeviceType::KeyboardMouse)
 	{
 		return true;
@@ -736,13 +768,14 @@ void UCXPauseMenuWidget::RefreshPlayerTags()
 	{
 		const ECXInputDeviceType Device = GI ? GI->GetSlotDeviceType(i) : (i == 0 ? ECXInputDeviceType::KeyboardMouse : ECXInputDeviceType::Gamepad);
 		const bool bKeyboard = Device == ECXInputDeviceType::KeyboardMouse;
-		TagDeviceTexts[i]->SetText(FText::FromString(bKeyboard ? TEXT("KEYBOARD & MOUSE") : TEXT("GAMEPAD")));
+		const bool bSoloAI = UCXSoloSubsystem::IsAISlot(i);
+		TagDeviceTexts[i]->SetText(FText::FromString(bSoloAI ? TEXT("SOLO MODE  //  AI AUTO") : (bKeyboard ? TEXT("KEYBOARD & MOUSE") : TEXT("GAMEPAD"))));
 
 		const bool bConnected = IsPlayerConnected(i);
 		TagStatusTexts[i]->SetText(FText::FromString(bConnected ? TEXT("CONNECTED") : TEXT("NOT CONNECTED")));
 		TagStatusTexts[i]->SetColorAndOpacity(FSlateColor(bConnected ? CXMenuStyle::TextDim : CXMenuStyle::Warning));
 		// 키보드는 연결 상태 표기 생략(항상 연결)
-		TagStatusTexts[i]->SetVisibility(bKeyboard ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+		TagStatusTexts[i]->SetVisibility(bKeyboard || bSoloAI ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 }
 

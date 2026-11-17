@@ -59,7 +59,8 @@ public class Project_CX : ModuleRules
 			"Project_CX/Title",
 			"Project_CX/UI",
 			"Project_CX/UI/Menu",
-			"Project_CX/Tutorial"
+			"Project_CX/Tutorial",
+			"Project_CX/Solo"
 		});
 
 		// Uncomment if you are using Slate UI

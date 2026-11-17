@@ -151,6 +151,9 @@ private:
 	void OnChatPressed();
 	void OnTalkPressed();
 	void OnTalkReleased();
+	/** 솔로 모드 전용 키보드 V 누르는 동안 녹음(일반 모드에서는 무시 — 게임패드 Y와 같은 경로). */
+	void OnTalkKeyPressed();
+	void OnTalkKeyReleased();
 
 	/** InitialText가 있으면 입력창에 미리 넣는다. */
 	void OpenChat(const FString& InitialText = FString());
@@ -177,6 +180,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> TalkAction;
+
+	/** 키보드 V(솔로 모드에서만 동작) — 게임패드 Y(TalkAction)와 따로 둔다. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> TalkKeyAction;
 
 	/** 컨트롤러 입력 스택에 올린 제미니 전용 입력 컴포넌트(폰 입력이 꺼져도 유지). */
 	UPROPERTY(Transient)

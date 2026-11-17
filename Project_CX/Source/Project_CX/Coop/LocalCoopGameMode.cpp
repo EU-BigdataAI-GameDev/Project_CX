@@ -31,6 +31,7 @@
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiRuleComponent.h"
 #include "CXTutorialSubsystem.h"
+#include "CXSoloSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "CXGameInstance.h"
@@ -1136,6 +1137,36 @@ void ALocalCoopGameMode::CXTutorialState()
 	UE_LOG(LogTemp, Log, TEXT("CXTutorialState: %s"), Tutorial ? *Tutorial->GetDebugState() : TEXT("no tutorial subsystem"));
 }
 
+// ---------------------------------------------------------------- 1인 강제 플레이(숨김 솔로 모드)
+
+void ALocalCoopGameMode::CXSolo(const FString& Mode)
+{
+	UCXSoloSubsystem* Solo = UCXSoloSubsystem::Get(this);
+	if (!Solo)
+	{
+		return;
+	}
+	const FString Arg = Mode.TrimStartAndEnd().ToLower();
+	if (Arg == TEXT("off") || Arg == TEXT("false") || Arg == TEXT("-1"))
+	{
+		Solo->Disable();
+		return;
+	}
+	// 0 / 비움 / brother = 오빠, 1 / sister = 여동생
+	const bool bSister = Arg == TEXT("1") || Arg == TEXT("sister") || Arg == TEXT("s");
+	Solo->Enable(bSister ? 1 : 0);
+	UE_LOG(LogTemp, Log, TEXT("CXSolo: %s"), *Solo->GetDebugState());
+}
+
+void ALocalCoopGameMode::CXSoloSwap()
+{
+	if (UCXSoloSubsystem* Solo = UCXSoloSubsystem::Get(this))
+	{
+		Solo->TrySwitchControl();
+		UE_LOG(LogTemp, Log, TEXT("CXSoloSwap: %s"), *Solo->GetDebugState());
+	}
+}
+
 AActor* ALocalCoopGameMode::DebugSpawnMemoryTerminal(int32 LocalPlayerIndex, float OffsetY, float DepthX)
 {
 	const APawn* Pawn = nullptr;
@@ -1910,6 +1941,8 @@ void ALocalCoopGameMode::ExecuteTravel()
 		return;
 	}
 	const FString Map = PendingTravelMap;
+	// 솔로 모드가 켜져 있으면 새 맵에서도 이어서 켠다(시작화면으로 가면 버려진다)
+	UCXSoloSubsystem::NotifyTravel();
 
 	// 제미니 공격력 강화는 맵 이동 시 유지(제미니 기능 기획 2-5) — 새 맵의 오빠 전투 컴포넌트가 이어받는다
 	if (UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()))

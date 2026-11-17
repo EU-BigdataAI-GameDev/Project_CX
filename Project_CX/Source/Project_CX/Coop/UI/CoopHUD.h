@@ -154,6 +154,8 @@ protected:
 
 private:
 	void DrawPlayerTag(const FLinearColor& Color, const FString& SlotText, const FString& DisplayName, const FString& RoleText);
+	/** 솔로 모드(숨김): 조작 중이면 "SOLO MODE — [TAB] SWITCH", AI 캐릭터 칸이면 "AUTO"(체력 바 아래). */
+	void DrawSoloLabel(bool bIsSister, const FLinearColor& Color);
 	void DrawBrotherWeapon(const UBrotherCombatComponent& Combat);
 	void DrawSisterHackLink();
 	/** InactiveText가 비어 있지 않으면 비활성 마커의 거리 대신 그 문구를 쓴다(적 해킹 쿨타임 RELINK 등). */

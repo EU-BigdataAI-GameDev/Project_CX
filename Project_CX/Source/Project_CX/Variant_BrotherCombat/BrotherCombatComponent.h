@@ -80,6 +80,12 @@ public:
 	/** 마지막으로 쏜 월드 시각(쏜 적 없으면 음수). 튜토리얼 "첫 사격" 완료 판정용(UCXTutorialSubsystem). */
 	double GetLastShotWorldTime() const { return LastShotWorldTime; }
 
+	/**
+	 *  솔로 모드(UCXSoloFollowerComponent): AI 오빠 자동 사격. 자동 조준 사거리(AimRange) 안의 가장 가까운 적(전방 원뿔 없음)을 향해
+	 *  평소 Fire 경로로 쏜다(연사 간격·탄약 그대로). 탄이 0이면 장전을 시작한다. 쐈으면 true, 적이 없으면 조준을 풀고 false.
+	 */
+	bool SoloAutoFire();
+
 	/** HUD: 탄약 0 + 장전 중 아님 → 제미니에게 재장전 요청 안내. */
 	bool NeedsJeminiReload() const { return CurrentAmmo <= 0 && !bIsReloading; }
 

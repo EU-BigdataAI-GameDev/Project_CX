@@ -259,6 +259,12 @@ public:
 
 	bool IsJeminiAssisting() const { return JeminiAssistRemaining > 0.0f; }
 
+	/**
+	 *  솔로 모드(UCXSoloFollowerComponent): AI 여동생의 자동 해킹 마무리 — 지금 진행 중인 단말기/적 해킹 세션을
+	 *  제미니 대행 완료와 같은 성공 경로로 끝낸다(퍼즐 입력 생략). 세션이 없으면 아무것도 하지 않는다.
+	 */
+	void SoloCompleteSession() { CompleteJeminiAssist(); }
+
 	/** HUD: 대행 진행도 0~1. */
 	float GetJeminiAssistProgress() const { return JeminiAssistDuration > 0.0f ? FMath::Clamp(1.0f - JeminiAssistRemaining / JeminiAssistDuration, 0.0f, 1.0f) : 0.0f; }
 

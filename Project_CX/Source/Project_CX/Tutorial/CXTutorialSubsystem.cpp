@@ -6,6 +6,7 @@
 #include "CXPlayerLifeComponent.h"
 #include "CXGameInstance.h"
 #include "CXGameUserSettings.h"
+#include "CXSoloSubsystem.h"
 #include "CXMenuSubsystem.h"
 #include "CXMenuStyle.h"
 #include "BrotherCombatComponent.h"
@@ -212,7 +213,8 @@ void UCXTutorialSubsystem::Tick(float DeltaTime)
 		return;	// 시작화면 등
 	}
 	const bool bFlowBlocked = GameMode->IsGameOver() || GameMode->IsGameCleared() || GameMode->IsTravelling();
-	const bool bEnabled = !bSuppressed && UCXGameUserSettings::GetCXGameUserSettings()->IsTutorialEnabled();
+	// 솔로 모드(숨김)에서는 카드가 두 장치를 전제하므로 끈다("봤음" 기록은 건드리지 않음)
+	const bool bEnabled = !bSuppressed && !UCXSoloSubsystem::IsActive() && UCXGameUserSettings::GetCXGameUserSettings()->IsTutorialEnabled();
 	const UCXMenuSubsystem* Menus = UCXMenuSubsystem::Get(World);
 	const bool bMenu = Menus && Menus->HasActiveMenu();
 
