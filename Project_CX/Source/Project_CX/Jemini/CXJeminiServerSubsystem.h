@@ -42,6 +42,10 @@ protected:
 	UPROPERTY(Config)
 	bool bAutoStartServer = true;
 
+	/** 원격 서버가 잠들지 않게 /health를 보내는 간격(초). 0이면 끔. Render 무료 서버는 15분 무요청이면 잠든다. */
+	UPROPERTY(Config)
+	float KeepAliveInterval = 600.0f;
+
 	/** /health 확인 타임아웃(초). */
 	UPROPERTY(Config)
 	float HealthCheckTimeout = 1.5f;
@@ -52,12 +56,16 @@ private:
 	/** 띄운 뒤 몇 초 지나서도 살아 있는지 보고, 죽었으면 그 후보를 빼고 다시 띄운다. */
 	void VerifyLaunched(const FString& Host, int32 Port);
 	static bool ParseLocalUrl(const FString& Url, FString& OutHost, int32& OutPort);
+	/** 원격 서버에 /health를 보낸다(잠든 서버 깨우기·유지). 응답은 로그에만 쓴다. */
+	void PingRemote(const FString& BaseUrl, const TCHAR* Label);
 
 	FProcHandle ServerProcess;
 	/** 띄웠다가 곧바로 죽은 후보(불완전한 exe 빌드 등) — 다음 시도에서 건너뛴다(이슈 #21). */
 	TArray<FString> FailedCandidates;
 	FString LaunchedCandidate;
 	FTSTicker::FDelegateHandle VerifyHandle;
+	/** 원격 서버 유지용 주기 /health 핸들. */
+	FTSTicker::FDelegateHandle KeepAliveHandle;
 	EState State = EState::Disabled;
 	bool bShuttingDown = false;
 };

@@ -29,19 +29,17 @@ void UCXJeminiServerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		State = EState::Remote;
 		UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: remote server %s — not launching locally"), *BaseUrl);
 
-		// 무료 허깅페이스 Space는 한동안 안 쓰면 잠든다(깨어나는 데 1분 안팎). 게임을 켜는 순간 /health로 미리 깨워
-		// 첫 제미니·WARDEN 요청이 "통신 지연"으로 끝나지 않게 한다. 응답 내용은 쓰지 않는다.
-		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> WarmUp = FHttpModule::Get().CreateRequest();
-		WarmUp->SetURL(BaseUrl + TEXT("/health"));
-		WarmUp->SetVerb(TEXT("GET"));
-		WarmUp->SetTimeout(90.0f);
-		WarmUp->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr, FHttpResponsePtr Response, bool bConnected)
+		// 무료 서버(Render)는 한동안 안 쓰면 잠든다(깨어나는 데 1분 안팎). 게임을 켜는 순간 /health로 미리 깨워
+		// 첫 제미니·WARDEN 요청이 "통신 지연"으로 끝나지 않게 하고, 게임이 켜져 있는 동안은 주기적으로 다시 보내 잠들지 않게 한다.
+		PingRemote(BaseUrl, TEXT("warm-up"));
+		if (KeepAliveInterval > 0.0f)
 		{
-			UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: remote warm-up %s (HTTP %d)"),
-				(bConnected && Response.IsValid() && Response->GetResponseCode() == 200) ? TEXT("ok") : TEXT("no response"),
-				Response.IsValid() ? Response->GetResponseCode() : 0);
-		});
-		WarmUp->ProcessRequest();
+			KeepAliveHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, BaseUrl](float)
+			{
+				PingRemote(BaseUrl, TEXT("keep-alive"));
+				return true;
+			}), KeepAliveInterval);
+		}
 		return;
 	}
 	CheckThenLaunch(BaseUrl, Host, Port);
@@ -51,6 +49,7 @@ void UCXJeminiServerSubsystem::Deinitialize()
 {
 	bShuttingDown = true;
 	FTSTicker::GetCoreTicker().RemoveTicker(VerifyHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(KeepAliveHandle);
 	if (ServerProcess.IsValid())
 	{
 		// 내가 띄운 서버만 끈다(직접 띄운 서버는 건드리지 않음)
@@ -62,6 +61,21 @@ void UCXJeminiServerSubsystem::Deinitialize()
 		UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: stopped the server this game started"));
 	}
 	Super::Deinitialize();
+}
+
+void UCXJeminiServerSubsystem::PingRemote(const FString& BaseUrl, const TCHAR* Label)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(BaseUrl + TEXT("/health"));
+	Request->SetVerb(TEXT("GET"));
+	Request->SetTimeout(90.0f);
+	Request->OnProcessRequestComplete().BindLambda([Label = FString(Label)](FHttpRequestPtr, FHttpResponsePtr Response, bool bConnected)
+	{
+		UE_LOG(LogCXJeminiServer, Log, TEXT("JeminiServer: remote %s %s (HTTP %d)"), *Label,
+			(bConnected && Response.IsValid() && Response->GetResponseCode() == 200) ? TEXT("ok") : TEXT("no response"),
+			Response.IsValid() ? Response->GetResponseCode() : 0);
+	});
+	Request->ProcessRequest();
 }
 
 void UCXJeminiServerSubsystem::VerifyLaunched(const FString& Host, int32 Port)
