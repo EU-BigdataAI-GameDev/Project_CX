@@ -148,8 +148,33 @@ protected:
 	UPROPERTY(Config, EditAnywhere, Category = "Proactive")
 	float DecoyEnemyRange = 500.0f;
 
+	/** 평소 코멘트: 제미니의 마지막 대사(응답·제안·코멘트 포함) 뒤 이 시간(초)이 지나고 조용할 때 한 줄. 0이면 끔. */
+	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
+	float ChatterInterval = 30.0f;
+
+	/** 평소 코멘트: 이 거리(cm) 안에 적이 있으면 조용하지 않은 것으로 본다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
+	float ChatterEnemyRange = 1800.0f;
+
+	/** 이벤트 코멘트(구역 도착·증거·배터리): 마지막 대사 뒤 이 시간(초) 이상 지나야 한다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
+	float EventMinGap = 4.0f;
+
+	/** 구역 도착 코멘트: 맵이 시작되고 이 시간(초) 뒤부터. */
+	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
+	float ArrivalDelay = 3.0f;
+
+	/** 배터리 낮음 코멘트: 이 값(%) 이하. */
+	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
+	int32 LowBatteryPercent = 30;
+
 private:
 	ACXJeminiDrone* GetDrone() const;
+	/** 이벤트(구역 도착·증거·배터리) 감지 → 대기열. */
+	void DetectEvents(const FInputs& In, double T);
+	/** 대기 중인 이벤트 코멘트 또는 평소 코멘트 한 줄. 말했으면 true. */
+	bool TryChatter(const FInputs& In, double T);
+	static const TCHAR* GetArrivalLine(const FString& LevelName);
 	float Now() const;
 	void GatherInputs(FInputs& Out) const;
 	bool Meets(ECXJeminiOfferType Type, const FInputs& In) const;
@@ -176,6 +201,17 @@ private:
 	/** 같은 단말기 해킹 연속 시간(서버). */
 	TWeakObjectPtr<AActor> StuckTerminal;
 	float StuckAccum = 0.0f;
+
+	/** 코멘트 상태(서버). */
+	double ChatterBeginTime = 0.0;
+	FString PendingEventLine;
+	double PendingEventReady = 0.0;
+	double PendingEventExpire = 0.0;
+	bool bArrivalQueued = false;
+	int32 LastEvidenceNum = 0;
+	bool bAllEvidenceSaid = false;
+	bool bLowBatteryArmed = true;
+	TArray<int32> ChatterBag;
 
 	int32 SeenDroneSeq = -1;
 	double LastDroneSpeechTime = -1000.0;
