@@ -491,10 +491,10 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 
 	// 3-1) 조건부 지시 규칙(기능 A): 입력 안내 아래, 규칙마다 한 줄(오른쪽 정렬, 두 칸 모두). 보류 중이면 경고색 깜빡임.
 	//      그 아래 대답 대기 중인 작전 제안(기능 C): "PLAN?  <요약>  [응/아니]" — 은은히 깜빡임.
-	//      선제 제안(제미니가 먼저 묻는 것): "OFFER  <요약>  [G] YES  [H] NO"(장치별 키) — PLAN? 줄 아래.
+	//      선제 제안(제미니가 먼저 묻는 것): "OFFER  <요약>  [R] YES  [T] NO"(장치별 키) — PLAN? 줄 아래.
 	const UCXJeminiProactiveComponent* ProactiveComp = Drone->GetProactiveComponent();
 	const bool bOfferShown = ProactiveComp && ProactiveComp->HasOffer();
-	if (const UCXJeminiRuleComponent* RuleComp = Drone->GetRuleComponent(); RuleComp && (RuleComp->GetRules().Num() > 0 || RuleComp->GetProposal().Num() > 0 || bOfferShown))
+	if (const UCXJeminiRuleComponent* RuleComp = Drone->GetRuleComponent(); RuleComp && (RuleComp->GetRules().Num() > 0 || RuleComp->GetProposal().Num() > 0))
 	{
 		UFont* RuleFont = SysFont(ECXHudFont::Tiny);
 		const float RuleScale = S() * CoopHUDLayout::TextScale;
@@ -541,22 +541,45 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 			Label(Line, RightX - LW, RowY, FLinearColor(1.0f, 0.85f, 0.35f, 0.6f + 0.4f * Pulse(2.0f)), RuleFont, 1.0f);
 			RowY += LH + 2.0f * S();
 		}
-		if (bOfferShown && !UCXSoloSubsystem::IsAISlot(bIsSister ? 1 : 0))
+	}
+
+	// 3-2) 선제 제안(제미니가 먼저 묻는 것): 채팅창 바로 아래 가운데에 크게. 질문 한 줄 + "[R] YES  [T] NO  14s"(장치별 키).
+	if (bOfferShown && !UCXSoloSubsystem::IsAISlot(bIsSister ? 1 : 0))
+	{
+		bool bGamepad = bIsSister;
+		const ULocalPlayer* LocalPlayer = PlayerOwner ? PlayerOwner->GetLocalPlayer() : nullptr;
+		if (const UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()); GI && LocalPlayer)
 		{
-			// 장치별 키: 키보드 G / H, 게임패드 LB / RB (UCXJeminiInputComponent와 같은 매핑)
-			bool bGamepad = bIsSister;
-			const ULocalPlayer* LocalPlayer = PlayerOwner ? PlayerOwner->GetLocalPlayer() : nullptr;
-			if (const UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()); GI && LocalPlayer)
-			{
-				bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
-			}
-			const FString OfferLine = FString::Printf(TEXT("OFFER  %s  %s YES  %s NO  %ds"), UCXJeminiProactiveComponent::GetOfferLabel(ProactiveComp->GetOfferType()),
-				bGamepad ? TEXT("[LB]") : TEXT("[G]"), bGamepad ? TEXT("[RB]") : TEXT("[H]"), FMath::CeilToInt(ProactiveComp->GetOfferRemaining()));
-			float LW = 0.0f, LH = 0.0f;
-			GetTextSize(OfferLine, LW, LH, RuleFont, RuleScale);
-			Label(OfferLine, RightX - LW, RowY, FLinearColor(1.0f, 0.85f, 0.35f, 0.6f + 0.4f * Pulse(2.0f)), RuleFont, 1.0f);
-			RowY += LH + 2.0f * S();
+			bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
 		}
+		FString Question = UCXJeminiProactiveComponent::GetOfferLine(ProactiveComp->GetOfferType());
+		Question.ReplaceInline(TEXT(" [응/아니]"), TEXT(""));
+		const FString KeyLine = FString::Printf(TEXT("%s YES      %s NO      %ds"), bGamepad ? TEXT("[LB]") : TEXT("[R]"), bGamepad ? TEXT("[RB]") : TEXT("[T]"),
+			FMath::CeilToInt(ProactiveComp->GetOfferRemaining()));
+		UFont* QFont = SysFont(ECXHudFont::Medium);
+		UFont* KFont = GameFont(ECXHudFont::Large);
+		const float QScale = S() * CoopHUDLayout::TextScale;
+		const float KScale = S() * CoopHUDLayout::TextScale;
+		float QW = 0.0f, QH = 0.0f, KW = 0.0f, KH = 0.0f;
+		GetTextSize(Question, QW, QH, QFont, QScale);
+		GetTextSize(KeyLine, KW, KH, KFont, KScale);
+		const float PadX = 22.0f * S(), PadY = 10.0f * S(), Gap = 6.0f * S();
+		const float BoxW = FMath::Max(QW, KW) + PadX * 2.0f;
+		const float BoxH = QH + KH + Gap + PadY * 2.0f;
+		const float BoxX = (Canvas->ClipX - BoxW) * 0.5f;
+		// 채팅창(아래에서 150px 위)이 닫혀 있어도 같은 자리 — 채팅창 바로 아래
+		const float BoxY = Canvas->ClipY - 142.0f * S() + 4.0f * S();
+		const float Glow = 0.65f + 0.35f * Pulse(2.0f);
+		const FLinearColor Gold(1.0f, 0.85f, 0.35f, 1.0f);
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.72f), BoxX, BoxY, BoxW, BoxH);
+		const float T = 2.0f * S();
+		const FLinearColor Edge = Gold.CopyWithNewOpacity(Glow);
+		DrawRect(Edge, BoxX, BoxY, BoxW, T);
+		DrawRect(Edge, BoxX, BoxY + BoxH - T, BoxW, T);
+		DrawRect(Edge, BoxX, BoxY + T, T, BoxH - 2.0f * T);
+		DrawRect(Edge, BoxX + BoxW - T, BoxY + T, T, BoxH - 2.0f * T);
+		Label(Question, Canvas->ClipX * 0.5f, BoxY + PadY, FLinearColor(1.0f, 1.0f, 1.0f, 0.95f), QFont, 1.0f, true);
+		Label(KeyLine, Canvas->ClipX * 0.5f, BoxY + PadY + QH + Gap, Gold.CopyWithNewOpacity(Glow), KFont, 1.0f, true);
 	}
 
 	if (bDead)

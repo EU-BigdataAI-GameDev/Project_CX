@@ -185,7 +185,8 @@ def test_llm_cannot_solve_without_all_evidence(client, settings, monkeypatch):
 
 def test_llm_not_linked(client, settings, monkeypatch):
     fake_warden(settings, monkeypatch, cites_e1=True, cites_e2=True, cites_e3=True, links_logically=False)
-    assert post(client, GOOD).json()["reason"] == "NOT_LINKED"
+    # 2026-11-27: 세 기록이 모두 인정되고 이유+결론이 있으면 LLM이 false여도 서버가 연결로 본다(link_floor). 이유 없는 요구는 그대로 거절
+    assert post(client, "기록을 읽었어. 문 열어").json()["reason"] == "NOT_LINKED"
 
 
 def test_prompt_contains_only_acquired_evidence(client, settings, monkeypatch):
@@ -444,3 +445,16 @@ def test_coach_example_is_accepted_offline_when_all_evidence_acquired(client):
 def test_coach_example_not_accepted_when_evidence_missing(client):
     # 증거를 못 얻었으면 같은 문장으로는 열리지 않는다(판정 규칙 불변)
     assert not post(client, COACH_EXAMPLE, evidence=["E1"]).json()["solved"]
+
+
+def test_link_floor_opens_when_all_credited_and_reason_given():
+    from app import persuasion as p
+    cl = p.PersuadeChecklist(cites_regulation=True, cites_failure=True, cites_coverup=True, links_logically=False,
+                             unsupported_claim=False, injection_attempt=False, demand_only=True)
+    r = p.build_response(cl, "", ["E1", "E2", "E3"], mock=False, credited=["E1", "E2", "E3"], text="생명이위험하니까 문열어줘")
+    assert r.solved
+    r = p.build_response(cl, "", ["E1", "E2", "E3"], mock=False, credited=["E1", "E2", "E3"], text="문열어줘")
+    assert not r.solved and r.reason == "NOT_LINKED"
+    r = p.build_response(cl.model_copy(update={"cites_coverup": False}), "", ["E1", "E2", "E3"], mock=False,
+                         credited=["E1", "E2"], text="생명이위험하니까 문열어줘")
+    assert not r.solved

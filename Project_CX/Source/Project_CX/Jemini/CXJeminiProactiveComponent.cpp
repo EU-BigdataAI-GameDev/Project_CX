@@ -51,6 +51,30 @@ namespace CXJeminiProactive
 	/** 이 길이(정리 후 글자 수)를 넘는 문장은 한 단어 명령·짧은 대답으로 보지 않는다. */
 	constexpr int32 MaxShortChars = 8;
 
+	/** 평소 코멘트 고정 문구. 한 판에서 다 돌기 전에는 같은 줄을 다시 말하지 않는다. 인덱스 3은 두 사람이 다 살아 있을 때만. */
+	const TCHAR* ChatterLines[] = {
+		TEXT("주변에 적 신호가 없어요. 지금이 정비할 타이밍이에요."),
+		TEXT("필요하면 불러요. 미끼, 회복, 장전 다 할 수 있어요!"),
+		TEXT("'~하면 ~해 줘'라고 부탁하면 제가 알아서 움직여요."),
+		TEXT("둘이 같이 있으니 든든해요."),
+		TEXT("저는 '해킹'이라고만 말해도 알아들어요."),
+		// 기능 안내(기능 하나에 한 문장)
+		TEXT("'장전'이라고 하면 오빠의 탄창을 채워 드려요."),
+		TEXT("'회복'이라고 하면 체력을 채워 드려요."),
+		TEXT("'미끼'라고 하면 적의 시선을 끄는 미끼를 던져요."),
+		TEXT("'보호막'이라고 하면 5초 동안 무적 보호막을 씌워요."),
+		TEXT("'재부팅'이라고 하면 쓰러진 사람을 바로 일으켜 세워요."),
+		TEXT("'펄스'라고 하면 전기 펄스로 적 한 기를 처치해요."),
+		TEXT("'강화'라고 하면 30초 동안 오빠의 공격력을 올려요."),
+		TEXT("해킹 중인 단말기는 제가 대신 풀어 줄 수도 있어요."),
+		TEXT("적을 해킹해서 잠깐 멈추게 할 수도 있어요."),
+	};
+	constexpr int32 PairOnlyLineIndex = 3;
+
+	const TCHAR* EvidenceFirstLine = TEXT("기록을 얻었어요! WARDEN에게 말할 때 써 봐요.");
+	const TCHAR* EvidenceAllLine = TEXT("기록을 다 모았어요. 이제 WARDEN에게 가 볼까요?");
+	const TCHAR* LowBatteryLine = TEXT("배터리가 얼마 안 남았어요. 능력은 신중하게 써요.");
+
 	const TCHAR* DeclineLine = TEXT("알겠어요. 필요하면 말해 줘요!");
 	const TCHAR* GoneLine = TEXT("지금은 다른 일 하는 중이에요, 잠깐만요!");
 }
@@ -72,6 +96,7 @@ void UCXJeminiProactiveComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 void UCXJeminiProactiveComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ChatterBeginTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	PrimaryComponentTick.TickInterval = FMath::Max(0.05f, CheckInterval);
 	// 서버(리슨 호스트)만 판단한다 — 클라이언트에서는 끈다
 	if (!GetOwner() || !GetOwner()->HasAuthority())
@@ -378,6 +403,7 @@ void UCXJeminiProactiveComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
 	FInputs In;
 	GatherInputs(In);
+	DetectEvents(In, T);
 
 	// 대기 중인 제안: 시간 초과 / 드론이 일을 시작함 / 조건이 사라짐(탄을 채움·체력 회복 등)
 	if (HasOffer())
@@ -411,6 +437,130 @@ void UCXJeminiProactiveComponent::TickComponent(float DeltaTime, ELevelTick Tick
 			return;
 		}
 	}
+	// 제안할 게 없으면: 이벤트 코멘트(구역 도착·증거·배터리) 또는 평소 코멘트
+	TryChatter(In, T);
+}
+
+// ---------------------------------------------------------------- 코멘트(평소·이벤트)
+
+const TCHAR* UCXJeminiProactiveComponent::GetArrivalLine(const FString& LevelName)
+{
+	if (LevelName.StartsWith(TEXT("Map1")))
+	{
+		return TEXT("첫 구역이에요. 적 신호가 곳곳에 있어요, 조심해요!");
+	}
+	if (LevelName.StartsWith(TEXT("Map2")))
+	{
+		return TEXT("두 번째 구역이에요. 길이 복잡해 보여요, 잘 살펴봐요!");
+	}
+	if (LevelName.StartsWith(TEXT("Map_SaveCorridor")))
+	{
+		return TEXT("저장 지점이에요. 숨 돌리고 가요.");
+	}
+	return nullptr;
+}
+
+void UCXJeminiProactiveComponent::DetectEvents(const FInputs& In, double T)
+{
+	ACXJeminiDrone* Drone = GetDrone();
+	auto Queue = [&](const TCHAR* Line, double Delay, double Lifetime)
+	{
+		PendingEventLine = Line;
+		PendingEventReady = T + Delay;
+		PendingEventExpire = T + Delay + Lifetime;
+	};
+	if (!bArrivalQueued && T - ChatterBeginTime >= ArrivalDelay)
+	{
+		bArrivalQueued = true;
+		if (const TCHAR* Line = GetArrivalLine(UGameplayStatics::GetCurrentLevelName(this, true)))
+		{
+			Queue(Line, 0.0, 40.0);
+		}
+	}
+	if (const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this); Warden && Drone)
+	{
+		const int32 Num = Warden->GetEvidenceNum();
+		if (Num > LastEvidenceNum && !Warden->IsSolved())
+		{
+			if (Num >= CXWarden::EvidenceCount && !bAllEvidenceSaid)
+			{
+				bAllEvidenceSaid = true;
+				Queue(CXJeminiProactive::EvidenceAllLine, 1.5, 25.0);
+			}
+			else if (LastEvidenceNum == 0)
+			{
+				Queue(CXJeminiProactive::EvidenceFirstLine, 1.5, 25.0);
+			}
+		}
+		LastEvidenceNum = Num;
+	}
+	if (In.Battery <= LowBatteryPercent && bLowBatteryArmed)
+	{
+		bLowBatteryArmed = false;
+		Queue(CXJeminiProactive::LowBatteryLine, 0.0, 20.0);
+	}
+	else if (In.Battery > LowBatteryPercent + 20)
+	{
+		bLowBatteryArmed = true;
+	}
+}
+
+bool UCXJeminiProactiveComponent::TryChatter(const FInputs& In, double T)
+{
+	ACXJeminiDrone* Drone = GetDrone();
+	if (!Drone || !GetBlockReason().IsEmpty())
+	{
+		return false;
+	}
+	const double SinceSpeech = T - LastDroneSpeechTime;
+	if (!PendingEventLine.IsEmpty())
+	{
+		if (T >= PendingEventExpire)
+		{
+			PendingEventLine.Reset();
+		}
+		else if (T >= PendingEventReady && SinceSpeech >= EventMinGap)
+		{
+			Drone->SayCoachLine(PendingEventLine);
+			UE_LOG(LogCXJeminiProactive, Log, TEXT("Jemini event line: %s"), *PendingEventLine);
+			PendingEventLine.Reset();
+			return true;
+		}
+		return false;
+	}
+	if (ChatterInterval <= 0.0f || SinceSpeech < ChatterInterval || T - ChatterBeginTime < ChatterInterval)
+	{
+		return false;
+	}
+	// 조용할 때만: 가까이 적이 없고 해킹 중이 아님
+	const bool bEnemyNear = (In.BrotherEnemyCm >= 0.0f && In.BrotherEnemyCm <= ChatterEnemyRange)
+		|| (In.SisterEnemyCm >= 0.0f && In.SisterEnemyCm <= ChatterEnemyRange);
+	if (bEnemyNear || In.bSisterHackingTerminal)
+	{
+		return false;
+	}
+	const bool bPair = In.bBrotherAlive && In.bSisterAlive;
+	if (ChatterBag.Num() == 0)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(CXJeminiProactive::ChatterLines); ++i)
+		{
+			ChatterBag.Add(i);
+		}
+	}
+	for (int32 Tries = 0; Tries < ChatterBag.Num(); ++Tries)
+	{
+		const int32 Pick = FMath::RandRange(0, ChatterBag.Num() - 1);
+		const int32 Index = ChatterBag[Pick];
+		if (Index == CXJeminiProactive::PairOnlyLineIndex && !bPair)
+		{
+			continue;
+		}
+		ChatterBag.RemoveAtSwap(Pick);
+		Drone->SayCoachLine(CXJeminiProactive::ChatterLines[Index]);
+		UE_LOG(LogCXJeminiProactive, Log, TEXT("Jemini chatter: %s"), CXJeminiProactive::ChatterLines[Index]);
+		return true;
+	}
+	return false;
 }
 
 void UCXJeminiProactiveComponent::ShowOffer(ECXJeminiOfferType Type, bool bForced)

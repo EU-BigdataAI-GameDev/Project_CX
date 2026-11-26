@@ -335,10 +335,10 @@ void UCXJeminiInputComponent::BuildInputAssets()
 	MappingContext->MapKey(TalkAction, EKeys::Gamepad_FaceButton_Top);
 	// 솔로 모드(키보드 1인): V를 누르는 동안 녹음 — 일반 모드에서는 OnTalkKeyPressed가 무시한다
 	MappingContext->MapKey(TalkKeyAction, EKeys::V);
-	// 선제 제안 응/아니 한 버튼 — 키보드 G/H, 게임패드 LB/RB(게임 안에서 쓰는 곳 없음: 메뉴 입력 처리기는 메뉴가 열렸을 때만)
-	MappingContext->MapKey(OfferAcceptAction, EKeys::G);
+	// 선제 제안 응/아니 한 버튼 — 키보드 R/T, 게임패드 LB/RB(게임 안에서 쓰는 곳 없음: 메뉴 입력 처리기는 메뉴가 열렸을 때만)
+	MappingContext->MapKey(OfferAcceptAction, EKeys::R);
 	MappingContext->MapKey(OfferAcceptAction, EKeys::Gamepad_LeftShoulder);
-	MappingContext->MapKey(OfferDeclineAction, EKeys::H);
+	MappingContext->MapKey(OfferDeclineAction, EKeys::T);
 	MappingContext->MapKey(OfferDeclineAction, EKeys::Gamepad_RightShoulder);
 }
 

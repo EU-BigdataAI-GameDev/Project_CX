@@ -155,7 +155,7 @@ private:
 	void OnTalkKeyPressed();
 	void OnTalkKeyReleased();
 
-	/** 선제 제안(UCXJeminiProactiveComponent) 응/아니 한 버튼: 키보드 G / H, 게임패드 LB / RB. 제안이 없으면 무시. */
+	/** 선제 제안(UCXJeminiProactiveComponent) 응/아니 한 버튼: 키보드 R / T, 게임패드 LB / RB. 제안이 없으면 무시. */
 	void OnOfferAcceptPressed();
 	void OnOfferDeclinePressed();
 	void RespondToOffer(bool bAccept);
@@ -193,7 +193,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> TalkKeyAction;
 
-	/** 선제 제안 응(G / 패드 LB)·아니(H / 패드 RB). */
+	/** 선제 제안 응(R / 패드 LB)·아니(T / 패드 RB). */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> OfferAcceptAction;
 

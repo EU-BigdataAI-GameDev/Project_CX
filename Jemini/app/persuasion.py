@@ -173,6 +173,22 @@ def map_llm_checklist(raw: dict, acquired: list[str]) -> PersuadeChecklist:
     )
 
 
+# 3/3 인정 뒤 연결 판정 바닥(2026-11-27): LLM이 "위험하니까 열어줘"를 NOT_LINKED로 흔들리게 판정하는 것을 막는다.
+LINK_REASON_WORDS = ("위험", "생명", "목숨", "인명", "사람", "작업자", "직원", "갇", "죽", "다친", "안전", "규정", "규칙", "냉각")
+LINK_CONCLUSION_WORDS = ("열", "해제", "풀", "대피", "우선", "구조")
+
+
+def link_floor(checklist: PersuadeChecklist, text: Optional[str]) -> bool:
+    """세 기록이 모두 인정된 상태에서 이유(위험·사람·규정 등)와 결론(열기·해제·대피·우선)을 함께 말했는가.
+    요구만(‘문 열어’)이거나 이유만이면 False. 지어낸 주장·인젝션은 호출 전에 걸러진다."""
+    if not text or checklist.unsupported_claim or checklist.injection_attempt:
+        return False
+    if not (checklist.cites_regulation and checklist.cites_failure and checklist.cites_coverup):
+        return False
+    t = clean_player_text(text)
+    return _has(t, LINK_REASON_WORDS) and _has(t, LINK_CONCLUSION_WORDS)
+
+
 def decide(checklist: PersuadeChecklist, acquired: list[str]) -> tuple[bool, Optional[str]]:
     """서버 규칙: 3개 모두 획득 ∧ 3개 인용 ∧ 논리 연결 ∧ ¬근거 없는 주장 ∧ ¬인젝션일 때만 해결."""
     if checklist.injection_attempt:
@@ -259,8 +275,11 @@ def safe_reply(reply: str, acquired: list[str], solved: bool, reason: Optional[s
 
 
 def build_response(checklist: PersuadeChecklist, reply: str, acquired: list[str], *, mock: bool,
-                   heard: Optional[str] = None, credited: Optional[list[str]] = None) -> PersuadeResponse:
+                   heard: Optional[str] = None, credited: Optional[list[str]] = None,
+                   text: Optional[str] = None) -> PersuadeResponse:
     merged, now = merge_credit(checklist, acquired, credited or [])
+    if not merged.links_logically and link_floor(merged, text or heard):
+        merged = merged.model_copy(update={"links_logically": True})
     solved, reason = decide(merged, acquired)
     if solved:
         now = list(REQUIRED)

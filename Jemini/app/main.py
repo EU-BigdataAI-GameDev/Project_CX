@@ -184,7 +184,7 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
                     checklist, reply = persuasion.judge_offline(offline_text, acquired, credited)
                     response = persuasion.build_response(checklist, reply, acquired, mock=True,
                                                          heard=stt_text if kind == "voice" else None,
-                                                         credited=credited)
+                                                         credited=credited, text=text)
             else:
                 try:
                     out, model = await warden_fn(settings, prompt, audio=audio if kind == "voice" else None)
@@ -192,7 +192,7 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
                     checklist = persuasion.map_llm_checklist(out.model_dump(), acquired)
                     heard = (out.heard.strip() or None) if kind == "voice" else None
                     response = persuasion.build_response(checklist, out.reply, acquired, mock=False, heard=heard,
-                                                         credited=credited)
+                                                         credited=credited, text=text)
                 except llm.RateLimitError as e:
                     # 모든 모델 한도 초과 → 키워드 판정(시연 안전장치). 음성은 로컬 받아 적기가 있을 때만.
                     offline_text = await offline_input() if settings.mock_on_rate_limit else None
@@ -203,7 +203,7 @@ async def _persuade(settings: Settings, acquired: list[str], session: str, *, ki
                     checklist, reply = persuasion.judge_offline(offline_text, acquired, credited)
                     response = persuasion.build_response(checklist, reply, acquired, mock=True,
                                                          heard=stt_text if kind == "voice" else None,
-                                                         credited=credited)
+                                                         credited=credited, text=text)
         except llm.LlmError as e:
             error = str(e)
             log_llm_error(f"persuade_{kind}", e)

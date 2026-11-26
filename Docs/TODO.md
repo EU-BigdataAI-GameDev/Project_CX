@@ -15,7 +15,7 @@
   - [x] Render 서비스 생성·환경변수 입력, 배포 서버 동작 확인(`https://jemini-server.onrender.com`), `DefaultGame.ini` 교체
   - [x] 에디터 PIE에서 제미니·WARDEN 실제 동작 확인(배포 서버)
   - [ ] 팀 시연 피드백 수집 — 배포판(Development, 구글 드라이브)을 팀원이 플레이한 결과·로그 정리(솔로 모드 테스트 포함, `Docs/Guide/솔로_플레이_테스트_안내.txt`)
-  - [ ] 선제 제안·WARDEN 코치 PIE 확인 — `CXJeminiOffer ammo|hp|stuck|decoy`, G/H·LB/RB 수락, 한 단어 명령, `CXWardenCoachState`·`CXWardenSay`로 힌트 단계, 규칙 튜토리얼 시점(맵1 중반)
+  - [ ] 선제 제안·WARDEN 코치 PIE 확인 — `CXJeminiOffer ammo|hp|stuck|decoy`, R/T·LB/RB 수락, 한 단어 명령, `CXWardenCoachState`·`CXWardenSay`로 힌트 단계, 규칙 튜토리얼 시점(맵1 중반)
   - [ ] 전시용 새 빌드(keep-alive·선제 제안·WARDEN 코치 포함) 패키징 — 12월 4일까지 확정, 드라이브 업로드
   - [ ] 솔로 모드 PIE 잔여 확인 — 맵 이동 뒤 유지, 해킹 중 이동 잠금, 메모리 패턴·회로 단말기 자동 해킹
 - [ ] 발표 자료(슬라이드) — `Docs/Jemini/비교실험_결과.md` 표·대표 문장 인용
