@@ -2,6 +2,7 @@
 
 #include "CXWardenTerminal.h"
 #include "CXWardenClient.h"
+#include "CXWardenCoachComponent.h"
 #include "CXJeminiDrone.h"
 #include "CoopInteractComponent.h"
 #include "CXPlayerLifeComponent.h"
@@ -79,6 +80,8 @@ ACXWardenTerminal::ACXWardenTerminal()
 	BodyPieces.Add(Cube(TEXT("FinR"), Root, FVector(0.0f, 62.0f, 170.0f), FVector(34.0f, 10.0f, 150.0f)));
 	Screen = Cube(TEXT("Screen"), Root, FVector(-16.0f, 0.0f, 185.0f), FVector(4.0f, 76.0f, 92.0f));
 	Eye = Cube(TEXT("Eye"), Root, FVector(-19.0f, 0.0f, 195.0f), FVector(3.0f, 28.0f, 28.0f));
+
+	Coach = CreateDefaultSubobject<UCXWardenCoachComponent>(TEXT("Coach"));
 
 	EyeLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("EyeLight"));
 	EyeLight->SetupAttachment(Root);
@@ -591,6 +594,10 @@ void ACXWardenTerminal::HandleResponse(const FCXWardenResponse& Response)
 	if (Response.Status == TEXT("rejected"))
 	{
 		LastReason = Response.Reason;
+	}
+	if (Coach)
+	{
+		Coach->NotifyResponse(Response.Status == TEXT("rejected"));
 	}
 	if (Response.bSolved)
 	{

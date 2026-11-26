@@ -15,6 +15,7 @@ class UTextRenderComponent;
 class UStaticMesh;
 class UMaterialInterface;
 class USoundBase;
+class UCXWardenCoachComponent;
 struct FCXWardenResponse;
 
 /**
@@ -77,6 +78,8 @@ public:
 	bool WasLastMock() const { return bLastMock; }
 	/** 마지막 설득 거절 사유(서버 전용 — 제미니 조언 힌트용, 기능 C). 해결·거절 전이면 빈 값. */
 	const FString& GetLastReason() const { return LastReason; }
+	/** 코치(제미니가 막힌 플레이어에게 먼저 말을 건다, 서버 전용). */
+	UCXWardenCoachComponent* GetCoach() const { return Coach; }
 	/** 대사 말풍선을 보여 줄 거리(cm) — 두 플레이어 모두. */
 	float GetShowRange() const { return ShowRange; }
 	FVector GetScreenAnchor() const;
@@ -132,6 +135,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Warden") TObjectPtr<UPointLightComponent> EyeLight;
 	UPROPERTY(VisibleAnywhere, Category = "Warden") TObjectPtr<UTextRenderComponent> NameLabel;
 	UPROPERTY(VisibleAnywhere, Category = "Warden") TObjectPtr<UTextRenderComponent> StatusLabel;
+
+	UPROPERTY(VisibleAnywhere, Category = "Warden") TObjectPtr<UCXWardenCoachComponent> Coach;
 
 	UPROPERTY(VisibleAnywhere, Category = "Warden|Gate") TObjectPtr<USceneComponent> GateRoot;
 	/** 레인을 막는 보이지 않는 충돌(COL_ 규칙: 아트는 NoCollision, 막는 건 이 상자). */

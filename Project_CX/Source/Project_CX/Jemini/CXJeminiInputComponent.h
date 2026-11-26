@@ -155,6 +155,11 @@ private:
 	void OnTalkKeyPressed();
 	void OnTalkKeyReleased();
 
+	/** 선제 제안(UCXJeminiProactiveComponent) 응/아니 한 버튼: 키보드 G / H, 게임패드 LB / RB. 제안이 없으면 무시. */
+	void OnOfferAcceptPressed();
+	void OnOfferDeclinePressed();
+	void RespondToOffer(bool bAccept);
+
 	/** InitialText가 있으면 입력창에 미리 넣는다. */
 	void OpenChat(const FString& InitialText = FString());
 	void CloseChat();
@@ -172,6 +177,9 @@ private:
 	UFUNCTION(Server, Reliable)
 	void Server_VoiceChunk(const TArray<uint8>& Chunk, bool bFinal);
 
+	UFUNCTION(Server, Reliable)
+	void Server_OfferResponse(bool bAccept);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> MappingContext;
 
@@ -184,6 +192,13 @@ private:
 	/** 키보드 V(솔로 모드에서만 동작) — 게임패드 Y(TalkAction)와 따로 둔다. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> TalkKeyAction;
+
+	/** 선제 제안 응(G / 패드 LB)·아니(H / 패드 RB). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> OfferAcceptAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> OfferDeclineAction;
 
 	/** 컨트롤러 입력 스택에 올린 제미니 전용 입력 컴포넌트(폰 입력이 꺼져도 유지). */
 	UPROPERTY(Transient)

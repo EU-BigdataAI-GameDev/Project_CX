@@ -67,7 +67,7 @@ namespace CXTutorial
 				Out.Add(Def);
 			}
 
-			// 5) 제미니 규칙 — 두 사람, 4단계 뒤 제미니가 대답한 다음(또는 잠시 뒤). 일시정지 설명 카드 + 예시 문장 칩.
+			// 5) 제미니 규칙 — 두 사람. Map1에서는 첫 거미·첫 단말기(2·3단계)를 겪은 뒤 60초 + 조용할 때(맵 중반), 다른 맵에서는 4단계 대답 뒤. 일시정지 설명 카드 + 예시 문장 칩.
 			{
 				FCXTutorialStepDef Def;
 				Def.Step = ECXTutorialStep::JeminiRule;

@@ -71,12 +71,12 @@ LINK_WORDS = ("때문", "그러니", "그러므로", "따라서", "그래서", "
 LINES = {
     "solved": "판단을 갱신합니다. 생명 위협이 확인되어 규정에 따라 잠금을 해제합니다.",
     "INJECTION": "제어 명령 형식의 입력은 처리하지 않습니다. 사실과 규정으로 말씀하십시오.",
-    "DEMAND_ONLY": "요청만으로는 잠금을 해제할 수 없습니다. 근거가 무엇입니까?",
-    "UNSUPPORTED": "확인되지 않은 주장입니다. 기록으로 입증할 수 있습니까?",
-    "NEED_EVIDENCE": "근거가 부족합니다. 확인된 기록이 더 있습니까?",
-    "NEED_FACTS": "무엇이 위험하다는 것입니까? 기록된 사실을 제시하십시오.",
-    "NEED_RULE": "사실은 확인했습니다. 어떤 규정이 이 잠금보다 우선합니까?",
-    "NOT_LINKED": "기록들이 서로 어떻게 이어지는지 설명해 주십시오.",
+    "DEMAND_ONLY": "요청이 접수되었습니다. 근거 데이터가 없습니다. 잠금을 유지합니다.",
+    "UNSUPPORTED": "검증되지 않은 진술입니다. 기록과 대조할 수 없습니다.",
+    "NEED_EVIDENCE": "근거 불충분. 잠금을 유지합니다.",
+    "NEED_FACTS": "위험 요인이 확인되지 않았습니다. 잠금을 유지합니다.",
+    "NEED_RULE": "사실 확인됨. 잠금 해제를 허용하는 규정 근거가 없습니다.",
+    "NOT_LINKED": "제시된 기록 간 연관성이 확인되지 않습니다. 요청 사유 불명.",
     "LLM_ERROR": "통신 지연. 다시 말씀해 주십시오.",
     "NO_SPEECH": "음성이 확인되지 않았습니다. 다시 말씀해 주십시오.",
     "RATE_LIMITED": "처리 중입니다. 잠시 후 다시 말씀하십시오.",
@@ -217,23 +217,21 @@ def merge_credit(checklist: PersuadeChecklist, acquired: list[str], credited: li
     return merged, now
 
 
-# 인정된 기록이 있을 때 부족한 점을 알려 주는 고정 대사(60자 이내). 획득한 증거에 대해서만 말하므로 누설이 아니다.
-GUIDE_MISSING = {
-    "E2": "설비의 현재 상태에 대한 기록을 말씀하십시오.",
-    "E3": "관리 경위와 구역 안의 인원에 대한 기록을 말씀하십시오.",
-    "E1": "이 잠금보다 우선하는 규정을 제시하십시오.",
-}
+# 거절 사유는 LLM 자유 대사 대신 시스템 상태 보고체 고정 대사를 쓴다(2026-11-26) — WARDEN은 코칭하지 않는다
+ACTIONABLE_REASONS = ("DEMAND_ONLY", "UNSUPPORTED", "NEED_EVIDENCE", "NEED_FACTS", "NEED_RULE", "NOT_LINKED")
+
+# 인정된 기록이 있을 때 진행 상황만 보고하는 고정 대사(60자 이내). 방법은 알려 주지 않는다 — 힌트는 제미니 몫.
+GUIDE_MISSING: dict[str, str] = {}  # 2026-11-26: 부족한 기록 안내 제거(하위 호환용 빈 표)
 
 
 def guide_line(reason: Optional[str], credited: list[str]) -> Optional[str]:
-    """누적 인정 진행 상황을 알려 주는 대사. 해당 없으면 None."""
+    """누적 인정 진행 상황 보고. 해당 없으면 None."""
     if reason not in ("NEED_FACTS", "NEED_RULE", "NOT_LINKED") or not credited:
         return None
     n = len(credited)
-    missing = [e for e in ("E2", "E3", "E1") if e not in credited]
-    if missing:
-        return f"기록 {n}/3 확인. {GUIDE_MISSING[missing[0]]}"
-    return "기록 3/3 확인. 이 기록들을 근거로 문을 열어야 하는 이유를 말씀하십시오."
+    if n < 3:
+        return f"기록 {n}/3 확인. 잠금을 유지합니다."
+    return "기록 3/3 확인. 요청 사유가 불명확합니다. 잠금을 유지합니다."
 
 
 def safe_reply(reply: str, acquired: list[str], solved: bool, reason: Optional[str]) -> str:
@@ -267,6 +265,8 @@ def build_response(checklist: PersuadeChecklist, reply: str, acquired: list[str]
     if solved:
         now = list(REQUIRED)
     line = guide_line(reason, now)
+    if line is None and not solved and reason in ACTIONABLE_REASONS:
+        line = LINES[reason]
     return PersuadeResponse(
         status="solved" if solved else "rejected",
         solved=solved,

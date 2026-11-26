@@ -21,6 +21,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CXJeminiFx.h"
 #include "CXJeminiRuleComponent.h"
+#include "CXJeminiProactiveComponent.h"
 #include "CXHackTarget.h"
 #include "CXSfx.h"
 #include "CombatDamageable.h"
@@ -113,6 +114,8 @@ ACXJeminiDrone::ACXJeminiDrone()
 
 	// 조건부 지시 규칙(기능 A): 보관·감시·발동, 목록은 복제(HUD)
 	RuleComponent = CreateDefaultSubobject<UCXJeminiRuleComponent>(TEXT("Rules"));
+	// 선제 제안·한 단어 명령: 서버에서만 판단(LLM 없음)
+	ProactiveComponent = CreateDefaultSubobject<UCXJeminiProactiveComponent>(TEXT("Proactive"));
 }
 
 // ---------------------------------------------------------------- 외형·표정
@@ -1305,7 +1308,16 @@ bool ACXJeminiDrone::BeginRequest(APawn* From, bool bVoice)
 bool ACXJeminiDrone::SubmitText(APawn* From, const FString& Text)
 {
 	const FString Trimmed = Text.TrimStartAndEnd().Left(300);
-	if (Trimmed.IsEmpty() || !BeginRequest(From, false))
+	if (Trimmed.IsEmpty())
+	{
+		return false;
+	}
+	// 선제 제안에 대한 짧은 대답(응/아니)·한 단어 명령은 서버 왕복 없이 여기서 처리
+	if (HasAuthority() && ProactiveComponent && ProactiveComponent->HandleLocalText(From, Trimmed))
+	{
+		return true;
+	}
+	if (!BeginRequest(From, false))
 	{
 		return false;
 	}
@@ -1414,6 +1426,12 @@ void ACXJeminiDrone::HandleResponse(const FCXJeminiResponse& Response)
 	if (Response.Status != TEXT("fallback"))
 	{
 		bServerMock = Response.bMock;
+	}
+
+	// 음성: 서버가 받아 적은 글이 선제 제안에 대한 짧은 대답이면 서버 응답 대신 로컬로 처리(서버는 이 제안을 모른다)
+	if (ProactiveComponent && !Response.Heard.IsEmpty() && ProactiveComponent->HandleHeard(RequestSpeaker.Get(), Response.Heard))
+	{
+		return;
 	}
 
 	// 응답을 기다리는 사이 게임 오버·클리어·맵 이동이 됐으면 대사만
@@ -1732,6 +1750,228 @@ void ACXJeminiDrone::SayRuleLine(const FString& Text, const FString& Status)
 	{
 		SetDialogue(Text, FString(), Status);
 	}
+}
+
+void ACXJeminiDrone::SayCoachLine(const FString& Text)
+{
+	if (HasAuthority() && !Text.IsEmpty())
+	{
+		SetDialogue(Text, FString(), TEXT("coach"));
+	}
+}
+
+bool ACXJeminiDrone::ExecuteLocalCommand(APawn* Speaker, const FString& CommandName, const FString& Target, const FString& AckLine)
+{
+	const int32 Cost = GetCommandCost(CommandName);
+	if (!HasAuthority() || Cost < 0 || !BeginRequest(Speaker, false))
+	{
+		return false;
+	}
+	// 이름 표기를 서버와 같게
+	static const TCHAR* Names[] = { TEXT("ReloadSupport"), TEXT("HackTerminal"), TEXT("HackEnemy"), TEXT("PulseAttack"), TEXT("DamageBoost"),
+		TEXT("HealSupport"), TEXT("Decoy"), TEXT("QuickReboot"), TEXT("Shield") };
+	FString Canonical = CommandName;
+	for (const TCHAR* Name : Names)
+	{
+		if (CommandName.Equals(Name, ESearchCase::IgnoreCase))
+		{
+			Canonical = Name;
+		}
+	}
+	FCXJeminiResponse Response;
+	FString WhyNot;
+	if (!CheckLocalCommand(Canonical, WhyNot))
+	{
+		Response.Status = TEXT("rejected");
+		Response.Reason = TEXT("INVALID_TARGET");
+		Response.BatteryAfter = Battery;
+		Response.Dialogue = WhyNot;
+	}
+	else if (Battery < Cost)
+	{
+		Response.Status = TEXT("rejected");
+		Response.Reason = TEXT("LOW_BATTERY");
+		Response.BatteryAfter = Battery;
+		Response.Dialogue = FString::Printf(TEXT("배터리가 모자라요... (필요 %d, 남은 %d)"), Cost, Battery);
+	}
+	else
+	{
+		Response.Status = TEXT("ok");
+		Response.CommandName = Canonical;
+		Response.CommandTarget = Target;
+		Response.BatteryAfter = Battery - Cost;
+		Response.Dialogue = AckLine;
+	}
+	LastRequestDebug += FString::Printf(TEXT(" local %s %s"), *Canonical, *Target);
+	HandleResponse(Response);
+	return true;
+}
+
+bool ACXJeminiDrone::CheckLocalCommand(const FString& CommandName, FString& OutLine) const
+{
+	const APawn* Brother = FindBrother();
+	const APawn* Sister = FindSister();
+	auto Alive = [](const APawn* Pawn) { return Pawn && UCXPlayerLifeComponent::IsPawnAlive(Pawn); };
+
+	if (CommandName == TEXT("ReloadSupport"))
+	{
+		const UBrotherCombatComponent* Combat = Brother ? Brother->FindComponentByClass<UBrotherCombatComponent>() : nullptr;
+		if (!Alive(Brother) || !Combat)
+		{
+			OutLine = TEXT("오빠가 지금은 장전할 수 없어요.");
+			return false;
+		}
+		if (Combat->bIsReloading)
+		{
+			OutLine = TEXT("이미 장전하고 있어요!");
+			return false;
+		}
+		if (Combat->CurrentAmmo >= Combat->GetMaxAmmo())
+		{
+			OutLine = TEXT("탄이 이미 가득해요!");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("HealSupport"))
+	{
+		for (const APawn* Pawn : GetLivingPlayers())
+		{
+			const UCXHealthComponent* Health = UCXHealthComponent::FindOn(Pawn);
+			if (Health && Health->GetHealth() < Health->GetMaxHealth())
+			{
+				return true;
+			}
+		}
+		OutLine = TEXT("다들 멀쩡해요! 회복은 필요 없어요.");
+		return false;
+	}
+	if (CommandName == TEXT("Decoy"))
+	{
+		if (QueryEnemies().ActiveEnemies.Num() == 0)
+		{
+			OutLine = TEXT("미끼로 끌 적이 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("PulseAttack"))
+	{
+		if (!QueryEnemies().NearestAlive)
+		{
+			OutLine = TEXT("공격할 적이 근처에 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("HackEnemy"))
+	{
+		const USisterHackComponent* Hack = Sister ? Sister->FindComponentByClass<USisterHackComponent>() : nullptr;
+		FString PuzzleType;
+		float Progress = 0.0f;
+		const bool bPuzzle = Hack && Hack->GetJeminiPuzzleState(PuzzleType, Progress) && PuzzleType == TEXT("enemy") && IsEnemyAlive(Hack->GetActiveEnemy());
+		if (!bPuzzle && !QueryEnemies().NearestHackable)
+		{
+			OutLine = TEXT("해킹할 수 있는 적이 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("HackTerminal"))
+	{
+		const USisterHackComponent* Hack = Sister ? Sister->FindComponentByClass<USisterHackComponent>() : nullptr;
+		FString PuzzleType;
+		float Progress = 0.0f;
+		const bool bPuzzle = Hack && Hack->GetJeminiPuzzleState(PuzzleType, Progress) && PuzzleType == TEXT("terminal") && Hack->GetActiveTerminal();
+		if (!bPuzzle && !FindNextLockedTerminal())
+		{
+			OutLine = TEXT("해킹할 단말기가 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("DamageBoost"))
+	{
+		if (!Alive(Brother) || !Brother->FindComponentByClass<UBrotherCombatComponent>())
+		{
+			OutLine = TEXT("오빠가 지금은 강화할 수 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("Shield"))
+	{
+		const APawn* Target = RequestSpeaker.Get() ? RequestSpeaker.Get() : Brother;
+		if (!Alive(Target) || !UCXHealthComponent::FindOn(Target))
+		{
+			OutLine = TEXT("보호막을 씌울 사람이 없어요.");
+			return false;
+		}
+		return true;
+	}
+	if (CommandName == TEXT("QuickReboot"))
+	{
+		auto IsAwaiting = [](const APawn* Pawn)
+		{
+			const UCXPlayerLifeComponent* Life = Pawn ? Pawn->FindComponentByClass<UCXPlayerLifeComponent>() : nullptr;
+			return Life && Life->GetLifeState() == ECXLifeState::AwaitingRespawn;
+		};
+		if ((IsAwaiting(Brother) && Alive(Sister)) || (IsAwaiting(Sister) && Alive(Brother)))
+		{
+			return true;
+		}
+		OutLine = TEXT("재부팅할 쓰러진 사람이 없어요.");
+		return false;
+	}
+	return true;
+}
+
+FString ACXJeminiDrone::ResolveSmartHackCommand() const
+{
+	const APawn* Sister = FindSister();
+	const USisterHackComponent* Hack = Sister ? Sister->FindComponentByClass<USisterHackComponent>() : nullptr;
+	FString PuzzleType;
+	float Progress = 0.0f;
+	if (Hack && Hack->GetJeminiPuzzleState(PuzzleType, Progress))
+	{
+		if (PuzzleType == TEXT("enemy") && IsEnemyAlive(Hack->GetActiveEnemy()))
+		{
+			return TEXT("HackEnemy");
+		}
+		if (PuzzleType == TEXT("terminal") && Hack->GetActiveTerminal())
+		{
+			return TEXT("HackTerminal");
+		}
+	}
+	if (FindNextLockedTerminal())
+	{
+		return TEXT("HackTerminal");
+	}
+	if (QueryEnemies().NearestHackable)
+	{
+		return TEXT("HackEnemy");
+	}
+	return FString();
+}
+
+bool ACXJeminiDrone::GetNearestEnemyDistance(const FVector& Origin, bool bActiveOnly, float& OutDistCm) const
+{
+	float BestSq = TNumericLimits<float>::Max();
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		const AActor* Actor = *It;
+		if (!Cast<ICXHackTarget>(Actor) || !IsEnemyAlive(Actor) || (bActiveOnly && IsEnemyStunned(Actor)))
+		{
+			continue;
+		}
+		BestSq = FMath::Min(BestSq, static_cast<float>(FVector::DistSquared(Origin, Actor->GetActorLocation())));
+	}
+	if (BestSq == TNumericLimits<float>::Max())
+	{
+		return false;
+	}
+	OutDistCm = FMath::Sqrt(BestSq);
+	return true;
 }
 
 void ACXJeminiDrone::FinishReloadFlight()

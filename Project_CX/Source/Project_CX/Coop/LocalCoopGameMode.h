@@ -209,6 +209,10 @@ public:
 	UFUNCTION(Exec)
 	void CXWardenState();
 
+	/** 기능 B 테스트: WARDEN 코치의 현재 입력(증거·인정·마지막 사유·거절 횟수)과 힌트 단계·말 못 하는 이유를 로그·화면에 출력. */
+	UFUNCTION(Exec)
+	void CXWardenCoachState();
+
 	/**
 	 *  기능 B 자체 확인(맵2): 문 막힘 → 오른쪽 거미 처치 → 증거 드롭을 오빠가 주움(E1) → 마지막 단말기 해킹(E2) →
 	 *  여동생 채팅(입력 컴포넌트 경로)으로 증거 부족 설득 → 중간 단말기(E3) → "문 열어"(명령만) → 올바른 설득 → 해결·문 통과.
@@ -239,6 +243,17 @@ public:
 	 */
 	UFUNCTION(Exec)
 	void CXJeminiCmd(const FString& Name, const FString& Target = TEXT(""));
+
+	/** 테스트: 제미니 선제 제안의 현재 입력(탄약·체력·퍼즐 시간·적 거리)·조건·쿨다운·막힌 이유를 로그·화면에 출력. */
+	UFUNCTION(Exec)
+	void CXJeminiOfferState();
+
+	/**
+	 *  테스트: 선제 제안을 조건·쿨다운 무시하고 지금 띄운다(대기 중인 제안이 있으면 안 됨). 종류 = ammo | hp | stuck | decoy.
+	 *  응/아니: G/H(패드 LB/RB) 또는 채팅 "응"/"아니". 예) CXJeminiOffer ammo
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiOffer(const FString& Type);
 
 	/**
 	 *  테스트용 콘솔 명령: 제미니 기능 9종을 차례로 실행(LLM 서버 없이 CXJeminiCmd 경로, 단계마다 배터리 100으로 맞춤)하고

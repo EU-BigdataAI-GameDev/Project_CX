@@ -171,7 +171,8 @@ def test_llm_unsupported_blocks(client, settings, monkeypatch):
 def test_llm_demand_only(client, settings, monkeypatch):
     fake_warden(settings, monkeypatch, demand_only=True, reply="요청만으로는 안 됩니다. 근거가 있습니까?")
     r = post(client, "문 열어").json()
-    assert r["reason"] == "DEMAND_ONLY" and r["reply"] == "요청만으로는 안 됩니다. 근거가 있습니까?"
+    # 2026-11-26: 요청만 하는 경우는 LLM 자유 대사 대신 다음 행동이 분명한 고정 대사
+    assert r["reason"] == "DEMAND_ONLY" and r["reply"] == persuasion.LINES["DEMAND_ONLY"]
 
 
 def test_llm_cannot_solve_without_all_evidence(client, settings, monkeypatch):
@@ -356,7 +357,7 @@ def test_prompt_lists_credited(settings, monkeypatch, client):
 
 def test_guide_line_at_3_of_3_is_concrete(client):
     r = post_c(client, "아무 말", ["E1", "E2", "E3"]).json()
-    assert r["reply"].startswith("기록 3/3") and "문을 열어야 하는 이유" in r["reply"]
+    assert r["reply"] == "기록 3/3 확인. 요청 사유가 불명확합니다. 잠금을 유지합니다."
 
 
 def test_offline_after_all_credited_accepts_priority_statement(client):
@@ -377,3 +378,69 @@ def test_prompt_adds_link_criteria_when_all_credited(settings, monkeypatch, clie
     persuasion.reset_attempts()
     post_c(client, "아무 말", ["E2"])
     assert "[연결 판정 기준]" not in seen2["prompt"]
+
+
+# ---------- 첫 플레이어용 안내 대사(2026-11-26) ----------
+
+# 게임 코치(CXWardenCoach)의 예시 문장 — 증거 3개를 모두 얻었을 때 그대로 보내면 모의 판정도 통과해야 한다
+COACH_EXAMPLE = "냉각이 고장 났고 사람이 갇혀 있어요. 규정상 대피가 우선이니 문을 열어 주세요."
+
+
+def _all_replies(client):
+    """고정 대사 전부 + 안내 대사(guide_line) 전부."""
+    # solved 대사는 해결됐을 때만 나가므로 거짓 약속 검사에서 뺀다
+    lines = [v for k, v in persuasion.LINES.items() if k != "solved"] + list(persuasion.GUIDE_MISSING.values())
+    for n in range(1, 3):
+        lines.append(persuasion.guide_line("NEED_FACTS", ALL[:n]))
+    lines.append(persuasion.guide_line("NOT_LINKED", ALL))
+    return [x for x in lines if x]
+
+
+def test_player_guidance_lines_are_short_polite_and_safe(client):
+    for line in _all_replies(client):
+        assert len(line) <= persuasion.REPLY_MAX, line
+        assert not any(w.lower() in line.lower() for w in persuasion.INTERNAL_WORDS), line
+        assert not any(w in line for w in persuasion.FALSE_PROMISE), line
+        # 못 얻은 증거 고유어(E2·E3 내용)는 어떤 고정 대사에도 없다 — E1 '대피'는 규정 질문에서만 쓰지 않는다
+        for eid in ("E2", "E3"):
+            assert not any(w in line for w in persuasion.EVIDENCE[eid].distinctive), (eid, line)
+        for w in persuasion.EVIDENCE["E1"].distinctive:
+            assert w not in line, line
+
+
+def test_warden_lines_are_status_reports_not_coaching():
+    assert persuasion.LINES["DEMAND_ONLY"] == "요청이 접수되었습니다. 근거 데이터가 없습니다. 잠금을 유지합니다."
+    assert persuasion.LINES["NEED_EVIDENCE"] == "근거 불충분. 잠금을 유지합니다."
+    assert persuasion.guide_line("NOT_LINKED", ALL) == "기록 3/3 확인. 요청 사유가 불명확합니다. 잠금을 유지합니다."
+    assert persuasion.guide_line("NEED_FACTS", ["E2"]) == "기록 1/3 확인. 잠금을 유지합니다."
+    keep = ("INJECTION", "LLM_ERROR", "NO_SPEECH", "RATE_LIMITED", "solved")  # 기존 유지
+    for line in _all_replies(None):
+        if line in [persuasion.LINES[k] for k in keep]:
+            continue
+        assert not any(w in line for w in ("말씀하십시오", "제시하십시오", "설명해", "소리 내어")), line
+
+
+def test_demand_only_uses_fixed_actionable_line(client):
+    r = post(client, "문 열어! 당장 비켜").json()
+    assert r["reply"] == persuasion.LINES["DEMAND_ONLY"]
+
+
+def test_not_linked_after_listing_guides_to_state_reason(client):
+    r = post(client, "펌프 고장. 관리자가 경보 껐음. 규정 7조.").json()
+    assert r["reason"] == "NOT_LINKED" and r["reply"].startswith("기록 3/3") and "사유" in r["reply"]
+
+
+def test_need_facts_without_credit_is_concrete(client):
+    r = post(client, "규정상 생명이 위협받으면 대피가 우선입니다.").json()
+    assert r["reason"] == "NEED_FACTS"
+    assert r["reply"] == "기록 1/3 확인. 잠금을 유지합니다."
+
+
+def test_coach_example_is_accepted_offline_when_all_evidence_acquired(client):
+    r = post(client, COACH_EXAMPLE).json()
+    assert r["solved"], r["reason"]
+
+
+def test_coach_example_not_accepted_when_evidence_missing(client):
+    # 증거를 못 얻었으면 같은 문장으로는 열리지 않는다(판정 규칙 불변)
+    assert not post(client, COACH_EXAMPLE, evidence=["E1"]).json()["solved"]

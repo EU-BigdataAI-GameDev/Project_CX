@@ -100,6 +100,8 @@ private:
 	float PollTimer = 0.0f;
 	/** 앞 단계가 끝난 뒤(또는 맵 시작 뒤) 흐른 시간 — 메뉴·일시정지 중에는 멈춘다. */
 	float IdleClock = 0.0f;
+	/** 조용한 상태(IsCalm)가 이어진 시간(실시간 초) — 폴링마다 갱신, 카드가 끝나면 0. 5단계(규칙)를 전투 한가운데 띄우지 않기 위해. */
+	float CalmClock = 0.0f;
 
 	int32 ActiveIndex = INDEX_NONE;
 	bool bForced = false;

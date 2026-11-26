@@ -2,6 +2,7 @@
 
 #include "LocalCoopGameMode.h"
 #include "CXWardenTerminal.h"
+#include "CXWardenCoachComponent.h"
 #include "CXEvidencePickup.h"
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
@@ -30,6 +31,7 @@
 #include "CXJeminiDrone.h"
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiRuleComponent.h"
+#include "CXJeminiProactiveComponent.h"
 #include "CXTutorialSubsystem.h"
 #include "CXSoloSubsystem.h"
 #include "Components/StaticMeshComponent.h"
@@ -347,6 +349,27 @@ void ALocalCoopGameMode::CXJeminiCmd(const FString& Name, const FString& Target)
 	}
 	const bool bOk = Drone->DebugExecuteCommand(Speaker, Name, Target.ToLower());
 	UE_LOG(LogTemp, Log, TEXT("CXJeminiCmd: %s %s -> %s | %s"), *Name, *Target, bOk ? TEXT("started") : TEXT("blocked"), *Drone->GetDebugState());
+}
+
+void ALocalCoopGameMode::CXJeminiOfferState()
+{
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	const UCXJeminiProactiveComponent* Proactive = Drone ? Drone->GetProactiveComponent() : nullptr;
+	const FString Text = Proactive ? Proactive->GetDebugState() : FString(TEXT("no drone / proactive component"));
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiOfferState: %s"), *Text);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Cyan, FString::Printf(TEXT("CXJeminiOfferState: %s"), *Text));
+	}
+}
+
+void ALocalCoopGameMode::CXJeminiOffer(const FString& Type)
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	UCXJeminiProactiveComponent* Proactive = Drone ? Drone->GetProactiveComponent() : nullptr;
+	FString Why;
+	const bool bOk = Proactive && Proactive->ForceOffer(UCXJeminiProactiveComponent::ParseOfferName(Type), Why);
+	UE_LOG(LogTemp, Log, TEXT("CXJeminiOffer %s: %s %s"), *Type, bOk ? TEXT("offered") : TEXT("failed"), *Why);
 }
 
 void ALocalCoopGameMode::CXJeminiSelfTest(int32 bQuitWhenDone)
@@ -1096,6 +1119,18 @@ void ALocalCoopGameMode::CXWardenState()
 {
 	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
 	UE_LOG(LogTemp, Log, TEXT("CXWardenState: %s"), Warden ? *Warden->GetDebugState() : TEXT("no WARDEN in this map"));
+}
+
+void ALocalCoopGameMode::CXWardenCoachState()
+{
+	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	const UCXWardenCoachComponent* Coach = Warden ? Warden->GetCoach() : nullptr;
+	const FString Text = Coach ? Coach->GetDebugState() : FString(TEXT("no WARDEN / coach in this map"));
+	UE_LOG(LogTemp, Log, TEXT("CXWardenCoachState: %s"), *Text);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Cyan, FString::Printf(TEXT("CXWardenCoachState: %s"), *Text));
+	}
 }
 
 void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)

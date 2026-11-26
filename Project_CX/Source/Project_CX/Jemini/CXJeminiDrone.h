@@ -15,6 +15,7 @@ class UMaterialInterface;
 class USoundBase;
 class AHackTerminal;
 class UCXJeminiRuleComponent;
+class UCXJeminiProactiveComponent;
 
 /** 드론 표정(Docs/Assets/SupportDrone_UE_Prompt.md 6장 E_DroneEmotion). 값 = 머티리얼 Emotion 파라미터 = 아틀라스 열. */
 UENUM(BlueprintType)
@@ -153,6 +154,32 @@ public:
 
 	/** 서버: 규칙 관련 대사(보류 알림 등). */
 	void SayRuleLine(const FString& Text, const FString& Status);
+
+	/** 서버: WARDEN 코치 힌트(고정 대사). 서버·LLM 호출과 배터리 소모 없음, 말풍선만(상태 "coach"). */
+	void SayCoachLine(const FString& Text);
+
+	// ---------------------------------------------------------------- 선제 제안·한 단어 명령(UCXJeminiProactiveComponent, 서버·LLM 없음)
+
+	/** 선제 제안(고정 대사 + 응/아니 한 버튼). */
+	UCXJeminiProactiveComponent* GetProactiveComponent() const { return ProactiveComponent; }
+
+	/**
+	 *  서버: LLM·서버 없이 ok 응답을 받은 것처럼 기존 실행 경로(BeginRequest → HandleResponse → ExecuteCommand)로 명령 실행.
+	 *  대상이 없거나 배터리가 모자라면 거절 대사(배터리 차감 없음). 드론이 바빠서 시작도 못 하면 false.
+	 */
+	bool ExecuteLocalCommand(APawn* Speaker, const FString& CommandName, const FString& Target, const FString& AckLine);
+
+	/** 명령을 지금 실행할 수 있는지(대상 유무 등 서버 검증기의 단순판). 안 되면 OutLine에 사유 대사. RequestSpeaker 기준(없으면 오빠). */
+	bool CheckLocalCommand(const FString& CommandName, FString& OutLine) const;
+
+	/** "해킹" 한 단어용: 여동생 퍼즐 종류 → 잠긴 단말기 → 해킹 가능한 적 순으로 HackTerminal / HackEnemy 선택(없으면 빈 문자열). */
+	FString ResolveSmartHackCommand() const;
+
+	/** Origin에서 가장 가까운 적(ICXHackTarget, 살아 있음)까지 거리(cm). bActiveOnly면 그로기 중인 적 제외. 없으면 false. */
+	bool GetNearestEnemyDistance(const FVector& Origin, bool bActiveOnly, float& OutDistCm) const;
+
+	APawn* GetBrotherPawn() const { return FindBrother(); }
+	APawn* GetSisterPawn() const { return FindSister(); }
 
 	// ---------------------------------------------------------------- HUD 조회
 
@@ -344,6 +371,10 @@ protected:
 	/** 조건부 지시 규칙(기능 A). */
 	UPROPERTY(VisibleAnywhere, Category = "Jemini|Rule")
 	TObjectPtr<UCXJeminiRuleComponent> RuleComponent;
+
+	/** 선제 제안(탄약·체력·퍼즐 막힘·미끼) + 한 단어 명령. */
+	UPROPERTY(VisibleAnywhere, Category = "Jemini|Proactive")
+	TObjectPtr<UCXJeminiProactiveComponent> ProactiveComponent;
 
 private:
 	FCXJeminiState GatherState(const APawn* Speaker) const;

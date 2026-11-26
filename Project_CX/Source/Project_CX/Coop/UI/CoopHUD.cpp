@@ -16,6 +16,7 @@
 #include "CXJeminiDrone.h"
 #include "CXJeminiInputComponent.h"
 #include "CXJeminiRuleComponent.h"
+#include "CXJeminiProactiveComponent.h"
 #include "CXWardenTerminal.h"
 #include "CXSavePoint.h"
 #include "CXLevelExit.h"
@@ -490,7 +491,10 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 
 	// 3-1) 조건부 지시 규칙(기능 A): 입력 안내 아래, 규칙마다 한 줄(오른쪽 정렬, 두 칸 모두). 보류 중이면 경고색 깜빡임.
 	//      그 아래 대답 대기 중인 작전 제안(기능 C): "PLAN?  <요약>  [응/아니]" — 은은히 깜빡임.
-	if (const UCXJeminiRuleComponent* RuleComp = Drone->GetRuleComponent(); RuleComp && (RuleComp->GetRules().Num() > 0 || RuleComp->GetProposal().Num() > 0))
+	//      선제 제안(제미니가 먼저 묻는 것): "OFFER  <요약>  [G] YES  [H] NO"(장치별 키) — PLAN? 줄 아래.
+	const UCXJeminiProactiveComponent* ProactiveComp = Drone->GetProactiveComponent();
+	const bool bOfferShown = ProactiveComp && ProactiveComp->HasOffer();
+	if (const UCXJeminiRuleComponent* RuleComp = Drone->GetRuleComponent(); RuleComp && (RuleComp->GetRules().Num() > 0 || RuleComp->GetProposal().Num() > 0 || bOfferShown))
 	{
 		UFont* RuleFont = SysFont(ECXHudFont::Tiny);
 		const float RuleScale = S() * CoopHUDLayout::TextScale;
@@ -535,6 +539,22 @@ void ACoopHUD::DrawJemini(const APawn* MyPawn, bool bDead, bool bIsSister, const
 				GetTextSize(Line, LW, LH, RuleFont, RuleScale);
 			}
 			Label(Line, RightX - LW, RowY, FLinearColor(1.0f, 0.85f, 0.35f, 0.6f + 0.4f * Pulse(2.0f)), RuleFont, 1.0f);
+			RowY += LH + 2.0f * S();
+		}
+		if (bOfferShown && !UCXSoloSubsystem::IsAISlot(bIsSister ? 1 : 0))
+		{
+			// 장치별 키: 키보드 G / H, 게임패드 LB / RB (UCXJeminiInputComponent와 같은 매핑)
+			bool bGamepad = bIsSister;
+			const ULocalPlayer* LocalPlayer = PlayerOwner ? PlayerOwner->GetLocalPlayer() : nullptr;
+			if (const UCXGameInstance* GI = Cast<UCXGameInstance>(GetGameInstance()); GI && LocalPlayer)
+			{
+				bGamepad = GI->GetSlotDeviceType(LocalPlayer->GetLocalPlayerIndex()) == ECXInputDeviceType::Gamepad;
+			}
+			const FString OfferLine = FString::Printf(TEXT("OFFER  %s  %s YES  %s NO  %ds"), UCXJeminiProactiveComponent::GetOfferLabel(ProactiveComp->GetOfferType()),
+				bGamepad ? TEXT("[LB]") : TEXT("[G]"), bGamepad ? TEXT("[RB]") : TEXT("[H]"), FMath::CeilToInt(ProactiveComp->GetOfferRemaining()));
+			float LW = 0.0f, LH = 0.0f;
+			GetTextSize(OfferLine, LW, LH, RuleFont, RuleScale);
+			Label(OfferLine, RightX - LW, RowY, FLinearColor(1.0f, 0.85f, 0.35f, 0.6f + 0.4f * Pulse(2.0f)), RuleFont, 1.0f);
 			RowY += LH + 2.0f * S();
 		}
 	}
@@ -657,6 +677,15 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 				}
 			}
 		}
+		// 다음 단계 한 줄(숫자·중립 문구만 — 방법은 알려 주지 않는다). 풀리면 숨긴다. 패널 안 마지막 줄이라 다른 요소와 겹치지 않는다.
+		if (!Warden->IsSolved())
+		{
+			const int32 EvNum = Warden->GetEvidenceNum();
+			const FString Next = EvNum < CXWarden::EvidenceCount
+				? FString::Printf(TEXT("다음 ▶ 증거 %d/%d"), EvNum, CXWarden::EvidenceCount)
+				: FString(TEXT("다음 ▶ WARDEN과 대화"));
+			Rows.Add({ Next, WardenCyan.CopyWithNewOpacity(0.95f), false });
+		}
 		float LineH = 0.0f, Dummy = 0.0f;
 		GetTextSize(TEXT("가"), Dummy, LineH, BodyFont, Scale);
 		LineH += 2.0f * S();
@@ -731,6 +760,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 		}
 	}
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선이 이 패널을 피해 자리를 잡는다(DrawJemini가 뒤에 그려진다)
 	float RowY = Y + Pad * 0.6f;
 	FString Head = Warden->IsSolved() ? TEXT("WARDEN  //  EVACUATION OPEN") : TEXT("WARDEN  //  LOCKDOWN");
 	if (Warden->IsRequestPending())
