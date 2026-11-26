@@ -250,7 +250,7 @@ public:
 
 	/**
 	 *  테스트: 선제 제안을 조건·쿨다운 무시하고 지금 띄운다(대기 중인 제안이 있으면 안 됨). 종류 = ammo | hp | stuck | decoy.
-	 *  응/아니: G/H(패드 LB/RB) 또는 채팅 "응"/"아니". 예) CXJeminiOffer ammo
+	 *  응/아니: R/T(패드 LB/RB) 또는 채팅 "응"/"아니". 예) CXJeminiOffer ammo
 	 */
 	UFUNCTION(Exec)
 	void CXJeminiOffer(const FString& Type);

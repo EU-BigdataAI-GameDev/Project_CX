@@ -27,7 +27,7 @@ enum class ECXJeminiOfferType : uint8
  *  제미니 선제 제안 + 한 단어 명령. 드론(ACXJeminiDrone)에 붙는다. 서버(리슨 호스트)만 판단한다 — LLM·Jemini 서버 호출 없음.
  *
  *  1) 선제 제안: 플레이어가 전투·해킹 중이라 말을 못 하니 제미니가 먼저 고정 대사로 묻는다(말풍선, 상태 "coach").
- *     "응" = 채팅/음성 짧은 대답 또는 한 버튼(키보드 G / 패드 LB), "아니" = 채팅/음성 또는 한 버튼(키보드 H / 패드 RB).
+ *     "응" = 채팅/음성 짧은 대답 또는 한 버튼(키보드 R / 패드 LB), "아니" = 채팅/음성 또는 한 버튼(키보드 T / 패드 RB).
  *     수락하면 같은 실행 경로(ACXJeminiDrone::ExecuteLocalCommand → HandleResponse → ExecuteCommand: 배터리·대상 검증·BUSY 규칙 그대로).
  *     LLM 작전 제안(UCXJeminiRuleComponent::Proposal)과는 별개 — 그쪽이 대기 중이면 선제 제안은 하지 않는다.
  *  2) 한 단어 명령: 채팅 한 단어(엄호·힐·장전…)를 서버 왕복 없이 바로 실행(ACXJeminiDrone::SubmitText가 먼저 부른다).
