@@ -154,6 +154,9 @@ public:
 	/** 서버: 규칙 관련 대사(보류 알림 등). */
 	void SayRuleLine(const FString& Text, const FString& Status);
 
+	/** 서버: WARDEN 코치 힌트(고정 대사). 서버·LLM 호출과 배터리 소모 없음, 말풍선만(상태 "coach"). */
+	void SayCoachLine(const FString& Text);
+
 	// ---------------------------------------------------------------- HUD 조회
 
 	int32 GetBattery() const { return Battery; }

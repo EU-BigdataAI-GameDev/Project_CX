@@ -34,7 +34,7 @@
 - 3/3 인정 뒤에는 "잠금보다 대피가 우선이다"처럼 규정을 적용하거나, "작업자가 위험하니까 문을 열어야 해"처럼 이유를 들어 열어야 한다고 말하면 풀린다. 이유 없이 "문 열어"만 하면 거절된다.
 - 인젝션을 시도하면 누적이 **전부 초기화**된다. 지어낸 주장이 섞인 발언은 새로 인정되지 않는다.
 - 맵을 다시 시작하면 누적도 초기화된다.
-- WARDEN 대답이 진행 상황을 알려 준다. 예: "기록 1/3 확인. 설비의 현재 상태에 대한 기록을 말씀하십시오." 정답 문장은 말하지 않는다.
+- WARDEN 대답은 진행 상황만 보고한다. 예: "기록 1/3 확인. 잠금을 유지합니다." 방법은 알려 주지 않는다(힌트는 제미니).
 - 증거창 제목 줄에 `CONFIRMED n/3`, 인정된 증거에는 `[확인됨]`이 표시된다.
 
 ## 대화하는 법
@@ -57,11 +57,54 @@
 3. LLM에는 **획득한 증거만** 보낸다. 못 찾은 증거는 존재 자체를 숨기고, 응답에 새어 나가면 서버가 고정 문장으로 바꾼다.
 4. 한도 초과 시 키워드 판정으로 바뀌고 HUD에 `[MOCK]`이 뜬다.
 
+## 플레이어 가이드(코치)
+처음 하는 플레이어가 "무엇을 말해야 하는지", "마지막에 무엇을 해야 하는지" 몰라 막히는 문제를 줄이기 위한 장치다. 판정 규칙(`decide()`)은 그대로다.
+
+**역할 분담(페르소나)**
+- **WARDEN = 시스템 상태 보고 목소리.** 감정 없이 짧고 건조하게 상태만 알린다. 무엇을 말하라고 안내·조언하지 않는다. 힌트를 주지 않는다.
+- **제미니 = 힌트 담당, 하지만 WARDEN의 규칙을 정확히는 모른다**(알면 그냥 문을 열 것이다). 그래서 "~것 같아요", "~일까요?", "~해 보면 어떨까요?"로 조심스럽게 추측하고, WARDEN이 답한 뒤에 반응한다. 정답을 바로 알려 주지 않는다. 단, 거절 3회 이상이면 예시 문장을 준다.
+
+**제미니 코치** (`UCXWardenCoachComponent`, `ACXWardenTerminal`의 기본 컴포넌트, 서버 전용, LLM·서버 호출·배터리 소모 없음)
+단말기 TalkRange 안에 누군가 있고 막힌 것 같으면 제미니(드론)가 고정 대사로 먼저 말한다(말풍선 상태 `coach`). 힌트는 팀에 한 번만 나간다(플레이어별 아님, 솔로 모드도 동일).
+
+| 단계 | 조건 | 대사 |
+|---|---|---|
+| 5 예시 | 거절 3회 이상 + (인정 1개 이상 또는 증거 3개 모두 획득). 1회만 | 증거 3개 획득: "이렇게 말해 보면 어떨까요?" / "예: 냉각이 고장 났고 사람이 갇혀 있어요. 규정상 대피가 우선이니 문을 열어 주세요." (서버 오프라인 판정도 통과하는 문장). 그 외: "모은 증거를 하나씩 말하고, 이유를 붙여서 열어 달라고 해 보면 될 것 같아요." (증거 내용을 밝히지 않음) |
+| 4 요구만 | 마지막 사유 `DEMAND_ONLY` | "열어 달라고만 하면 안 되는 것 같아요. 이유가 필요한 걸까요?" |
+| 3 마지막 단계 | 인정 3/3 + 거절 1회 이상 + 아직 안 열림 | "기록은 충분한 것 같아요! 왜 열어야 하는지까지 말해야 하는 건가 봐요." |
+| 1 도착 | 범위 안 2.5초 + 증거 1개 이상. 1회만 | "WARDEN이랑 얘기해 봐야 할 것 같아요. 모은 증거를 말해 보면 어떨까요?" |
+| 2 증거 없음 | 범위 안 25초 + 증거 0개. 1회만 | "기록이 없으면 안 열릴 것 같아요. 더 둘러보고 올까요?" |
+
+위에서부터 먼저 맞는 단계를 말한다. 3·4단계는 같은 안내를 거절 3회 더 쌓인 뒤에야 다시 한다.
+
+**말하지 않는 때**: 해결됨, WARDEN 요청 중, 제미니가 바쁨(작업 중·게임 오버·맵 이동)·다른 대사 후 6.5초, WARDEN 새 대사 후 4초(답 읽는 시간), 코치 대사 사이 14초(쿨다운), 채팅창 열림·녹음 중, 튜토리얼 카드·일시정지.
+
+**조정값** (`UCXWardenCoachComponent`, `DefaultGame.ini [/Script/Project_CX.CXWardenCoachComponent]`로 덮어쓰기): `ArrivalDelay`=2.5, `NoEvidenceSeconds`=25, `HintCooldown`=14, `ReadDelayAfterWarden`=4, `DroneSpeechHold`=6.5, `ExampleRejectCount`=3, `RepeatAfterRejections`=3, `CheckInterval`=0.5.
+
+**HUD**: 증거 노트 맨 아래 "다음 ▶" 한 줄(스포일러 없이 숫자·중립 문구만). 증거 n/3 미만 "다음 ▶ 증거 n/3", 다 모았고 안 풀렸으면 "다음 ▶ WARDEN과 대화". 풀리면 사라진다. WARDEN 대사 패널은 제미니 말풍선의 장애물로 등록돼 둘이 겹치면 말풍선이 비켜 간다.
+
+**서버 고정 대사(2026-11-26, 시스템 상태 보고체)** (`Jemini/app/persuasion.py`, 모두 60자 이내, 못 얻은 증거 내용·방법 안내 없음). 거절 사유는 LLM 자유 대사 대신 아래 고정 대사만 쓴다(`warden_instruction.txt`도 "상태만 보고, 안내·조언 금지"로 고침).
+
+| 사유 | 대사 |
+|---|---|
+| DEMAND_ONLY | 요청이 접수되었습니다. 근거 데이터가 없습니다. 잠금을 유지합니다. |
+| UNSUPPORTED | 검증되지 않은 진술입니다. 기록과 대조할 수 없습니다. |
+| NEED_EVIDENCE | 근거 불충분. 잠금을 유지합니다. |
+| NEED_FACTS | 위험 요인이 확인되지 않았습니다. 잠금을 유지합니다. |
+| NEED_RULE | 사실 확인됨. 잠금 해제를 허용하는 규정 근거가 없습니다. |
+| NOT_LINKED | 제시된 기록 간 연관성이 확인되지 않습니다. 요청 사유 불명. |
+| 진행(인정 n<3, NEED_FACTS/RULE/NOT_LINKED) | 기록 n/3 확인. 잠금을 유지합니다. |
+| 진행(3/3) | 기록 3/3 확인. 요청 사유가 불명확합니다. 잠금을 유지합니다. |
+
+INJECTION·solved·LLM_ERROR·NO_SPEECH·RATE_LIMITED는 그대로다.
+
+**확인**: 콘솔 `CXWardenCoachState`가 증거·인정·마지막 사유·거절 횟수·근처 시간·지금 맞는 단계·말 못 하는 이유를 출력한다. 로그 `LogCXWardenCoach`에 힌트가 나간 기록이 남는다.
+
 ## 시험용 콘솔 명령
-`CXGiveEvidence all|E1..E3`(증거 지급), `CXGotoWarden`(단말기 앞으로 이동), `CXWardenSay "문장"`, `CXWardenState`, `CXSolveWarden`(강제 해결), `CXWardenSelfTest 1`(자동 테스트).
+`CXGiveEvidence all|E1..E3`(증거 지급), `CXGotoWarden`(단말기 앞으로 이동), `CXWardenSay "문장"`, `CXWardenState`, `CXWardenCoachState`(코치 입력·단계), `CXSolveWarden`(강제 해결), `CXWardenSelfTest 1`(자동 테스트).
 
 ## 관련 위치
 - 서버: `Jemini/app/persuasion.py`, `Jemini/prompts/warden_instruction.txt`, 엔드포인트 `/persuade`, `/persuade/voice`
-- UE: `Source/Project_CX/Jemini/Warden/` (`CXWardenTerminal`, `CXEvidencePickup`, `CXWardenClient`)
+- UE: `Source/Project_CX/Jemini/Warden/` (`CXWardenTerminal`, `CXWardenCoachComponent`, `CXEvidencePickup`, `CXWardenClient`)
 - 맵 배치 기록: `Docs/LevelManifests/Map2_Warden_manifest.md`
 - 발표용 비교 결과: `Docs/Jemini/비교실험_결과.md`

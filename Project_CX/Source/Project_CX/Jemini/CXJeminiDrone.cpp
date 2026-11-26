@@ -1734,6 +1734,14 @@ void ACXJeminiDrone::SayRuleLine(const FString& Text, const FString& Status)
 	}
 }
 
+void ACXJeminiDrone::SayCoachLine(const FString& Text)
+{
+	if (HasAuthority() && !Text.IsEmpty())
+	{
+		SetDialogue(Text, FString(), TEXT("coach"));
+	}
+}
+
 void ACXJeminiDrone::FinishReloadFlight()
 {
 	APawn* Brother = Cast<APawn>(ActionTarget);

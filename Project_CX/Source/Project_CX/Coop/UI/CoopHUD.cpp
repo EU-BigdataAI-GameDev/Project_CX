@@ -657,6 +657,15 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 				}
 			}
 		}
+		// 다음 단계 한 줄(숫자·중립 문구만 — 방법은 알려 주지 않는다). 풀리면 숨긴다. 패널 안 마지막 줄이라 다른 요소와 겹치지 않는다.
+		if (!Warden->IsSolved())
+		{
+			const int32 EvNum = Warden->GetEvidenceNum();
+			const FString Next = EvNum < CXWarden::EvidenceCount
+				? FString::Printf(TEXT("다음 ▶ 증거 %d/%d"), EvNum, CXWarden::EvidenceCount)
+				: FString(TEXT("다음 ▶ WARDEN과 대화"));
+			Rows.Add({ Next, WardenCyan.CopyWithNewOpacity(0.95f), false });
+		}
 		float LineH = 0.0f, Dummy = 0.0f;
 		GetTextSize(TEXT("가"), Dummy, LineH, BodyFont, Scale);
 		LineH += 2.0f * S();
@@ -731,6 +740,7 @@ void ACoopHUD::DrawWarden(const APawn* MyPawn, bool bDead, bool bIsSister)
 		}
 	}
 	Panel(X, Y, W, H, Accent);
+	AddBlocker(X, Y, W, H);	// 제미니 말풍선이 이 패널을 피해 자리를 잡는다(DrawJemini가 뒤에 그려진다)
 	float RowY = Y + Pad * 0.6f;
 	FString Head = Warden->IsSolved() ? TEXT("WARDEN  //  EVACUATION OPEN") : TEXT("WARDEN  //  LOCKDOWN");
 	if (Warden->IsRequestPending())

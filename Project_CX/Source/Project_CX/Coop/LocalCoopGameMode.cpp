@@ -2,6 +2,7 @@
 
 #include "LocalCoopGameMode.h"
 #include "CXWardenTerminal.h"
+#include "CXWardenCoachComponent.h"
 #include "CXEvidencePickup.h"
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
@@ -1096,6 +1097,18 @@ void ALocalCoopGameMode::CXWardenState()
 {
 	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
 	UE_LOG(LogTemp, Log, TEXT("CXWardenState: %s"), Warden ? *Warden->GetDebugState() : TEXT("no WARDEN in this map"));
+}
+
+void ALocalCoopGameMode::CXWardenCoachState()
+{
+	const ACXWardenTerminal* Warden = ACXWardenTerminal::FindFirst(this);
+	const UCXWardenCoachComponent* Coach = Warden ? Warden->GetCoach() : nullptr;
+	const FString Text = Coach ? Coach->GetDebugState() : FString(TEXT("no WARDEN / coach in this map"));
+	UE_LOG(LogTemp, Log, TEXT("CXWardenCoachState: %s"), *Text);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Cyan, FString::Printf(TEXT("CXWardenCoachState: %s"), *Text));
+	}
 }
 
 void ALocalCoopGameMode::CXSpawnExitDoor(float OffsetY, float OffsetX)
