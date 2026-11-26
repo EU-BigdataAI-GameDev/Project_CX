@@ -1,6 +1,6 @@
 # Project_CX 진행도 (TODO)
 
-- 마지막 갱신: 2026-11-17 — **열린 항목만** 둔다. 끝난 항목은 `Docs/TODO_Done/`(월별 파일)으로 옮긴다.
+- 마지막 갱신: 2026-11-26 — **열린 항목만** 둔다. 끝난 항목은 `Docs/TODO_Done/`(월별 파일)으로 옮긴다.
 - MVP 흐름: 방 1(Map1) → 방 2(Map2) → **세이브 복도** → 마지막 방(보스맵 `Map3_Final`, 팀원 제작) → 출구 문 → 클리어
 - 규칙: 항목은 **한 줄**로 쓴다(자세한 내용은 기획서 `.claude/Plans/`의 "구현 결과", `Docs/Debug_log.md`, PR 번호 `#번호`로 링크). 끝나면 지우고 `Docs/TODO_Done/<월>.md`에 `완료일 — 한 줄 요약`으로 옮긴다.
 - 이미 끝난 일: `Docs/TODO_Done/2026-11.md`
@@ -15,6 +15,8 @@
   - [x] Render 서비스 생성·환경변수 입력, 배포 서버 동작 확인(`https://jemini-server.onrender.com`), `DefaultGame.ini` 교체
   - [x] 에디터 PIE에서 제미니·WARDEN 실제 동작 확인(배포 서버)
   - [ ] 팀 시연 피드백 수집 — 배포판(Development, 구글 드라이브)을 팀원이 플레이한 결과·로그 정리(솔로 모드 테스트 포함, `Docs/Guide/솔로_플레이_테스트_안내.txt`)
+  - [ ] 선제 제안·WARDEN 코치 PIE 확인 — `CXJeminiOffer ammo|hp|stuck|decoy`, G/H·LB/RB 수락, 한 단어 명령, `CXWardenCoachState`·`CXWardenSay`로 힌트 단계, 규칙 튜토리얼 시점(맵1 중반)
+  - [ ] 전시용 새 빌드(keep-alive·선제 제안·WARDEN 코치 포함) 패키징 — 12월 4일까지 확정, 드라이브 업로드
   - [ ] 솔로 모드 PIE 잔여 확인 — 맵 이동 뒤 유지, 해킹 중 이동 잠금, 메모리 패턴·회로 단말기 자동 해킹
 - [ ] 발표 자료(슬라이드) — `Docs/Jemini/비교실험_결과.md` 표·대표 문장 인용
 - [ ] 기능 A PIE 확인 — 실제 발화로 규칙 등록 → 발동(미끼·회복·재부팅), 규칙 보류 표시 겹침, 원격 클라이언트 복제
