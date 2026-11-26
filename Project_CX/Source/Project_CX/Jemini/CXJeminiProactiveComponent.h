@@ -150,7 +150,7 @@ protected:
 
 	/** 평소 코멘트: 제미니의 마지막 대사(응답·제안·코멘트 포함) 뒤 이 시간(초)이 지나고 조용할 때 한 줄. 0이면 끔. */
 	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
-	float ChatterInterval = 30.0f;
+	float ChatterInterval = 15.0f;
 
 	/** 평소 코멘트: 이 거리(cm) 안에 적이 있으면 조용하지 않은 것으로 본다. */
 	UPROPERTY(Config, EditAnywhere, Category = "Chatter")
