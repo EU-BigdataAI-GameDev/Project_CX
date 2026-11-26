@@ -142,7 +142,7 @@ protected:
 
 	/** 퍼즐 도움 제안: 같은 단말기를 이 시간(초) 넘게 해킹 중. */
 	UPROPERTY(Config, EditAnywhere, Category = "Proactive")
-	float StuckSeconds = 45.0f;
+	float StuckSeconds = 20.0f;
 
 	/** 미끼 제안: 해킹 중인 여동생 주변 이 거리(cm) 안에 움직이는 적. */
 	UPROPERTY(Config, EditAnywhere, Category = "Proactive")
