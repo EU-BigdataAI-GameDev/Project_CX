@@ -4,6 +4,7 @@
 #include "CXWardenTerminal.h"
 #include "CXJeminiDrone.h"
 #include "CXJeminiRuleComponent.h"
+#include "CXJeminiProactiveComponent.h"
 #include "CXJeminiClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "CXPlayerLifeComponent.h"
@@ -323,6 +324,10 @@ void UCXJeminiInputComponent::BuildInputAssets()
 	TalkAction->ValueType = EInputActionValueType::Boolean;
 	TalkKeyAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_TalkKey"));
 	TalkKeyAction->ValueType = EInputActionValueType::Boolean;
+	OfferAcceptAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_OfferAccept"));
+	OfferAcceptAction->ValueType = EInputActionValueType::Boolean;
+	OfferDeclineAction = NewObject<UInputAction>(this, TEXT("IA_Jemini_OfferDecline"));
+	OfferDeclineAction->ValueType = EInputActionValueType::Boolean;
 
 	// 키보드 Enter = 채팅, 게임패드 Y(FaceButton_Top) = 누르는 동안 녹음 — 기존 바인딩 어디에도 없는 키
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Jemini"));
@@ -330,6 +335,11 @@ void UCXJeminiInputComponent::BuildInputAssets()
 	MappingContext->MapKey(TalkAction, EKeys::Gamepad_FaceButton_Top);
 	// 솔로 모드(키보드 1인): V를 누르는 동안 녹음 — 일반 모드에서는 OnTalkKeyPressed가 무시한다
 	MappingContext->MapKey(TalkKeyAction, EKeys::V);
+	// 선제 제안 응/아니 한 버튼 — 키보드 G/H, 게임패드 LB/RB(게임 안에서 쓰는 곳 없음: 메뉴 입력 처리기는 메뉴가 열렸을 때만)
+	MappingContext->MapKey(OfferAcceptAction, EKeys::G);
+	MappingContext->MapKey(OfferAcceptAction, EKeys::Gamepad_LeftShoulder);
+	MappingContext->MapKey(OfferDeclineAction, EKeys::H);
+	MappingContext->MapKey(OfferDeclineAction, EKeys::Gamepad_RightShoulder);
 }
 
 void UCXJeminiInputComponent::TryBindInput()
@@ -356,6 +366,8 @@ void UCXJeminiInputComponent::TryBindInput()
 	JeminiInput->BindAction(TalkAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkReleased);
 	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnTalkKeyPressed);
 	JeminiInput->BindAction(TalkKeyAction, ETriggerEvent::Completed, this, &UCXJeminiInputComponent::OnTalkKeyReleased);
+	JeminiInput->BindAction(OfferAcceptAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnOfferAcceptPressed);
+	JeminiInput->BindAction(OfferDeclineAction, ETriggerEvent::Started, this, &UCXJeminiInputComponent::OnOfferDeclinePressed);
 	PC->PushInputComponent(JeminiInput);
 	BoundController = PC;
 	bInputBound = true;
@@ -655,6 +667,48 @@ void UCXJeminiInputComponent::OnTalkKeyReleased()
 {
 	// 솔로가 도중에 꺼져도 녹음 중이면 뗀 것으로 마무리(OnTalkReleased는 녹음 중이 아니면 무시)
 	OnTalkReleased();
+}
+
+void UCXJeminiInputComponent::OnOfferAcceptPressed()
+{
+	RespondToOffer(true);
+}
+
+void UCXJeminiInputComponent::OnOfferDeclinePressed()
+{
+	RespondToOffer(false);
+}
+
+void UCXJeminiInputComponent::RespondToOffer(bool bAccept)
+{
+	// 글자를 치거나 말하는 중이면 키가 채팅으로 간 것 — 제안 대답으로 보지 않는다
+	if (ChatWidget.IsValid() || IsRecording())
+	{
+		return;
+	}
+	const ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	const UCXJeminiProactiveComponent* Proactive = Drone ? Drone->GetProactiveComponent() : nullptr;
+	if (!Proactive || !Proactive->HasOffer())
+	{
+		return;
+	}
+	if (GetOwner()->HasAuthority())
+	{
+		Server_OfferResponse_Implementation(bAccept);
+	}
+	else
+	{
+		Server_OfferResponse(bAccept);
+	}
+}
+
+void UCXJeminiInputComponent::Server_OfferResponse_Implementation(bool bAccept)
+{
+	ACXJeminiDrone* Drone = ACXJeminiDrone::Get(this);
+	if (UCXJeminiProactiveComponent* Proactive = Drone ? Drone->GetProactiveComponent() : nullptr)
+	{
+		Proactive->RespondToOffer(Cast<APawn>(GetOwner()), bAccept);
+	}
 }
 
 void UCXJeminiInputComponent::OnTalkReleased()

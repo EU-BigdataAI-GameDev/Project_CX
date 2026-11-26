@@ -43,9 +43,13 @@ namespace CXTutorialTuning
 	constexpr float SisterSpiderHintTime = 9.0f;
 	/** "조용한 때" 판정: 쫓아오는 거미가 플레이어에게서 이 거리(cm) 안에 없어야 한다. */
 	constexpr float CalmRange = 2500.0f;
-	/** 5단계(규칙): 제미니 대답이 온 뒤 읽을 시간 / 대답이 안 오면(서버 꺼짐) 이만큼 기다렸다가 띄운다(실시간 초). */
+	/** 5단계(규칙), Map1 밖: 제미니 대답이 온 뒤 읽을 시간 / 대답이 안 오면(서버 꺼짐) 이만큼 기다렸다가 띄운다(실시간 초). */
 	constexpr float RuleAfterAnswerDelay = 3.0f;
 	constexpr float RuleNoAnswerDelay = 9.0f;
+	/** 5단계(규칙), Map1: 첫 거미(2)·첫 단말기(3) 카드를 둘 다 본 뒤, 마지막 카드가 끝나고 이만큼(실시간 초) 더 진행했을 때(IdleClock)부터. */
+	constexpr float RuleMidMapDelay = 60.0f;
+	/** 5단계(규칙): 조용한 상태(IsCalm)가 이만큼(실시간 초) 이어져야 띄운다. */
+	constexpr float RuleCalmSeconds = 4.0f;
 	/** 예시 문장을 채팅창에 넣기 전 지연(실시간 초) — 숫자 키의 문자 입력이 입력창에 찍히지 않게. */
 	constexpr float ChatPrefillDelay = 0.12f;
 	constexpr float InfoDim = 0.6f;
@@ -280,6 +284,8 @@ void UCXTutorialSubsystem::Tick(float DeltaTime)
 	PollTimer -= RealDelta;
 	if (PollTimer <= 0.0f)
 	{
+		// 조용한 상태가 이어진 시간(5단계 규칙 카드용) — 폴링 주기마다 센다
+		CalmClock = IsCalm() ? CalmClock + CXTutorial::PollInterval : 0.0f;
 		PollTimer = CXTutorial::PollInterval;
 		TryStartNext();
 	}
@@ -370,9 +376,15 @@ bool UCXTutorialSubsystem::ShouldTrigger(const FCXTutorialStepDef& Def, AActor*&
 		{
 			return false;
 		}
+		if (bMap1)
+		{
+			// Map1: 전투와 해킹을 한 번씩 해 본 뒤(첫 거미·첫 단말기 카드를 봄), 그 뒤 RuleMidMapDelay초 더 진행했고, 조용한 상태가 이어질 때
+			return IsSeen(static_cast<int32>(ECXTutorialStep::FirstSpider)) && IsSeen(static_cast<int32>(ECXTutorialStep::FirstTerminal))
+				&& IdleClock >= CXTutorialTuning::RuleMidMapDelay && CalmClock >= CXTutorialTuning::RuleCalmSeconds;
+		}
 		if (bHelloDoneThisMap)
 		{
-			// 이번 맵에서 인사를 했다: 대답이 왔으면 읽을 시간 뒤, 안 오면(서버 꺼짐) 조금 더 기다렸다가
+			// 다른 맵에서 인사를 했다: 대답이 왔으면 읽을 시간 뒤, 안 오면(서버 꺼짐) 조금 더 기다렸다가
 			return HelloAnswerIdleClock >= 0.0f ? IdleClock >= HelloAnswerIdleClock + CXTutorialTuning::RuleAfterAnswerDelay
 				: IdleClock >= CXTutorialTuning::RuleNoAnswerDelay;
 		}
@@ -600,6 +612,7 @@ void UCXTutorialSubsystem::FinishStep(bool bMarkSeen)
 	ActiveIndex = INDEX_NONE;
 	bForced = false;
 	IdleClock = 0.0f;
+	CalmClock = 0.0f;
 	PollTimer = CXTutorial::PollInterval;
 	SpotActor.Reset();
 	ChatPrefillTimer = CXTutorialTuning::ChatPrefillDelay;
@@ -812,6 +825,7 @@ void UCXTutorialSubsystem::ResetSeen()
 	bHelloDoneThisMap = false;
 	HelloAnswerIdleClock = -1.0f;
 	IdleClock = 0.0f;
+	CalmClock = 0.0f;
 	UE_LOG(LogCXTutorial, Log, TEXT("Tutorial: seen flags cleared"));
 }
 

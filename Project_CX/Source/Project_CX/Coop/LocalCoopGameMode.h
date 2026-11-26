@@ -244,6 +244,17 @@ public:
 	UFUNCTION(Exec)
 	void CXJeminiCmd(const FString& Name, const FString& Target = TEXT(""));
 
+	/** 테스트: 제미니 선제 제안의 현재 입력(탄약·체력·퍼즐 시간·적 거리)·조건·쿨다운·막힌 이유를 로그·화면에 출력. */
+	UFUNCTION(Exec)
+	void CXJeminiOfferState();
+
+	/**
+	 *  테스트: 선제 제안을 조건·쿨다운 무시하고 지금 띄운다(대기 중인 제안이 있으면 안 됨). 종류 = ammo | hp | stuck | decoy.
+	 *  응/아니: G/H(패드 LB/RB) 또는 채팅 "응"/"아니". 예) CXJeminiOffer ammo
+	 */
+	UFUNCTION(Exec)
+	void CXJeminiOffer(const FString& Type);
+
 	/**
 	 *  테스트용 콘솔 명령: 제미니 기능 9종을 차례로 실행(LLM 서버 없이 CXJeminiCmd 경로, 단계마다 배터리 100으로 맞춤)하고
 	 *  단계별 결과(배터리 차감·대상 상태)를 로그 "CXJeminiSelfTest"로 남긴다. 거미 2기를 스폰한다(레벨에 저장 안 함).
