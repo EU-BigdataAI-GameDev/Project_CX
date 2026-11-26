@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>CAELUM:UNCHAINED 게임 소개</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; color: #15202b; font-size: 10.2pt; line-height: 1.46; }
+  .page { width: 210mm; height: 297mm; padding: 11mm 13mm 9mm; background: #fff; display: flex; flex-direction: column; gap: 3.2mm; overflow: hidden; }
+  header { background: #0e1621; color: #fff; padding: 5mm 6mm; border-radius: 2mm; border-left: 2.2mm solid #19e3ff; }
+  header h1 { margin: 0; font-size: 21pt; letter-spacing: 0.4pt; }
+  header h1 span { color: #ff3df0; }
+  header p { margin: 1.4mm 0 0; font-size: 10.4pt; color: #cfe9f2; }
+  h2 { margin: 0 0 1.4mm; font-size: 10.8pt; color: #0b6b82; border-bottom: 0.4mm solid #19e3ff; padding-bottom: 0.7mm; }
+  .roles { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+  .role { border: 0.3mm solid #c9d6de; border-radius: 1.8mm; padding: 2.4mm 3mm; }
+  .role .t { display: block; font-size: 10.6pt; font-weight: bold; margin-bottom: 0.8mm; }
+  .role.p1 .t { color: #00a3c4; } .role.p2 .t { color: #d4249e; } .role.ai .t { color: #4a5568; }
+  .role small { color: #5c6b78; }
+  ol { margin: 0; padding-left: 5mm; }
+  ol li { margin-bottom: 1.3mm; }
+  ol li b { color: #0b6b82; }
+  .cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 4mm; }
+  ul { margin: 0; padding-left: 4.4mm; }
+  ul li { margin-bottom: 0.9mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+  th, td { border: 0.3mm solid #c9d6de; padding: 0.9mm 1.6mm; text-align: left; }
+  th { background: #eaf6fa; }
+  .why { background: #f4f9fb; border: 0.3mm solid #cfe3ea; border-radius: 1.8mm; padding: 2.4mm 3.2mm; }
+  footer { margin-top: auto; font-size: 8pt; color: #6b7a86; border-top: 0.3mm solid #c9d6de; padding-top: 1.4mm; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>CAELUM<span>:</span>UNCHAINED</h1>
+  <p>사이버펑크 도시의 지하 슬럼에서, <b>오빠는 싸우고 여동생은 해킹하며, 둘이 AI 드론 '제미니'에게 말로 지시하는</b> 2인 로컬 협동 액션</p>
+</header>
+
+<section>
+  <h2>이런 게임입니다</h2>
+  <div class="roles">
+    <div class="role p1"><span class="t">오빠 (1P · 키보드·마우스)</span>자동 조준 레일건으로 거미 로봇과 싸우는 <b>전투 담당</b>.<br><small>이동·점프·사격, 조준 고정</small></div>
+    <div class="role p2"><span class="t">여동생 (2P · 게임패드)</span>적과 단말기를 해킹하는 <b>해킹 담당</b>. 회로 연결·주파수·메모리 패턴 퍼즐.<br><small>적 해킹 시 거미 3초 정지</small></div>
+    <div class="role ai"><span class="t">제미니 (AI 드론)</span>말을 알아듣고 재장전·회복·미끼·해킹 보조 등을 수행. LLM(Gemini)이 의미를 해석.<br><small>채팅(Enter) · 음성(V / 패드 Y)</small></div>
+  </div>
+  <p style="margin:1.6mm 0 0">장르: 3D 사이드 스크롤러 협동 액션 (PC · Unreal Engine 5.6). 한 PC에서 화면을 나눠 플레이하며, 두 사람은 서로 <b>다른 정보</b>(회로 짝·점멸 패턴·증거 등)를 보기 때문에 말로 소통해야 풀립니다.</p>
+</section>
+
+<section>
+  <h2>특장점</h2>
+  <ol>
+    <li><b>비대칭 2인 협동</b> — 역할도, 화면에 보이는 정보도 다릅니다. 혼자서는 풀 수 없고 대화가 필요합니다.</li>
+    <li><b>말로 맡기는 조건부 지시(규칙)</b> — "여동생이 해킹하는 동안 적이 5m 안에 오면 미끼를 써 줘"라고 말하면 제미니가 지켜보다가 조건이 되면 알아서 실행합니다. 싸우느라 입력할 시간이 없는 순간을 위한 기능입니다.</li>
+    <li><b>제미니가 먼저 제안</b> — 탄약 부족·체력 저하·퍼즐 정체·해킹 중 적 접근을 보고 "장전해 드릴까요?"처럼 먼저 묻습니다. <b>"응" 한 마디 또는 버튼 하나</b>로 실행되고, "미끼", "힐", "장전" 같은 <b>한 단어 명령</b>은 서버를 거치지 않고 바로 실행됩니다.</li>
+    <li><b>증거 기반 설득 퍼즐(WARDEN)</b> — 문을 잠근 관리 AI는 명령으로는 열리지 않습니다. 두 사람이 나눠 모은 증거를 근거로 말로 설득해야 하며, 막히면 제미니가 단계별로 힌트를 줍니다.</li>
+    <li><b>LLM은 해석, 판정은 게임이 한다</b> — LLM은 체크리스트·JSON만 채우고 문 열림·배터리·실행은 서버 규칙이 결정합니다. 프롬프트 주입이나 거짓말로는 열리지 않고, 모델 과부하나 서버 장애 때는 예비 모델·키워드 판정으로 자동 전환되어 게임이 멈추지 않습니다.</li>
+  </ol>
+</section>
+
+<div class="cols">
+  <section>
+    <h2>왜 LLM인가</h2>
+    <div class="why">
+      고정 명령은 키워드로 빠르게 처리하고, LLM은 <b>부정·복합 조건, 조건부 지시, 설득 논리 판정, 인젝션 거절</b>처럼 결정이 필요한 순간에만 씁니다.
+      같은 문장 66개 비교에서 키워드 방식 <b>44개(67%)</b>, LLM <b>64개(97%)</b> 정답이었고, 어느 쪽에서도 문이 잘못 열린 적은 없었습니다. 안전은 LLM이 아니라 서버 판정 구조 덕분입니다.
+    </div>
+    <h2 style="margin-top:2.6mm">시연 흐름 (3~5분)</h2>
+    <ul>
+      <li>타이틀 → NEW GAME → 오프닝 컷신(5컷, 한·영 자막)</li>
+      <li><b>맵1</b>: 이동·점프 → 거미 전투 → 해킹 단말기 → 제미니에게 말 걸기·규칙 맡기기</li>
+      <li><b>맵2 끝</b>: WARDEN 증거 설득(시간이 되면)</li>
+      <li>세이브 복도 → 베타 종료 안내·설문 QR</li>
+    </ul>
+  </section>
+  <section>
+    <h2>구현 현황 (베타)</h2>
+    <table>
+      <tr><th>항목</th><th>내용</th></tr>
+      <tr><td>맵</td><td>맵1 · 맵2 · 세이브 복도</td></tr>
+      <tr><td>적 · 퍼즐</td><td>거미 로봇 1종 · 해킹 퍼즐 4종</td></tr>
+      <tr><td>제미니</td><td>기능 9종, 규칙, 조언·선제 제안, 음성 실시간 자막</td></tr>
+      <tr><td>서버</td><td>FastAPI + Gemini(함수 호출·JSON), 자동 테스트 260여 개</td></tr>
+      <tr><td>기타</td><td>메뉴 5종, 튜토리얼, 세이브·부활, 배경음·효과음</td></tr>
+    </table>
+    <p style="margin:1.8mm 0 0; font-size:8.8pt; color:#4a5a66">레퍼런스: Little Nightmares III, It Takes Two<br>모델링 Blender · 배경음 Suno · 효과음 Kenney(CC0)</p>
+  </section>
+</div>
+
+<footer>
+  <span>CAELUM:UNCHAINED · 한국게임학회 GGC 2026 전시</span>
+  <span>문서: Docs/Guide/게임_소개_요약.md</span>
+</footer>
+
+</div>
+</body>
+</html>
