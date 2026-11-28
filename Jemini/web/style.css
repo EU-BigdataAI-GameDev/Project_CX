@@ -1,0 +1,20 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #05070f; color: #e8ecff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+#app { display: flex; flex-direction: column; align-items: center; height: 100%; }
+#statusbar { width: 100%; padding: 4px 12px; font-size: 13px; background: #0b0f1d; border-bottom: 1px solid #1d2748; }
+.status.on { color: #5dff9a; } .status.mock { color: #ffd166; } .status.off { color: #ff5d5d; } .status.wait { color: #8791b5; }
+/* 캔버스는 16:9로 줄여서 맞추고, 대화창은 그 아래에 둔다 */
+#game { width: min(100vw, calc((100vh - 230px) * 16 / 9)); aspect-ratio: 16 / 9; background: #0b0f1d; display: block; flex: none; }
+#panel { width: min(100vw, calc((100vh - 230px) * 16 / 9)); flex: 1; min-height: 120px; display: flex; flex-direction: column; background: #0b0f1d; }
+#log { flex: 1; overflow-y: auto; padding: 6px 10px; font-size: 14px; line-height: 1.45; }
+.msg .who { display: inline-block; min-width: 64px; margin-right: 8px; font-weight: bold; color: #8791b5; }
+.msg.jemini .who { color: #59d9ff; } .msg.warden .who { color: #ff5d5d; } .msg.me .who { color: #ffb36b; } .msg.system { color: #8791b5; }
+.msg.s-rejected .text { color: #ff9a9a; } .msg.s-advice .text { color: #ffd166; } .msg.s-rule .text { color: #5dff9a; }
+.msg.s-fallback .text { color: #aab; font-style: italic; } .msg.s-coach .text { color: #bfe9ff; } .msg.s-solved .text { color: #5dff9a; font-weight: bold; }
+#chatForm { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid #1d2748; }
+#chatMode { font-size: 13px; color: #59d9ff; min-width: 150px; }
+#chatInput { flex: 1; padding: 7px 10px; font-size: 15px; background: #11172e; color: #e8ecff; border: 1px solid #2b3566; border-radius: 4px; }
+#chatInput:focus { outline: 2px solid #59d9ff; }
+button { padding: 7px 14px; font-size: 14px; background: #1d2748; color: #e8ecff; border: 1px solid #2b3566; border-radius: 4px; cursor: pointer; }
+button:hover { background: #28356a; }

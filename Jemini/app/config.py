@@ -78,13 +78,15 @@ class Settings:
     persuade_temperature: float = 0.1
     # 모델 폴백 전체 예산(초). 실제 예산 = min(요청 타임아웃 × 2, 이 값). UE 요청 타임아웃(12초)보다 짧게. 0이면 × 2만.
     llm_total_timeout_sec: float = 11.0
+    # 웹 데모 전용 토큰(API_TOKEN과 별개). 비어 있으면 사용 안 함
+    web_token: str = ""
 
     def __repr__(self) -> str:
         # API 키·토큰이 테스트 실패 출력·로그에 찍히지 않도록 가린다
         fields = []
         for name in self.__dataclass_fields__:
             value = getattr(self, name)
-            if name in ("gemini_api_key", "api_token"):
+            if name in ("gemini_api_key", "api_token", "web_token"):
                 value = "***" if value else ""
             fields.append(f"{name}={value!r}")
         return f"Settings({', '.join(fields)})"
@@ -134,4 +136,5 @@ def load_settings() -> Settings:
         persuade_cooldown_sec=_float("PERSUADE_COOLDOWN_SEC", 3.0),
         persuade_temperature=_float("PERSUADE_TEMPERATURE", 0.1),
         llm_total_timeout_sec=_float("LLM_TOTAL_TIMEOUT_SEC", 11.0),
+        web_token=os.getenv("WEB_TOKEN", ""),
     )

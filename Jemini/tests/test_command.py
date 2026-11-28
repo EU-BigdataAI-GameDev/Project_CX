@@ -453,3 +453,27 @@ def test_log_line_written(client, settings):
 def test_health(client):
     r = client.get("/health").json()
     assert r["status"] == "ok" and r["mock"] is True
+
+
+# ---------- 웹 게임: CORS + WEB_TOKEN ----------
+
+def test_cors_preflight_null_origin(client):
+    r = client.options("/command", headers={"Origin": "null", "Access-Control-Request-Method": "POST",
+                                            "Access-Control-Request-Headers": "x-api-key,content-type"})
+    assert r.status_code == 200
+    assert r.headers["access-control-allow-origin"] == "*"
+    assert "x-api-key" in r.headers["access-control-allow-headers"].lower()
+
+
+def test_web_token_accepted_alongside_api_token(client, settings, monkeypatch):
+    monkeypatch.setattr(main, "_settings", replace(settings, api_token="secret", web_token="webtok"))
+    assert post(client, "안녕").status_code == 401
+    assert post(client, "안녕", headers={"X-API-Key": "secret"}).status_code == 200
+    assert post(client, "안녕", headers={"X-API-Key": "webtok"}).status_code == 200
+    assert post(client, "안녕", headers={"X-API-Key": "other"}).status_code == 401
+
+
+def test_web_token_only(client, settings, monkeypatch):
+    monkeypatch.setattr(main, "_settings", replace(settings, api_token="", web_token="webtok"))
+    assert post(client, "안녕").status_code == 401
+    assert post(client, "안녕", headers={"X-API-Key": "webtok"}).status_code == 200

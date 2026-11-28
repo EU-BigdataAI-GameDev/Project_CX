@@ -9,6 +9,7 @@ import wave
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Awaitable, Callable, Optional
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from pydantic import ValidationError
 
@@ -35,6 +36,10 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Jemini LLM Server", version="2.2.0", lifespan=_lifespan)
 
+# 웹 게임(file://로 연 페이지, Origin: null)이 부를 수 있도록 CORS 허용. 인증은 토큰이 맡는다.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["POST", "GET", "OPTIONS"],
+                   allow_headers=["x-api-key", "content-type"])
+
 # 테스트에서 교체할 수 있도록 함수로 둔다
 _settings: Optional[Settings] = None
 LlmFn = Callable[..., Awaitable[LlmCall]]
@@ -52,7 +57,9 @@ def get_settings() -> Settings:
 
 def check_token(settings: Settings = Depends(get_settings),
                 x_api_key: Optional[str] = Header(default=None)) -> None:
-    if settings.api_token and x_api_key != settings.api_token:
+    # API_TOKEN(본편) 또는 WEB_TOKEN(웹 데모) 중 하나와 맞으면 통과. 둘 다 비어 있으면 검사 없음.
+    allowed = [t for t in (settings.api_token, settings.web_token) if t]
+    if allowed and x_api_key not in allowed:
         raise HTTPException(status_code=401, detail="invalid API key")
 
 
